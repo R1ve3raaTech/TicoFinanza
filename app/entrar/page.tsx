@@ -17,12 +17,14 @@ export default async function EntrarPage() {
 
   return (
     <main className="grid min-h-[100dvh] bg-ground lg:grid-cols-2">
-      <div className="flex flex-col justify-center px-6 py-12 sm:px-10 lg:px-16">
-        <Link href="/" className="animate-fade-up mb-10 inline-flex w-fit self-center">
-          <Logo subtitle="finanzas personales" size="lg" />
-        </Link>
-        <div className="animate-fade-up [animation-delay:80ms]">
-          <AuthForm />
+      <div className="flex flex-col items-center justify-center px-6 py-12 sm:px-10 lg:px-16">
+        <div className="w-full max-w-sm">
+          <Link href="/" className="animate-fade-up mb-10 inline-flex w-full justify-center">
+            <Logo subtitle="finanzas personales" size="lg" />
+          </Link>
+          <div className="animate-fade-up [animation-delay:80ms]">
+            <AuthForm />
+          </div>
         </div>
       </div>
       <AuthShowcase />
