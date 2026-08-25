@@ -5,6 +5,7 @@ import { motion, useReducedMotion } from "framer-motion";
 import { ArrowUpRight, ShieldCheck, SquaresFour } from "@phosphor-icons/react";
 import { BankLogo } from "@/components/dashboard/BankLogo";
 import { GoogleMark } from "@/components/GoogleMark";
+import { AnchorLink } from "@/components/landing/AnchorLink";
 import type { BankName } from "@/lib/types";
 
 const links = [
@@ -60,15 +61,25 @@ export function Footer({ loggedIn = false }: { loggedIn?: boolean }) {
         </div>
 
         <nav className="flex flex-col items-center gap-3 md:items-end">
-          {links.map((link) => (
-            <a
-              key={link.label}
-              href={link.href}
-              className="text-sm text-ink-3 transition-colors hover:text-ink"
-            >
-              {link.label}
-            </a>
-          ))}
+          {links.map((link) =>
+            link.href.startsWith("#") ? (
+              <AnchorLink
+                key={link.label}
+                href={link.href}
+                className="text-sm text-ink-3 transition-colors hover:text-ink"
+              >
+                {link.label}
+              </AnchorLink>
+            ) : (
+              <a
+                key={link.label}
+                href={link.href}
+                className="text-sm text-ink-3 transition-colors hover:text-ink"
+              >
+                {link.label}
+              </a>
+            )
+          )}
         </nav>
       </div>
 
@@ -90,7 +101,7 @@ export function Footer({ loggedIn = false }: { loggedIn?: boolean }) {
       </div>
 
       <div className="relative mx-auto flex w-full max-w-6xl flex-col items-center justify-between gap-3 px-4 py-5 text-xs text-ink-3 sm:flex-row sm:px-6">
-        <span>© {year} TicoFinanza. Hecho en Costa Rica 🇨🇷</span>
+        <span>© {year} TicoFinanza</span>
         <span className="flex items-center gap-1.5">
           <ShieldCheck size={14} weight="bold" className="text-accent" />
           Solo lectura de correos bancarios. Nunca vendemos tus datos.

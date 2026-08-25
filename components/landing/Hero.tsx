@@ -21,11 +21,6 @@ export function Hero({ loggedIn = false }: { loggedIn?: boolean }) {
 
       <div className="relative mx-auto grid w-full max-w-6xl items-center gap-12 px-4 pb-20 pt-16 sm:px-6 md:min-h-[calc(100dvh-68px)] md:grid-cols-[1.1fr_1fr] md:gap-16 md:pb-24 md:pt-0">
         <div className="relative flex flex-col items-center gap-7 text-center md:items-start md:text-left">
-          <p className="animate-fade-up inline-flex items-center gap-2 rounded-full border border-accent/25 bg-accent/5 px-3 py-1.5 font-mono text-[11px] uppercase tracking-[0.16em] text-accent">
-            <span className="h-1.5 w-1.5 rounded-full bg-accent" />
-            Hecho en Costa Rica
-          </p>
-
           <h1 className="animate-fade-up text-balance font-montserrat text-[2.75rem] font-bold leading-[0.98] tracking-tighter text-ink md:text-7xl [animation-delay:90ms]">
             Controlá tus finanzas sin mover un solo dedo
           </h1>

@@ -1,3 +1,4 @@
+import { AnchorLink } from "@/components/landing/AnchorLink";
 import { Faq } from "@/components/landing/Faq";
 import { Features } from "@/components/landing/Features";
 import { Footer } from "@/components/landing/Footer";
@@ -78,13 +79,13 @@ export default async function LandingPage() {
               logo y el botón, que es lo único que importa ahí. */}
           <nav className="hidden items-center gap-7 md:flex">
             {navLinks.map((link) => (
-              <a
+              <AnchorLink
                 key={link.href}
                 href={link.href}
                 className="text-sm text-ink-2 transition-colors hover:text-ink"
               >
                 {link.label}
-              </a>
+              </AnchorLink>
             ))}
           </nav>
 
