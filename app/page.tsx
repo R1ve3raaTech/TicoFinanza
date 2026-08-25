@@ -1,4 +1,5 @@
 import { AnchorLink } from "@/components/landing/AnchorLink";
+import { DashboardPreview } from "@/components/landing/DashboardPreview";
 import { Faq } from "@/components/landing/Faq";
 import { Features } from "@/components/landing/Features";
 import { Footer } from "@/components/landing/Footer";
@@ -119,6 +120,12 @@ export default async function LandingPage() {
       <section id="como-funciona" className="scroll-mt-[68px] border-t border-line">
         <div className="mx-auto w-full max-w-6xl px-4 py-20 sm:px-6">
           <StepsSection heading="De un correo del banco a un gasto ordenado" steps={steps} />
+        </div>
+      </section>
+
+      <section className="border-t border-line">
+        <div className="mx-auto w-full max-w-6xl px-4 py-20 sm:px-6">
+          <DashboardPreview />
         </div>
       </section>
 
