@@ -1,7 +1,4 @@
-"use client";
-
-import { CreditCard, HandCoins, ShieldCheck } from "@phosphor-icons/react";
-import { LoginButton } from "./LoginButton";
+import { CreditCard, HandCoins, ShieldCheck } from "@phosphor-icons/react/dist/ssr";
 import { Reveal } from "./Reveal";
 
 /**
@@ -29,12 +26,15 @@ const promises = [
   },
 ];
 
-export function Pricing({ loggedIn = false }: { loggedIn?: boolean }) {
+export function Pricing() {
   return (
     <div className="flex flex-col items-center text-center">
       <Reveal className="flex flex-col items-center">
-        <p className="font-mono text-xs uppercase tracking-[0.18em] text-accent">Precio</p>
-        <p className="mt-5 font-montserrat text-6xl font-bold leading-none tracking-tighter text-ink sm:text-7xl">
+        <p className="text-xs font-medium uppercase tracking-[0.14em] text-ink-3">Precio</p>
+        {/* Misma escala/peso que la cifra grande del dashboard (saldo): el
+            precio es el otro momento de la landing que merece un número
+            protagonista. */}
+        <p className="mt-4 text-[3rem] font-semibold leading-none tracking-[-0.03em] text-ink sm:text-[3.5rem]">
           Gratis
         </p>
         <p className="mt-5 max-w-[44ch] text-sm leading-relaxed text-ink-2 sm:text-base">
@@ -43,20 +43,14 @@ export function Pricing({ loggedIn = false }: { loggedIn?: boolean }) {
         </p>
       </Reveal>
 
-      <div className="mt-12 grid w-full max-w-3xl gap-px overflow-hidden rounded-2xl border border-line bg-line sm:grid-cols-3">
-        {promises.map((promise, i) => (
-          <Reveal key={promise.title} delay={i * 0.06} className="bg-ground">
-            <div className="flex h-full flex-col items-center justify-center gap-2.5 p-6 text-center">
-              <promise.icon size={20} weight="bold" className="text-accent" />
-              <h3 className="text-[15px] font-medium text-ink">{promise.title}</h3>
-              <p className="text-sm leading-relaxed text-ink-2">{promise.body}</p>
-            </div>
-          </Reveal>
+      <Reveal delay={0.1} className="mt-10 flex w-full max-w-3xl flex-wrap items-start justify-center gap-x-10 gap-y-6">
+        {promises.map((promise) => (
+          <div key={promise.title} className="flex max-w-[230px] flex-col items-center gap-1.5">
+            <promise.icon size={18} weight="bold" className="text-ink-2" />
+            <h3 className="text-sm font-medium text-ink">{promise.title}</h3>
+            <p className="text-sm leading-relaxed text-ink-3">{promise.body}</p>
+          </div>
         ))}
-      </div>
-
-      <Reveal delay={0.15} className="mt-12">
-        <LoginButton large loggedIn={loggedIn} />
       </Reveal>
     </div>
   );

@@ -19,7 +19,7 @@ const links = [
   { label: "Escribinos", href: "mailto:info@ticofinanza.com" },
 ];
 
-const marqueeBanks: BankName[] = ["BAC", "BCR", "BNCR", "BP", "Davivienda", "MUCAP", "PayPal"];
+const supportedBanks: BankName[] = ["BAC", "BCR", "BNCR", "BP", "Davivienda", "MUCAP", "PayPal"];
 
 const MotionLink = motion.create(Link);
 
@@ -29,17 +29,17 @@ export function Footer({ loggedIn = false }: { loggedIn?: boolean }) {
 
   return (
     <motion.footer
-      initial={reduce ? undefined : { opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 16 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, amount: 0.3 }}
-      transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-      className="relative mt-auto overflow-hidden border-t border-line bg-ground"
+      transition={{ duration: reduce ? 0 : 0.4, ease: [0.16, 1, 0.3, 1] }}
+      className="mt-auto border-t border-line bg-ground"
     >
-      <div className="relative mx-auto flex w-full max-w-6xl flex-col gap-10 px-4 py-16 sm:px-6 md:flex-row md:items-end md:justify-between">
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-4 py-14 sm:px-6 md:flex-row md:items-end md:justify-between">
         <div className="flex flex-col items-center text-center md:items-start md:text-left">
           <p className="flex select-none items-center gap-3 text-ink">
-            <BrandMark size={40} accent className="shrink-0" />
-            <span className="text-4xl font-semibold leading-none tracking-[-0.035em] sm:text-5xl">
+            <BrandMark size={32} accent className="shrink-0" />
+            <span className="text-3xl font-semibold leading-none tracking-[-0.03em] sm:text-4xl">
               TicoFinanza
             </span>
           </p>
@@ -50,9 +50,9 @@ export function Footer({ loggedIn = false }: { loggedIn?: boolean }) {
           <MotionLink
             href={loggedIn ? "/dashboard" : "/entrar"}
             whileHover={reduce ? undefined : { x: 2 }}
-            className="mt-6 inline-flex items-center gap-2 rounded-full border border-line py-2 pl-2 pr-4 text-sm text-ink-2 transition-colors hover:border-line-strong hover:text-ink"
+            className="mt-6 inline-flex items-center gap-2 rounded-control border border-line py-2 pl-2 pr-4 text-sm text-ink-2 transition-colors hover:border-line-strong hover:text-ink"
           >
-            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-zinc-50">
+            <span className="flex h-6 w-6 items-center justify-center rounded-[4px] bg-zinc-50">
               {loggedIn ? (
                 <SquaresFour size={13} weight="bold" className="text-accent-deep" />
               ) : (
@@ -87,24 +87,18 @@ export function Footer({ loggedIn = false }: { loggedIn?: boolean }) {
         </nav>
       </div>
 
-      <div
-        className="relative border-y border-line py-5"
-        style={{
-          maskImage: "linear-gradient(to right, transparent, black 8%, black 92%, transparent)",
-          WebkitMaskImage:
-            "linear-gradient(to right, transparent, black 8%, black 92%, transparent)",
-        }}
-      >
-        <div className={`flex w-max items-center gap-14 ${reduce ? "" : "auth-marquee"}`}>
-          {[...marqueeBanks, ...marqueeBanks].map((bank, i) => (
-            <div key={`${bank}-${i}`} className="flex shrink-0 items-center gap-2 opacity-50">
-              <BankLogo bank={bank} size={22} />
-            </div>
+      {/* Fila estática de bancos compatibles (antes un marquee infinito —
+          movimiento decorativo constante que la nueva guía visual no
+          permite). */}
+      <div className="border-y border-line py-4">
+        <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-center gap-x-8 gap-y-3 px-4 opacity-70 sm:px-6">
+          {supportedBanks.map((bank) => (
+            <BankLogo key={bank} bank={bank} size={22} />
           ))}
         </div>
       </div>
 
-      <div className="relative mx-auto flex w-full max-w-6xl flex-col items-center justify-between gap-3 px-4 py-5 text-xs text-ink-3 sm:flex-row sm:px-6">
+      <div className="mx-auto flex w-full max-w-6xl flex-col items-center justify-between gap-3 px-4 py-5 text-xs text-ink-3 sm:flex-row sm:px-6">
         <span>© {year} TicoFinanza</span>
         <span className="flex items-center gap-1.5">
           <ShieldCheck size={14} weight="bold" className="text-accent" />

@@ -1,68 +1,57 @@
-"use client";
+import Link from "next/link";
+import { ArrowRight, Check, X } from "@phosphor-icons/react/dist/ssr";
+import { Reveal, SectionHeading } from "./Reveal";
 
-import { motion, useReducedMotion } from "framer-motion";
-import { Check, EnvelopeSimpleOpen, X } from "@phosphor-icons/react";
-
+/**
+ * Sección de seguridad y privacidad. Antes eran dos secciones separadas
+ * (PasswordTrust + PrivacySnippet) que decían cosas relacionadas —"solo
+ * lectura de Gmail" y "protegidos por la Ley 8968"— a un scroll de
+ * distancia. Una sola sección con las dos ideas es más clara (no dos ecos
+ * del mismo mensaje de confianza) y más corta.
+ */
 export function PasswordTrust() {
-  const reduce = useReducedMotion();
-
   return (
-    <div className="mx-auto grid max-w-4xl gap-10 md:grid-cols-[1fr_1fr] md:items-center md:gap-16">
-      <div className="flex flex-col items-center text-center md:items-start md:text-left">
-        <motion.h2
-          initial={reduce ? undefined : { opacity: 0, y: 16 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, amount: 0.6 }}
-          transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-          className="max-w-[22ch] text-2xl font-semibold tracking-tighter text-ink sm:text-3xl"
-        >
-          Nunca te pedimos la clave de tu banca en línea
-        </motion.h2>
+    <>
+      <SectionHeading
+        label="Seguridad"
+        title="Nunca te pedimos la clave de tu banca en línea"
+        body="Solo pedimos permiso de lectura sobre tu Gmail — el mismo tipo de acceso que le darías a cualquier casillero de correo. Podés revocarlo cuando quieras desde tu cuenta de Google, sin escribirnos."
+      />
 
-        <motion.p
-          initial={reduce ? undefined : { opacity: 0, y: 16 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, amount: 0.6 }}
-          transition={{ duration: 0.5, delay: 0.05, ease: [0.16, 1, 0.3, 1] }}
-          className="mt-4 max-w-[46ch] text-sm leading-relaxed text-ink-2 sm:text-base"
-        >
-          Solo pedimos permiso de <span className="text-ink">lectura</span> sobre tu Gmail —
-          el mismo tipo de acceso que le darías a cualquier casillero de correo. Podés revocarlo
-          cuando quieras desde tu cuenta de Google, sin escribirnos.
-        </motion.p>
-
-        <motion.div
-          initial={reduce ? undefined : { opacity: 0, y: 12 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, amount: 0.6 }}
-          transition={{ duration: 0.5, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
-          className="mt-6 inline-flex items-center gap-2 text-xs font-medium text-ink-3"
-        >
-          <EnvelopeSimpleOpen size={16} weight="bold" className="text-accent" />
-          Solo lectura sobre tu correo, nunca escritura
-        </motion.div>
-      </div>
-
-      <motion.div
-        initial={reduce ? undefined : { opacity: 0, y: 20 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true, amount: 0.4 }}
-        transition={{ duration: 0.55, delay: 0.15, ease: [0.16, 1, 0.3, 1] }}
-        className="divide-y divide-line rounded-xl border border-line"
-      >
-        <div className="flex items-start gap-3 p-4">
-          <Check size={16} weight="bold" className="mt-0.5 shrink-0 text-income" />
-          <p className="text-sm text-ink">
-            Leemos las notificaciones que tu banco ya te manda por correo.
-          </p>
+      <Reveal delay={0.1} className="mt-10 grid gap-8 md:grid-cols-2 md:gap-12">
+        <div className="divide-y divide-line rounded-surface border border-line">
+          <div className="flex items-start gap-3 p-4">
+            <Check size={16} weight="bold" className="mt-0.5 shrink-0 text-income" />
+            <p className="text-sm text-ink">
+              Leemos las notificaciones que tu banco ya te manda por correo.
+            </p>
+          </div>
+          <div className="flex items-start gap-3 p-4">
+            <X size={16} weight="bold" className="mt-0.5 shrink-0 text-ink-3" />
+            <p className="text-sm text-ink-3">
+              Nunca te pedimos usuario ni clave de tu banca en línea.
+            </p>
+          </div>
         </div>
-        <div className="flex items-start gap-3 p-4">
-          <X size={16} weight="bold" className="mt-0.5 shrink-0 text-ink-3" />
-          <p className="text-sm text-ink-3">
-            Nunca te pedimos usuario ni clave de tu banca en línea.
+
+        <div className="flex flex-col justify-center gap-2">
+          <h3 className="text-sm font-medium text-ink">
+            Tus datos, protegidos según la Ley 8968
+          </h3>
+          <p className="text-sm leading-relaxed text-ink-2">
+            Cumplimos la Ley de Protección de la Persona frente al Tratamiento de sus Datos
+            Personales de Costa Rica: sabés exactamente qué leemos, podés pedir que borremos todo
+            cuando quieras, y nunca vendemos tu información a terceros.
           </p>
+          <Link
+            href="/privacidad"
+            className="mt-1 inline-flex w-fit items-center gap-1.5 text-sm font-medium text-accent transition-colors hover:text-accent-soft"
+          >
+            Leer la política de privacidad completa
+            <ArrowRight size={14} weight="bold" />
+          </Link>
         </div>
-      </motion.div>
-    </div>
+      </Reveal>
+    </>
   );
 }

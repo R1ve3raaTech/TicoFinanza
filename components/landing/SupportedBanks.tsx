@@ -12,10 +12,10 @@ export function SupportedBanks({ banks }: { banks: { bank: BankName; label: stri
       {banks.map(({ bank, label }, i) => (
         <motion.div
           key={bank}
-          initial={reduce ? false : { opacity: 0, y: 16 }}
+          initial={{ opacity: 0, y: 14 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, amount: 0.4 }}
-          transition={{ duration: 0.5, delay: i * 0.05, ease: [0.16, 1, 0.3, 1] }}
+          transition={{ duration: reduce ? 0 : 0.35, delay: reduce ? 0 : i * 0.04, ease: [0.16, 1, 0.3, 1] }}
           className="flex flex-col items-center gap-2"
         >
           <BankLogo bank={bank} size={52} />

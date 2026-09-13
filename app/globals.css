@@ -180,7 +180,6 @@
 
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-  --font-montserrat: var(--font-montserrat);
 }
 
 /* ---------------------------------------------------------------------------
@@ -361,7 +360,7 @@ textarea,
 @keyframes fade-up {
   from {
     opacity: 0;
-    transform: translateY(20px);
+    transform: translateY(14px);
   }
   to {
     opacity: 1;
@@ -370,7 +369,7 @@ textarea,
 }
 
 .animate-fade-up {
-  animation: fade-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: fade-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -438,20 +437,5 @@ textarea,
     animation: none;
     opacity: 1;
     transform: none;
-  }
-}
-
-/* Marquee de bancos del footer de la landing: solo transform, para que no
-   trabe en pantallas de 120Hz. */
-@keyframes auth-marquee {
-  from { transform: translateX(0); }
-  to { transform: translateX(-50%); }
-}
-
-.auth-marquee { animation: auth-marquee 28s linear infinite; }
-
-@media (prefers-reduced-motion: reduce) {
-  .auth-marquee {
-    animation: none;
   }
 }

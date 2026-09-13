@@ -7,7 +7,6 @@ import { Hero } from "@/components/landing/Hero";
 import { LoginButton } from "@/components/landing/LoginButton";
 import { PasswordTrust } from "@/components/landing/PasswordTrust";
 import { Pricing } from "@/components/landing/Pricing";
-import { PrivacySnippet } from "@/components/landing/PrivacySnippet";
 import { Reveal } from "@/components/landing/Reveal";
 import { StepsSection } from "@/components/landing/StepsSection";
 import { SupportedBanks } from "@/components/landing/SupportedBanks";
@@ -72,13 +71,17 @@ export default async function LandingPage() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
+      {/* Misma altura (64px) que el rail de la app: la landing y la app
+          comparten esa referencia aunque el header acá no sea fijo lateral. */}
       <header className="sticky top-0 z-40 border-b border-line bg-ground/80 backdrop-blur">
-        <div className="mx-auto flex h-[68px] w-full max-w-6xl items-center justify-between gap-6 px-4 sm:px-6">
+        <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between gap-6 px-4 sm:px-6">
           <Logo subtitle="finanzas personales" />
 
-          {/* Solo en pantallas grandes: en móvil el header se queda con el
-              logo y el botón, que es lo único que importa ahí. */}
-          <nav className="hidden items-center gap-7 md:flex">
+          {/* Desde lg, no md: a 768px justo no entran los 4 links + el botón
+              completo sin que "Cómo funciona" se envuelva contra el logo.
+              Por debajo de lg, el header se queda con el logo y el botón,
+              que es lo único que importa ahí. */}
+          <nav className="hidden items-center gap-7 lg:flex">
             {navLinks.map((link) => (
               <AnchorLink
                 key={link.href}
@@ -97,7 +100,7 @@ export default async function LandingPage() {
       <Hero loggedIn={loggedIn} />
 
       <section className="border-t border-line">
-        <div className="mx-auto w-full max-w-6xl px-4 py-14 text-center sm:px-6 sm:text-left">
+        <div className="mx-auto w-full max-w-6xl px-4 py-16 text-center sm:px-6 sm:text-left">
           <p className="mb-6 text-sm text-ink-3">
             Compatible con las entidades que ya usás — más SINPE Móvil
           </p>
@@ -117,52 +120,46 @@ export default async function LandingPage() {
         </div>
       </section>
 
-      <section id="como-funciona" className="scroll-mt-[68px] border-t border-line">
-        <div className="mx-auto w-full max-w-6xl px-4 py-20 sm:px-6">
+      <section id="como-funciona" className="scroll-mt-16 border-t border-line">
+        <div className="mx-auto w-full max-w-6xl px-4 py-16 sm:px-6">
           <StepsSection heading="De un correo del banco a un gasto ordenado" steps={steps} />
         </div>
       </section>
 
       <section className="border-t border-line">
-        <div className="mx-auto w-full max-w-6xl px-4 py-20 sm:px-6">
+        <div className="mx-auto w-full max-w-6xl px-4 py-16 sm:px-6">
           <DashboardPreview />
         </div>
       </section>
 
-      <section id="funciones" className="scroll-mt-[68px] border-t border-line">
-        <div className="mx-auto w-full max-w-6xl px-4 py-20 sm:px-6">
+      <section id="funciones" className="scroll-mt-16 border-t border-line">
+        <div className="mx-auto w-full max-w-6xl px-4 py-16 sm:px-6">
           <Features />
         </div>
       </section>
 
-      <section id="seguridad" className="scroll-mt-[68px] border-t border-line">
-        <div className="mx-auto w-full max-w-6xl px-4 py-20 sm:px-6">
+      <section id="seguridad" className="scroll-mt-16 border-t border-line">
+        <div className="mx-auto w-full max-w-6xl px-4 py-16 sm:px-6">
           <PasswordTrust />
         </div>
       </section>
 
-      <section id="precio" className="scroll-mt-[68px] border-t border-line">
-        <div className="mx-auto w-full max-w-6xl px-4 py-24 sm:px-6">
-          <Pricing loggedIn={loggedIn} />
+      <section id="precio" className="scroll-mt-16 border-t border-line">
+        <div className="mx-auto w-full max-w-6xl px-4 py-16 sm:px-6">
+          <Pricing />
         </div>
       </section>
 
-      <section id="preguntas" className="scroll-mt-[68px] border-t border-line">
-        <div className="mx-auto w-full max-w-6xl px-4 py-20 sm:px-6">
+      <section id="preguntas" className="scroll-mt-16 border-t border-line">
+        <div className="mx-auto w-full max-w-6xl px-4 py-16 sm:px-6">
           <Faq />
         </div>
       </section>
 
       <section className="border-t border-line">
-        <div className="mx-auto w-full max-w-6xl px-4 py-20 sm:px-6">
-          <PrivacySnippet />
-        </div>
-      </section>
-
-      <section className="border-t border-line">
-        <div className="mx-auto flex w-full max-w-6xl flex-col items-center gap-6 px-4 py-24 text-center sm:px-6">
+        <div className="mx-auto flex w-full max-w-6xl flex-col items-center gap-6 px-4 py-16 text-center sm:px-6">
           <Reveal className="flex flex-col items-center gap-6">
-            <h2 className="max-w-[28ch] font-montserrat text-3xl font-bold leading-[1.05] tracking-tighter text-ink sm:text-4xl">
+            <h2 className="max-w-[28ch] text-balance text-2xl font-semibold leading-[1.15] tracking-[-0.02em] text-ink sm:text-3xl">
               ¿Listo para dejar de anotar gastos a mano?
             </h2>
             <LoginButton large loggedIn={loggedIn} />

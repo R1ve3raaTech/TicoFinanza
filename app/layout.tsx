@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Montserrat } from "next/font/google";
+import { Geist, Geist_Mono } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import { InstallPromptProvider } from "@/components/InstallPromptProvider";
 import { RegisterServiceWorker } from "@/components/RegisterServiceWorker";
@@ -13,12 +13,6 @@ const geistSans = Geist({
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
-const montserrat = Montserrat({
-  variable: "--font-montserrat",
-  weight: ["300", "400", "700"],
   subsets: ["latin"],
 });
 
@@ -87,7 +81,7 @@ export default function RootLayout({
     <html
       lang="es"
       suppressHydrationWarning
-      className={`${geistSans.variable} ${geistMono.variable} ${montserrat.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col overflow-x-hidden bg-ground text-ink">
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>

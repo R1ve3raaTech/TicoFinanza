@@ -18,7 +18,7 @@ export function DashboardPreview() {
       />
 
       <Reveal delay={0.1} className="mt-12">
-        <div className="overflow-hidden rounded-2xl border border-line-strong bg-surface shadow-[0_30px_80px_-24px_rgba(0,0,0,0.45)]">
+        <div className="overflow-hidden rounded-dialog border border-line-strong bg-surface shadow-[0_30px_80px_-24px_rgba(0,0,0,0.45)]">
           <Image
             src="/screenshots/dashboard.png"
             alt="Dashboard de TicoFinanza con el saldo consolidado, las últimas transacciones categorizadas y el gráfico de ingresos y gastos de los últimos 6 meses"

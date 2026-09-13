@@ -227,10 +227,65 @@ Reemplaza varias decisiones de la nota del 2026-08-15 (segunda parte):
   comando (claves VAPID descartables + URL de Supabase de prueba). Vercel
   compila en sus servidores con las variables reales.
 
-**Pendientes, sin resolver:**
-- Landing: varios componentes (`Footer`, `Reveal`, `PasswordTrust`,
-  `PrivacySnippet`, `SupportedBanks`, `Faq`) usan `initial={reduce ? … : …}`
-  y con reduced motion dan un error de hidratación. Es anterior a este
-  rediseño; en el gráfico de 6 meses se corrigió dejando `initial` fijo.
-- `components/landing/MockupPreview.tsx` todavía muestra un monto en
-  dólares (`-$12,90`).
+(Los dos pendientes que quedaban acá —hidratación con reduced motion y el
+monto en dólares del mockup— se resolvieron en la sesión del 2026-09-14,
+ver nota abajo.)
+
+## Dónde quedamos (2026-09-14)
+
+Segunda pasada visual sobre la landing (`app/page.tsx` + `components/landing/`),
+para alinearla con el rediseño de la app autenticada del 2026-09-13. Solo UI,
+nada de `lib/`, Supabase, OAuth ni parsers. Commiteado y pusheado; deploy
+pendiente de autorización aparte.
+
+- **Fix crítico**: `MockupPreview.tsx` mostraba el resultado final de una
+  compra en dólares (`-$12,90`) pese a que la app es CRC-first. Ahora el
+  correo de origen sigue en USD (`Pago de $12.90 en Uber Eats`, así llega
+  de verdad) pero el movimiento registrado queda en colones (`-₡6.500`) —
+  el contraste entre las dos líneas es la demostración de la conversión, sin
+  agregar texto aclaratorio (la fila usa posicionamiento absoluto a `top`
+  fijo entre las 3 tarjetas; un texto más largo la hace desbordar sobre la
+  siguiente). Verificado leyendo el texto del DOM directamente, no por
+  captura: la animación CSS de esa fila (`mockup-result-2`) solo la deja
+  visible ~180ms de cada ciclo de 9s, así que una captura normal casi
+  siempre agarra el placeholder o un frame intermedio.
+- **Hidratación con reduced motion** (pendiente documentado desde el
+  2026-09-13): `Reveal`, `PasswordTrust`, `SupportedBanks` y `Footer`
+  ramificaban el `initial` de Framer Motion según `useReducedMotion()`, que
+  en el primer render del cliente no siempre coincide con lo que renderizó
+  el servidor. Mismo fix que ya se había aplicado al gráfico de 6 meses:
+  `initial` fijo siempre, solo la `duration` de la transición cambia con
+  `reduce` (a 0). Confirmado sin errores de consola con Playwright
+  (`reducedMotion: "reduce"`) en dark 1440 y light 390.
+- **Bug nuevo encontrado en QA** (no estaba en el pedido, pero rompía el
+  breakpoint 768 que sí pedían revisar): la nav del header aparecía en
+  `md:` (768px), justo el punto con menos espacio — "Cómo funciona" se
+  envolvía en dos líneas y chocaba con el logo. Se subió a `lg:` (1024px);
+  por debajo el header se queda con logo + botón, igual que en móvil.
+- **Reducir look SaaS**: kicker de sección (`font-mono text-accent` →
+  texto neutro sobrio, el acento queda para CTA/links/foco); numeración de
+  `StepsSection` (círculo con acento → "01/02/03" editorial, mismo lenguaje
+  que `LegalSection` de /privacidad); `Features` pasó de una grilla de 8
+  tarjetas idénticas a 4 filas agrupadas (Automatización/Control/Análisis/
+  Tus datos) con el mismo patrón "etiqueta | contenido" que `SettingsRow`
+  de la app; `Pricing` pasó de una grilla de 3 tarjetas a un trío inline sin
+  caja; radios `rounded-2xl/xl` → escala compartida
+  (`rounded-control/surface/dialog`); se quitó el marquee infinito de
+  bancos del footer (prohibido explícitamente) por una fila estática.
+- **Compactar**: padding vertical de todas las secciones unificado a
+  `py-16` (antes variaba 14/20/24). Se fusionaron `PasswordTrust` +
+  `PrivacySnippet` —dos secciones de confianza casi seguidas diciendo cosas
+  relacionadas (acceso de solo lectura / Ley 8968)— en una sola sección
+  "Seguridad"; `PrivacySnippet.tsx` se borró (contenido migrado). Se quitó
+  el botón de login duplicado al final de Pricing (ya hay CTA en header,
+  hero y cierre).
+- **Coherencia con la app**: se quitó la fuente Montserrat por completo
+  (`layout.tsx`, `globals.css` — quedaba huérfana, ya no la usa nada desde
+  el rediseño del 2026-09-13) a favor de la tipografía compartida (Geist);
+  header a `h-16` como el rail de la app; montos del mockup sin `font-mono`
+  (igual que el `Money` component nuevo, que usa tabular-nums sobre la sans
+  normal, no una fuente monoespaciada).
+- QA con Playwright en 1440/1920/768/390/360, claro y oscuro, más capturas
+  de detalle por sección. Sin overflow horizontal en ningún caso. `tsc`,
+  `eslint` y `npm run build` (con placeholders de env — mismo caso conocido
+  del `.env.local`, ver arriba) pasan limpios.
