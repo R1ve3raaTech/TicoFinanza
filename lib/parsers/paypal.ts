@@ -12,13 +12,23 @@ import { parseIntlAmount, type EmailParser } from "./types";
  * que se acepta cualquiera de las dos en vez de solo la primera, que dejaba
  * esas compras sin registrar.
  *
+ * Ese mismo caso (autorización + captura) puede generar DOS correos para el
+ * mismo pago. El "Id. de transacción" se repite igual entre ambos avisos de
+ * un mismo pago (confirmado contra correos reales), así que se guarda como
+ * dedupeKey — quien llama (syncGmailForUser) lo usa para no insertar el
+ * mismo pago dos veces. También se deja anotado dentro de la descripción
+ * ("(ref. X)", mismo patrón que ya usa bacTransfer.ts) para no necesitar una
+ * columna nueva en la base.
+ *
  * Cuando PayPal convierte de colones a dólares se usa el monto original en
  * CRC ("Convertido desde") porque es lo que realmente salió de la cuenta o
  * tarjeta del usuario; si no hay conversión, se usa el total tal cual.
  */
 export const parsePayPal: EmailParser = (bodyText, { receivedAt }) => {
   if (!/PayPal/i.test(bodyText) || !/Ha (pagado|autorizado un pago)/i.test(bodyText)) return null;
-  if (!/Id\.\s*de transacci[oó]n/i.test(bodyText)) return null;
+
+  const transactionId = bodyText.match(/Id\.\s*de transacci[oó]n\s*([A-Za-z0-9]+)/i)?.[1];
+  if (!transactionId) return null;
 
   const merchant = bodyText.match(/Comercio\s*\n\s*([^\n]+)/i)?.[1]?.trim();
   const crcMatch = bodyText.match(/Convertido desde:\s*₡?\s*([\d.,]+)\s*CRC/i);
@@ -38,8 +48,9 @@ export const parsePayPal: EmailParser = (bodyText, { receivedAt }) => {
     bank_name: "PayPal",
     amount,
     currency,
-    description: merchant,
+    description: `${merchant} (ref. ${transactionId})`,
     type: "EXPENSE",
     transaction_date: receivedAt,
+    dedupeKey: transactionId,
   };
 };

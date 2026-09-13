@@ -69,8 +69,44 @@ export async function syncGmailForUser({
     for (const item of batch) {
       if (!item) continue;
       const { id, message } = item;
-      const parsed = await parseEmail(message.bodyText, { receivedAt: message.receivedAt, ownerName });
+
+      let parsed: Awaited<ReturnType<typeof parseEmail>>;
+      try {
+        parsed = await parseEmail(message.bodyText, { receivedAt: message.receivedAt, ownerName });
+      } catch (err) {
+        // El correo matcheó un parser pero algo después falló de verdad (hoy
+        // en la práctica: no se pudo convertir la moneda — ver
+        // ExchangeRateError en lib/exchangeRate.ts). A propósito NO se
+        // inserta nada con un monto inventado: el correo queda sin marcar
+        // como procesado (no se crea su fila, no hay gmail_message_id
+        // guardado), así que la próxima sincronización lo vuelve a traer y
+        // reintenta solo, sin que nadie tenga que hacer nada a mano.
+        errors.push(`${id}: no se pudo registrar (se reintentará solo) — ${(err as Error).message}`);
+        continue;
+      }
       if (!parsed) continue;
+
+      // PayPal manda un correo al autorizar un pago y otro distinto cuando
+      // el comercio lo captura después — mismo pago, dos gmail_message_id
+      // distintos, así que el unique constraint de más abajo no alcanza
+      // para evitar el duplicado. Si el parser trae un identificador estable
+      // (ver ParsedTransaction.dedupeKey), se busca si ya hay una
+      // transacción de este usuario/banco con ese mismo id antes de
+      // insertar. El id queda grabado dentro de `description` (mismo patrón
+      // que ya usa bacTransfer con su "(ref. X)"), no hace falta una
+      // columna nueva.
+      if (parsed.dedupeKey) {
+        const marker = `(ref. ${parsed.dedupeKey})`;
+        const { data: existing } = await admin
+          .from("transactions")
+          .select("id")
+          .eq("user_id", userId)
+          .eq("bank_name", parsed.bank_name)
+          .ilike("description", `%${marker}%`)
+          .limit(1)
+          .maybeSingle();
+        if (existing) continue;
+      }
 
       const { error: insertError, count } = await admin
         .from("transactions")

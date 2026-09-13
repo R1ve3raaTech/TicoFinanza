@@ -14,6 +14,18 @@ export interface ParsedTransaction {
   description: string;
   type: TransactionType;
   transaction_date: string;
+  /**
+   * Identificador estable de la transacción según la fuente (ej. el "Id. de
+   * transacción" de PayPal), para deduplicar movimientos que llegan en más
+   * de un correo distinto (PayPal manda uno al autorizar un pago y otro
+   * separado cuando el comercio lo captura — mismo id, dos gmail_message_id
+   * distintos, así que el unique constraint de la base no alcanza). Antes de
+   * insertar, el llamador (syncGmailForUser) busca si ya existe una
+   * transacción de este mismo usuario/banco con este id — si la encuentra,
+   * no inserta de nuevo. Opcional: la mayoría de los parsers no tienen un id
+   * así de estable y no lo usan.
+   */
+  dedupeKey?: string;
 }
 
 export interface EmailContext {
@@ -84,6 +96,39 @@ export function namesLikelyMatch(profileName: string, bankName: string): boolean
   const bankNorm = normalizeName(bankName);
   const matches = profileTokens.filter((t) => bankNorm.includes(t));
   return matches.length >= Math.min(2, profileTokens.length);
+}
+
+/**
+ * Una fecha del correo que no matcheó el formato esperado NUNCA debe caer en
+ * "ahora" (el momento en que corre el parser, que puede ser minutos, horas o
+ * días después del correo real si la sincronización lo reintenta) — eso
+ * inserta una transacción con una fecha silenciosamente equivocada, sin que
+ * nada se vea roto. En su lugar se usa `receivedAt` (la fecha real en que
+ * Gmail recibió el correo, siempre disponible vía EmailContext): no es la
+ * fecha exacta de la transacción, pero es un dato real y cercano, no uno
+ * inventado — el mismo criterio que ya usa paypal.ts, que directamente no
+ * trae hora en el cuerpo y usa receivedAt como fuente principal, no como
+ * respaldo de emergencia. Se loguea siempre que esto pasa, para que quede
+ * visible que el formato de fecha de ese banco cambió.
+ */
+export function resolveTransactionDate(
+  parser: string,
+  raw: string | undefined,
+  parsed: string | null,
+  receivedAt: string
+): string {
+  if (raw && parsed) return parsed;
+
+  if (raw) {
+    console.warn(
+      `[${parser}] no se pudo interpretar la fecha "${raw}" con el formato esperado — se usa la fecha de recepción del correo (${receivedAt}) en su lugar`
+    );
+  } else {
+    console.warn(
+      `[${parser}] el correo no traía ninguna fecha reconocible — se usa la fecha de recepción del correo (${receivedAt}) en su lugar`
+    );
+  }
+  return receivedAt;
 }
 
 /**

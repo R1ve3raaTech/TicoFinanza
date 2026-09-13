@@ -1,11 +1,12 @@
-import { crLocalToUtcIso, parseCRAmount, type EmailParser } from "./types";
+import { crLocalToUtcIso, parseCRAmount, resolveTransactionDate, type EmailParser } from "./types";
 
-/** Formato "22/07/2026 02:37:39 AM" (hora de Costa Rica) -> ISO UTC. */
-function parseDate(raw: string): string {
+/** Formato "22/07/2026 02:37:39 AM" (hora de Costa Rica) -> ISO UTC, o null
+ *  si el texto no matchea ese formato (nunca "ahora" — ver resolveTransactionDate). */
+function parseDate(raw: string): string | null {
   const match = raw.match(
     /(\d{2})\/(\d{2})\/(\d{4})\s+(\d{1,2}):(\d{2}):(\d{2})\s*(AM|PM)/i
   );
-  if (!match) return new Date().toISOString();
+  if (!match) return null;
   const [, day, month, year, hourRaw, minute, second, ampm] = match;
   let hour = Number(hourRaw) % 12;
   if (ampm.toUpperCase() === "PM") hour += 12;
@@ -17,7 +18,7 @@ function parseDate(raw: string): string {
  * agua, etc.), viene en un PDF adjunto del correo "Notificación de Pago de
  * Servicios" de bancamovil@bpdc.fi.cr.
  */
-export const parseBpServicePayment: EmailParser = (bodyText) => {
+export const parseBpServicePayment: EmailParser = (bodyText, { receivedAt }) => {
   if (!/Comprobante Pago de Servicios/i.test(bodyText)) return null;
 
   const empresa = bodyText.match(/Empresa:\s*([^\n]+)/i)?.[1]?.trim();
@@ -32,6 +33,11 @@ export const parseBpServicePayment: EmailParser = (bodyText) => {
     currency: "CRC",
     description: `Pago de servicios: ${empresa}`,
     type: "EXPENSE",
-    transaction_date: fecha ? parseDate(fecha) : new Date().toISOString(),
+    transaction_date: resolveTransactionDate(
+      "bpServicePayment",
+      fecha,
+      fecha ? parseDate(fecha) : null,
+      receivedAt
+    ),
   };
 };

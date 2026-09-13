@@ -1,4 +1,4 @@
-import { crLocalToUtcIso, parseCRAmount, type EmailParser } from "./types";
+import { crLocalToUtcIso, isPaypalRoutedMerchant, parseCRAmount, type EmailParser } from "./types";
 
 /** Formato "25/07/26 a las 21:11" (hora de Costa Rica, año de 2 dígitos, 24h) -> ISO UTC. */
 function parseMucapCardDate(day: string, month: string, year2: string, hour: string, minute: string): string {
@@ -24,12 +24,18 @@ export const parseMucapCardPurchase: EmailParser = (bodyText) => {
 
   const [, amountRaw, currencyRaw, merchant, day, month, year2, hour, minute] = match;
   const currency = /NIC/i.test(currencyRaw) ? "NIO" : /USD/i.test(currencyRaw) ? "USD" : "CRC";
+  const description = merchant.trim().replace(/\s+/g, " ");
+
+  // Igual que en BAC/BP/Davivienda/BNCR: si la tarjeta pagó a través de
+  // PayPal, ese cobro ya lo captura el parser de PayPal con el nombre real
+  // del comercio — se ignora acá para no duplicarlo.
+  if (isPaypalRoutedMerchant(description)) return null;
 
   return {
     bank_name: "MUCAP",
     amount: parseCRAmount(amountRaw),
     currency,
-    description: merchant.trim().replace(/\s+/g, " "),
+    description,
     type: "EXPENSE",
     transaction_date: parseMucapCardDate(day, month, year2, hour, minute),
   };

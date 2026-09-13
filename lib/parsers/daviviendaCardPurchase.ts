@@ -1,4 +1,4 @@
-import { crLocalToUtcIso, parseCRAmount, type EmailParser } from "./types";
+import { crLocalToUtcIso, isPaypalRoutedMerchant, parseCRAmount, type EmailParser } from "./types";
 
 /** Formato "19/07/2026 a las 12:39 PM" (hora de Costa Rica) -> ISO UTC. */
 function parseDaviviendaDate(
@@ -35,9 +35,13 @@ export const parseDaviviendaCardPurchase: EmailParser = (bodyText) => {
   if (!merchant || !dateMatch || !amountMatch) return null;
 
   // Las compras pagadas con PayPal aparecen en el estado de cuenta como
-  // "PAYPAL *comercio": ya las captura el parser de PayPal con el nombre
-  // real del comercio, así que se ignoran acá para no duplicar el gasto.
-  if (/paypal/i.test(merchant)) return null;
+  // "PAYPAL *comercio" o, más seguido, con la abreviatura de red de tarjeta
+  // "PP*comercio": ya las captura el parser de PayPal con el nombre real del
+  // comercio, así que se ignoran acá para no duplicar el gasto. Antes esto
+  // solo miraba /paypal/i (no reconocía "PP*x"), a diferencia de BAC y BP —
+  // mismo helper compartido para que la señal sea idéntica en todos los
+  // bancos, no una guardia distinta por banco.
+  if (isPaypalRoutedMerchant(merchant)) return null;
 
   const [, day, month, year, hour, minute, ampm] = dateMatch;
   const [, currencyRaw, amountRaw] = amountMatch;

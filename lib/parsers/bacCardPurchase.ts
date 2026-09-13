@@ -1,14 +1,21 @@
-import { crLocalToUtcIso, isPaypalRoutedMerchant, parseCRAmount, type EmailParser } from "./types";
+import {
+  crLocalToUtcIso,
+  isPaypalRoutedMerchant,
+  parseCRAmount,
+  resolveTransactionDate,
+  type EmailParser,
+} from "./types";
 
 const MONTHS: Record<string, number> = {
   ene: 0, feb: 1, mar: 2, abr: 3, may: 4, jun: 5,
   jul: 6, ago: 7, sep: 8, oct: 9, nov: 10, dic: 11,
 };
 
-/** Formato "Jul. 20, 2026, 21:11" (hora de Costa Rica) -> ISO UTC. */
-function parseCardDate(raw: string): string {
+/** Formato "Jul. 20, 2026, 21:11" (hora de Costa Rica) -> ISO UTC, o null si
+ *  el texto no matchea ese formato (nunca "ahora" — ver resolveTransactionDate). */
+function parseCardDate(raw: string): string | null {
   const match = raw.match(/(\w{3})\.?\s*(\d{1,2}),\s*(\d{4}),\s*(\d{1,2}):(\d{2})/);
-  if (!match) return new Date().toISOString();
+  if (!match) return null;
   const [, monthAbbr, day, year, hour, minute] = match;
   const month = MONTHS[monthAbbr.toLowerCase()] ?? 0;
   return crLocalToUtcIso(Number(year), month, Number(day), Number(hour), Number(minute));
@@ -30,7 +37,7 @@ function parseCardDate(raw: string): string {
  * correo). Por eso hace falta algo que solo aparezca en el correo real de
  * BAC (el pie de página, no la tabla de arriba que ambos comparten).
  */
-export const parseBacCardPurchase: EmailParser = (bodyText) => {
+export const parseBacCardPurchase: EmailParser = (bodyText, { receivedAt }) => {
   if (!/baccredomatic\.com|BAC INTERNATIONAL BANK/i.test(bodyText)) return null;
 
   const comercio = bodyText.match(/Comercio:\s*([^\n]+)/i)?.[1]?.trim();
@@ -55,6 +62,11 @@ export const parseBacCardPurchase: EmailParser = (bodyText) => {
     currency,
     description: comercio,
     type: "EXPENSE",
-    transaction_date: fecha ? parseCardDate(fecha) : new Date().toISOString(),
+    transaction_date: resolveTransactionDate(
+      "bacCardPurchase",
+      fecha,
+      fecha ? parseCardDate(fecha) : null,
+      receivedAt
+    ),
   };
 };

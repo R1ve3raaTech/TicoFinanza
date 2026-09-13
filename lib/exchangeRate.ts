@@ -13,75 +13,152 @@ import "server-only";
  * monedas de una sola vez) en vez de una request por moneda — así una
  * sincronización de Gmail con varias compras en distintas monedas hace como
  * mucho una sola llamada externa por hora.
+ *
+ * REGLA DE ORO: esta función nunca inventa un tipo de cambio. Si la API no
+ * responde, responde algo sin sentido, o el usuario dejaría el saldo
+ * mal por completo — es mejor que la sincronización pierda esa transacción
+ * puntual (y la reintente sola en la próxima corrida, ver lib/google/sync.ts)
+ * que insertarla con un monto equivocado que nadie va a notar. Antes había un
+ * diccionario de respaldo fijo (FALLBACK_USD_PER_UNIT) para justamente este
+ * caso — tenía sus valores en la convención inversa a la que usa el resto de
+ * la función, así que cuando la API fallaba el monto convertido salía ~1000
+ * veces mal, en silencio. Se eliminó por completo en vez de arreglarle la
+ * convención: un "respaldo" que puede fallar de esa forma es peor que no
+ * tener respaldo.
  */
 const BASE_URL = "https://open.er-api.com/v6/latest/USD";
 const CACHE_SECONDS = 60 * 60;
+/** Si la API no contesta en este tiempo, se la da por caída — mejor fallar
+ *  rápido y controlado que colgar la sincronización entera. */
+const FETCH_TIMEOUT_MS = 8_000;
+
+/**
+ * Bandas de sanity check, no tasas para convertir. Ningún monto se calcula
+ * con estos números — solo sirven para rechazar una respuesta disparatada de
+ * la API (un 0, un NaN, o una tasa que claramente no es la real) antes de
+ * usarla. Deliberadamente generosas: no son "la tasa correcta de hoy", son
+ * "cualquier cosa fuera de este rango no puede ser una tasa real" para evitar
+ * que esto necesite mantenimiento por la variación normal del tipo de
+ * cambio. CRC ronda 480-650 por dólar desde hace años; NIO viene
+ * devaluándose lento desde ~30.
+ */
+const SANITY_BANDS: Record<string, readonly [number, number]> = {
+  CRC: [200, 1500],
+  NIO: [10, 150],
+};
+
+/** Se lanza en vez de devolver un monto cuando no hay una tasa confiable.
+ *  El llamador (parseEmail -> syncGmailForUser) la deja propagar como un
+ *  fallo real de esa transacción puntual, no como "no era un correo
+ *  bancario" — así queda visible en los errores de la sincronización y se
+ *  reintenta sola la próxima vez, en vez de perderse en silencio. */
+export class ExchangeRateError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ExchangeRateError";
+  }
+}
 
 interface RatesResponse {
   result: string;
   rates: Record<string, number>;
 }
 
-/**
- * Si la API externa falla (caída, timeout, formato inesperado), la
- * sincronización de Gmail no se puede caer entera por eso — se usan estas
- * tasas de respaldo, fijas y aproximadas, tomadas de un día cualquiera de
- * 2026. Peor es nada: el usuario igual ve el gasto en colones, aunque no
- * sea al centavo exacto del tipo de cambio de ese momento.
- */
-const FALLBACK_CRC_PER_USD = 500;
-const FALLBACK_USD_PER_UNIT: Record<string, number> = {
-  USD: 1,
-  CRC: 1 / FALLBACK_CRC_PER_USD,
-  NIO: 1 / 36.7,
-  EUR: 1.08,
-  GBP: 1.27,
-};
+function isUsableRate(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value) && value > 0;
+}
+
+/** ¿Esta tasa (unidades de `currency` por 1 USD) tiene pinta de ser real? */
+function isSaneRate(currency: string, value: number): boolean {
+  const band = SANITY_BANDS[currency];
+  if (!band) return true; // sin banda propia, alcanza con ser un número positivo finito
+  const [min, max] = band;
+  return value >= min && value <= max;
+}
 
 async function fetchUsdRates(): Promise<Record<string, number>> {
-  const response = await fetch(BASE_URL, { next: { revalidate: CACHE_SECONDS } });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+
+  let response: Response;
+  try {
+    response = await fetch(BASE_URL, {
+      next: { revalidate: CACHE_SECONDS },
+      signal: controller.signal,
+    });
+  } catch (err) {
+    const reason = err instanceof Error && err.name === "AbortError" ? "timeout" : (err as Error).message;
+    throw new ExchangeRateError(`No se pudo contactar open.er-api.com (${reason})`);
+  } finally {
+    clearTimeout(timeout);
+  }
+
   if (!response.ok) {
-    throw new Error(`open.er-api.com respondió ${response.status}`);
+    throw new ExchangeRateError(`open.er-api.com respondió ${response.status}`);
   }
-  const data = (await response.json()) as RatesResponse;
-  if (data.result !== "success" || !data.rates?.CRC) {
-    throw new Error("open.er-api.com devolvió una respuesta sin tasas usables");
+
+  let data: RatesResponse;
+  try {
+    data = (await response.json()) as RatesResponse;
+  } catch {
+    throw new ExchangeRateError("open.er-api.com devolvió una respuesta que no es JSON válido");
   }
+
+  if (data.result !== "success" || !data.rates || typeof data.rates !== "object") {
+    throw new ExchangeRateError("open.er-api.com devolvió una respuesta sin tasas usables");
+  }
+
+  if (!isUsableRate(data.rates.CRC)) {
+    throw new ExchangeRateError(`open.er-api.com devolvió una tasa de CRC inválida: ${data.rates.CRC}`);
+  }
+  if (!isSaneRate("CRC", data.rates.CRC)) {
+    const [min, max] = SANITY_BANDS.CRC;
+    throw new ExchangeRateError(
+      `La tasa CRC/USD que devolvió open.er-api.com (${data.rates.CRC}) está fuera del rango esperado (${min}-${max}) — se descarta en vez de convertir con un número que no tiene sentido`
+    );
+  }
+
   return data.rates;
 }
 
 /**
  * Convierte un monto de `fromCurrency` a colones. Si ya viene en colones,
- * devuelve el monto tal cual (sin llamar a la API). El código de moneda no
- * es case-sensitive y acepta variantes comunes ("NIC" además de "NIO", el
+ * devuelve el monto tal cual (sin llamar a la API — ni acá ni en el
+ * llamador hay una segunda conversión posible). El código de moneda no es
+ * case-sensitive y acepta variantes comunes ("NIC" además de "NIO", el
  * código real ISO 4217 del córdoba).
+ *
+ * Tira ExchangeRateError (nunca devuelve un monto inventado) si la API no
+ * responde, responde algo sin forma, o la tasa de la moneda pedida no tiene
+ * sentido.
  */
 export async function convertToCRC(amount: number, fromCurrency: string): Promise<number> {
   const currency = normalizeCurrencyCode(fromCurrency);
   if (currency === "CRC") return amount;
 
-  let usdRates: Record<string, number>;
-  try {
-    usdRates = await fetchUsdRates();
-  } catch (err) {
-    console.error("[exchangeRate] no se pudo obtener el tipo de cambio en vivo, usando respaldo fijo:", err);
-    usdRates = FALLBACK_USD_PER_UNIT;
+  const usdRates = await fetchUsdRates();
+
+  const currencyPerUsd = usdRates[currency];
+  if (!isUsableRate(currencyPerUsd)) {
+    throw new ExchangeRateError(`open.er-api.com no tiene una tasa válida para "${currency}"`);
   }
-
-  const crcPerUsd = usdRates.CRC ?? FALLBACK_CRC_PER_USD;
-  const currencyPerUsd = usdRates[currency] ?? FALLBACK_USD_PER_UNIT[currency];
-
-  if (!currencyPerUsd) {
-    // Moneda que ni la API ni el respaldo conocen: no hay con qué convertir.
-    // No debería pasar con las ~170 que trae open.er-api.com, pero si pasa
-    // es mejor devolver el monto sin tocar (con la moneda original) que
-    // inventar un número — eso lo maneja el llamador.
-    throw new Error(`No se encontró tipo de cambio para la moneda "${currency}"`);
+  if (!isSaneRate(currency, currencyPerUsd)) {
+    const [min, max] = SANITY_BANDS[currency];
+    throw new ExchangeRateError(
+      `La tasa de "${currency}" que devolvió open.er-api.com (${currencyPerUsd}) está fuera del rango esperado (${min}-${max})`
+    );
   }
 
   // amount está en `currency`; se pasa a USD y de ahí a CRC.
   const amountInUsd = amount / currencyPerUsd;
-  const amountInCrc = amountInUsd * crcPerUsd;
+  const amountInCrc = amountInUsd * usdRates.CRC;
+
+  if (!Number.isFinite(amountInCrc)) {
+    // No debería poder pasar (ya se validaron ambas tasas y amount viene de
+    // un regex numérico), pero si pasa no se inserta un NaN/Infinity a la base.
+    throw new ExchangeRateError(`La conversión de ${amount} ${currency} a CRC no dio un número válido`);
+  }
+
   return Math.round(amountInCrc);
 }
 

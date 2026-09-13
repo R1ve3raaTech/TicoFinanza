@@ -1,4 +1,4 @@
-import { crLocalToUtcIso, parseIntlAmount, type EmailParser } from "./types";
+import { crLocalToUtcIso, isPaypalRoutedMerchant, parseIntlAmount, type EmailParser } from "./types";
 
 const MONTHS: Record<string, number> = {
   jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
@@ -33,6 +33,11 @@ export const parseBnCardPurchase: EmailParser = (bodyText) => {
   const amountMatch = bodyText.match(/TOTAL:\s*\n?\s*(CRC|USD)\s*([\d.,]+)/i);
 
   if (!merchant || !dateMatch || !amountMatch) return null;
+
+  // Igual que en BAC/BP/Davivienda: si la tarjeta pagó a través de PayPal,
+  // ese cobro ya lo captura el parser de PayPal con el nombre real del
+  // comercio — se ignora acá para no duplicarlo.
+  if (isPaypalRoutedMerchant(merchant)) return null;
 
   const [, monthAbbr, day, year, hour, minute, ampm] = dateMatch;
 

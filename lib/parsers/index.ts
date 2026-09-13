@@ -43,6 +43,15 @@ export interface ConvertedTransaction extends Omit<ParsedTransaction, "currency"
  * antes de devolverla — ver lib/exchangeRate.ts. Así ningún parser
  * individual necesita saber de tipos de cambio: solo reporta la moneda cruda
  * que trae el correo del banco.
+ *
+ * Si el correo matchea un parser pero la conversión de moneda falla
+ * (ExchangeRateError — API caída, tasa inválida, lo que sea), esta función
+ * NO atrapa el error ni devuelve null: lo deja propagar. Un `null` acá
+ * significa "este correo no es una transacción que reconozcamos", y un
+ * correo que SÍ matcheó pero no se pudo convertir es un caso distinto —
+ * el llamador (syncGmailForUser) necesita poder diferenciarlos para loguear
+ * el fallo real y reintentar en la próxima sincronización, en vez de que se
+ * pierda en silencio mezclado con los correos que simplemente no eran nada.
  */
 export async function parseEmail(
   bodyText: string,
@@ -56,16 +65,8 @@ export async function parseEmail(
       return { ...result, currency: "CRC" };
     }
 
-    try {
-      const amount = await convertToCRC(result.amount, result.currency);
-      return { ...result, amount, currency: "CRC" };
-    } catch (err) {
-      // No se pudo convertir (moneda desconocida ni por la API ni por el
-      // respaldo fijo) — mejor no registrar la transacción con un monto
-      // inventado que registrarla mal.
-      console.error(`[parseEmail] no se pudo convertir ${result.currency} a CRC:`, err);
-      return null;
-    }
+    const amount = await convertToCRC(result.amount, result.currency);
+    return { ...result, amount, currency: "CRC" };
   }
   return null;
 }
