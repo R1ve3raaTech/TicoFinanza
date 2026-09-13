@@ -1,15 +1,15 @@
 import type { ReactNode } from "react";
-import { AppSidebar } from "@/components/dashboard/AppSidebar";
+import { AppShell } from "@/components/shell/AppShell";
 import { ThemeSync } from "@/components/ThemeSync";
 import { resolveAvatarUrl, resolveFirstName } from "@/lib/profile";
 import { createClient } from "@/lib/supabase/server";
 
 /**
  * Shell compartido por /dashboard, /dashboard/insights y /dashboard/settings:
- * agrega la barra lateral de escritorio sin tocar el header mobile que cada
- * página ya trae (ese header pasa a `lg:hidden` en cada page.tsx). Si no hay
- * sesión, cada página sigue haciendo su propio `redirect("/")` — acá solo se
- * intenta traer nombre/foto para la barra, sin bloquear el render si falla.
+ * rail en tablet/escritorio y pestañas abajo en teléfono (ver AppShell). Si no
+ * hay sesión, cada página sigue haciendo su propio `redirect("/")` — acá solo
+ * se intenta traer nombre/foto para la navegación, sin bloquear el render si
+ * falla.
  */
 export default async function DashboardLayout({ children }: { children: ReactNode }) {
   const supabase = await createClient();
@@ -32,10 +32,9 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   }
 
   return (
-    <div className="lg:flex">
+    <AppShell name={firstName} email={user?.email ?? undefined} avatarUrl={avatarUrl}>
       <ThemeSync dbTheme={dbTheme} />
-      <AppSidebar name={firstName} avatarUrl={avatarUrl} />
-      <div className="min-w-0 lg:flex-1">{children}</div>
-    </div>
+      {children}
+    </AppShell>
   );
 }

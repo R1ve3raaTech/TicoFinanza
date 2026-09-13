@@ -3,38 +3,52 @@ import { Money } from "@phosphor-icons/react/dist/ssr";
 import { BANK_BRAND } from "@/lib/bankBrand";
 import type { BankName } from "@/lib/types";
 
+/**
+ * Identificador del banco de un movimiento. Es de los pocos íconos con fondo
+ * que quedan en la app, y está justificado: se reconoce un banco por su logo
+ * mucho más rápido que leyendo su nombre. Cuadrado con esquinas suaves (no
+ * círculo) y un filo de línea para que el chip blanco no se pierda sobre
+ * fondo claro.
+ */
 export function BankLogo({
   bank,
-  size = 40,
+  size = 32,
 }: {
   bank: BankName;
   size?: number;
 }) {
   const brand = BANK_BRAND[bank];
+  const radius = size <= 20 ? 4 : 6;
+  const frame = "flex shrink-0 items-center justify-center overflow-hidden shadow-[inset_0_0_0_1px_var(--line)]";
 
+  // Efectivo va neutro: su color de marca era verde, y en esta app el verde
+  // significa "ingreso" — un gasto en efectivo no puede llevar ese color.
   if (bank === "Efectivo") {
     return (
       <div
         title={brand.label}
-        style={{ width: size, height: size, background: brand.bg, color: brand.fg }}
-        className="flex shrink-0 items-center justify-center rounded-full"
+        style={{ width: size, height: size, borderRadius: radius }}
+        className={`${frame} bg-surface-raised text-ink-2`}
       >
-        <Money size={size * 0.55} weight="fill" />
+        <Money size={Math.round(size * 0.55)} />
       </div>
     );
   }
 
   if (brand.logo) {
-    // El padding tiene que ser proporcional al tamaño del círculo — un
-    // padding fijo (ej. 6px) se come casi un tercio de un círculo chico de
-    // 40px, dejando el logo diminuto. Con un % del tamaño, el logo siempre
-    // ocupa la mayor parte del círculo sin importar en qué lugar se use.
+    // Padding proporcional al tamaño: uno fijo se come el logo en los chicos.
     const padding = Math.round(size * 0.1);
     return (
       <div
         title={brand.label}
-        style={{ width: size, height: size, background: brand.chipBg ?? "#ffffff", padding }}
-        className="flex shrink-0 items-center justify-center overflow-hidden rounded-full"
+        style={{
+          width: size,
+          height: size,
+          borderRadius: radius,
+          background: brand.chipBg ?? "#ffffff",
+          padding,
+        }}
+        className={frame}
       >
         <Image
           src={brand.logo}
@@ -50,14 +64,8 @@ export function BankLogo({
   return (
     <div
       title={brand.label}
-      style={{
-        width: size,
-        height: size,
-        background: brand.bg,
-        color: brand.fg,
-        fontSize: size * 0.34,
-      }}
-      className="flex shrink-0 items-center justify-center rounded-full font-bold tracking-tight"
+      style={{ width: size, height: size, borderRadius: radius, fontSize: size * 0.34 }}
+      className={`${frame} bg-surface-raised font-semibold tracking-tight text-ink-2`}
     >
       {brand.initials}
     </div>

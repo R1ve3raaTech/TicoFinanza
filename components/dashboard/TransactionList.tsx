@@ -1,28 +1,67 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { AnimatePresence, motion } from "framer-motion";
-import {
-  Check,
-  EnvelopeSimple,
-  Funnel,
-  ListChecks,
-  MagnifyingGlass,
-  Trash,
-  X,
-} from "@phosphor-icons/react";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { Check, Funnel, ListChecks, MagnifyingGlass, Trash, X } from "@phosphor-icons/react";
 import { deleteTransactions } from "@/app/dashboard/actions";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useToast } from "@/components/Toast";
-import { formatDate, formatMoney } from "@/lib/format";
+import { Button } from "@/components/ui/Button";
+import { inputClass } from "@/components/ui/Field";
+import { Money } from "@/components/ui/Money";
+import { ToggleChip } from "@/components/ui/ToggleChip";
+import type { Transaction, UserCategory } from "@/lib/types";
 import { BankLogo } from "./BankLogo";
+import { AddCashButton } from "./CashEntry";
 import { SyncGmailButton } from "./SyncGmailButton";
 import { TransactionDetailModal } from "./TransactionDetailModal";
-import type { Transaction, UserCategory } from "@/lib/types";
 
 const HIGHLIGHT_MS = 2600;
-const tap = { type: "spring", stiffness: 400, damping: 25 } as const;
+// Todas las fechas en hora de Costa Rica, fija: si no, el servidor (UTC) y el
+// navegador agrupan el mismo movimiento en días distintos y React tira un
+// error de hidratación.
+const TZ = "America/Costa_Rica";
+const dayKeyFormat = new Intl.DateTimeFormat("en-CA", {
+  timeZone: TZ,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+const timeFormat = new Intl.DateTimeFormat("es-CR", { timeZone: TZ, hour: "2-digit", minute: "2-digit" });
+const dayFormat = new Intl.DateTimeFormat("es-CR", { timeZone: TZ, weekday: "long", day: "numeric", month: "long" });
+const dayYearFormat = new Intl.DateTimeFormat("es-CR", {
+  timeZone: TZ,
+  weekday: "long",
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+});
 
+function shiftDayKey(key: string, days: number): string {
+  const [y, m, d] = key.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);
+}
+
+function dayLabel(key: string, sampleIso: string, todayKey: string): string {
+  if (key === todayKey) return "Hoy";
+  if (key === shiftDayKey(todayKey, -1)) return "Ayer";
+  const format = key.slice(0, 4) === todayKey.slice(0, 4) ? dayFormat : dayYearFormat;
+  const text = format.format(new Date(sampleIso)).replace(",", "");
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+interface DayGroup {
+  key: string;
+  items: Transaction[];
+  net: number;
+}
+
+/**
+ * Libro de movimientos: filas separadas por líneas finas y agrupadas por día
+ * (con el neto del día), en vez de una tarjeta por transacción. Monto siempre
+ * alineado a la derecha y con signo escrito; en escritorio la categoría pasa
+ * a su propia columna.
+ */
 export function TransactionList({
   title,
   transactions,
@@ -33,13 +72,11 @@ export function TransactionList({
   customCategories?: UserCategory[];
 }) {
   const toast = useToast();
+  const reduce = useReducedMotion();
   const [selected, setSelected] = useState<Transaction | null>(null);
   const [newIds, setNewIds] = useState<Set<string>>(new Set());
   const seenIds = useRef<Set<string> | null>(null);
-  // Ids presentes en el primer render: son los únicos que reciben la
-  // animación de entrada escalonada. Se calcula una sola vez (no via ref)
-  // para no leer un ref durante el render.
-  const [coldLoadIds] = useState(() => new Set(transactions.map((t) => t.id)));
+  const [todayKey] = useState(() => dayKeyFormat.format(new Date()));
 
   const [pickMode, setPickMode] = useState(false);
   const [pickedIds, setPickedIds] = useState<Set<string>>(new Set());
@@ -52,7 +89,10 @@ export function TransactionList({
   const [filterBank, setFilterBank] = useState<string | null>(null);
 
   const availableCategories = useMemo(
-    () => Array.from(new Set(transactions.map((t) => t.category).filter((c): c is string => Boolean(c)))).sort(),
+    () =>
+      Array.from(
+        new Set(transactions.map((t) => t.category).filter((c): c is string => Boolean(c)))
+      ).sort(),
     [transactions]
   );
   const availableBanks = useMemo(
@@ -74,14 +114,31 @@ export function TransactionList({
     });
   }, [transactions, filterCategory, filterBank, normalizedQuery]);
 
+  // Las transacciones ya vienen de más nueva a más vieja, así que alcanza con
+  // cortar cada vez que cambia el día.
+  const groups = useMemo(() => {
+    const list: DayGroup[] = [];
+    for (const t of filteredTransactions) {
+      const key = dayKeyFormat.format(new Date(t.transaction_date));
+      let group = list[list.length - 1];
+      if (!group || group.key !== key) {
+        group = { key, items: [], net: 0 };
+        list.push(group);
+      }
+      group.items.push(t);
+      group.net += t.type === "INCOME" ? t.amount : -t.amount;
+    }
+    return list;
+  }, [filteredTransactions]);
+
   function clearFilters() {
     setFilterCategory(null);
     setFilterBank(null);
   }
 
   // Solo se resaltan transacciones que aparecen DESPUÉS del primer render
-  // (ej. tras un sync o un registro de efectivo) — en la carga inicial nada
-  // se marca como "nuevo", para no animar toda la lista de una.
+  // (ej. tras leer correos o anotar efectivo) — en la carga inicial nada se
+  // marca como "nuevo".
   useEffect(() => {
     const currentIds = new Set(transactions.map((t) => t.id));
     if (seenIds.current === null) {
@@ -135,122 +192,131 @@ export function TransactionList({
     });
   }
 
+  const searching = normalizedQuery !== "" || activeFilterCount > 0;
+
   return (
-    <>
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="text-sm font-medium text-ink-2">{title}</h2>
-        <div className="flex items-center gap-2">
-          <SyncGmailButton />
-          {transactions.length > 0 && (
-            <button
-              onClick={() => (pickMode ? exitPickMode() : setPickMode(true))}
-              className={`flex h-8 items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-colors cursor-pointer ${
-                pickMode
-                  ? "border-accent/50 bg-accent/10 text-accent-soft"
-                  : "border-line text-ink-2 hover:border-line-strong hover:text-ink"
-              }`}
-            >
-              {pickMode ? <X size={14} weight="bold" /> : <ListChecks size={14} weight="bold" />}
-              {pickMode ? "Cancelar" : "Seleccionar"}
-            </button>
+    <section aria-labelledby="movimientos-titulo" className="min-w-0">
+      <div className="flex h-10 items-center justify-between gap-3">
+        <h2 id="movimientos-titulo" className="text-heading text-ink">
+          {title}
+          {searching && transactions.length > 0 && (
+            <span className="ml-2 text-meta font-normal text-ink-3">
+              {filteredTransactions.length} de {transactions.length}
+            </span>
           )}
-        </div>
+        </h2>
+        {transactions.length > 0 && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => (pickMode ? exitPickMode() : setPickMode(true))}
+            aria-pressed={pickMode}
+            className="-mr-2"
+          >
+            {pickMode ? <X size={14} /> : <ListChecks size={14} />}
+            {pickMode ? "Cancelar" : "Seleccionar"}
+          </Button>
+        )}
       </div>
 
       {transactions.length > 0 && (
-        <div className="mt-3 flex flex-col gap-2">
+        <div className="pb-2 pt-2">
           <div className="flex items-center gap-2">
-            <div className="flex h-9 flex-1 items-center gap-2 rounded-xl border border-line bg-ground px-3">
-              <MagnifyingGlass size={14} className="shrink-0 text-ink-3" />
+            <div className="relative min-w-0 flex-1">
+              <MagnifyingGlass
+                size={15}
+                aria-hidden
+                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-3"
+              />
               <input
+                type="search"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Buscar por descripción, banco o categoría..."
-                className="w-full bg-transparent text-sm text-ink outline-none placeholder:text-ink-3"
+                placeholder="Buscar movimientos"
+                aria-label="Buscar movimientos por descripción, banco o categoría"
+                className={`${inputClass} pl-9 pr-9 [&::-webkit-search-cancel-button]:hidden`}
               />
               {query && (
                 <button
+                  type="button"
                   onClick={() => setQuery("")}
                   aria-label="Limpiar búsqueda"
-                  className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-ink-3 hover:text-ink cursor-pointer"
+                  className="absolute right-1.5 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-[4px] text-ink-3 transition-colors duration-150 cursor-pointer hover:bg-surface-hover hover:text-ink"
                 >
-                  <X size={12} weight="bold" />
+                  <X size={13} />
                 </button>
               )}
             </div>
-            <button
-              onClick={() => setShowFilters((v) => !v)}
-              aria-label="Filtros"
-              className={`relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border transition-colors cursor-pointer ${
-                showFilters || activeFilterCount > 0
-                  ? "border-accent/50 bg-accent/10 text-accent-soft"
-                  : "border-line text-ink-2 hover:border-line-strong hover:text-ink"
-              }`}
-            >
-              <Funnel size={15} weight="bold" />
+            <div className="relative">
+              <Button
+                variant={showFilters || activeFilterCount > 0 ? "secondary" : "ghost"}
+                size="field"
+                icon
+                onClick={() => setShowFilters((v) => !v)}
+                aria-label={
+                  activeFilterCount > 0 ? `Filtros (${activeFilterCount} activos)` : "Filtros"
+                }
+                aria-expanded={showFilters}
+                aria-controls="filtros-movimientos"
+              >
+                <Funnel size={16} weight={activeFilterCount > 0 ? "fill" : "regular"} />
+              </Button>
               {activeFilterCount > 0 && (
-                <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-accent text-[10px] font-bold text-on-accent">
+                <span
+                  aria-hidden
+                  className="money pointer-events-none absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-semibold text-on-accent"
+                >
                   {activeFilterCount}
                 </span>
               )}
-            </button>
+            </div>
           </div>
 
           <AnimatePresence initial={false}>
             {showFilters && (
               <motion.div
-                initial={{ height: 0, opacity: 0 }}
+                id="filtros-movimientos"
+                initial={reduce ? { opacity: 0 } : { height: 0, opacity: 0 }}
                 animate={{ height: "auto", opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={{ duration: 0.2 }}
+                exit={reduce ? { opacity: 0 } : { height: 0, opacity: 0 }}
+                transition={{ duration: 0.16, ease: [0.2, 0, 0, 1] }}
                 className="overflow-hidden"
               >
-                <div className="flex flex-col gap-3 rounded-xl border border-line bg-surface/60 p-3">
+                <div className="mt-3 flex flex-col gap-3 border-y border-line py-3">
                   {availableCategories.length > 0 && (
-                    <div className="flex flex-col gap-1.5">
-                      <span className="text-xs font-medium text-ink-3">Categoría</span>
+                    <div role="group" aria-label="Categoría" className="flex flex-col gap-2 sm:flex-row sm:gap-4">
+                      <span className="w-20 shrink-0 pt-1.5 text-label text-ink-2">Categoría</span>
                       <div className="flex flex-wrap gap-1.5">
                         {availableCategories.map((c) => (
-                          <button
+                          <ToggleChip
                             key={c}
+                            pressed={filterCategory === c}
                             onClick={() => setFilterCategory(filterCategory === c ? null : c)}
-                            className={`rounded-full border px-2.5 py-1 text-xs font-medium transition-colors cursor-pointer ${
-                              filterCategory === c
-                                ? "border-accent/50 bg-accent/10 text-accent-soft"
-                                : "border-line text-ink-2 hover:border-line-strong"
-                            }`}
                           >
                             {c}
-                          </button>
+                          </ToggleChip>
                         ))}
                       </div>
                     </div>
                   )}
-                  <div className="flex flex-col gap-1.5">
-                    <span className="text-xs font-medium text-ink-3">Banco</span>
+                  <div role="group" aria-label="Banco" className="flex flex-col gap-2 sm:flex-row sm:gap-4">
+                    <span className="w-20 shrink-0 pt-1.5 text-label text-ink-2">Banco</span>
                     <div className="flex flex-wrap gap-1.5">
                       {availableBanks.map((b) => (
-                        <button
+                        <ToggleChip
                           key={b}
+                          pressed={filterBank === b}
                           onClick={() => setFilterBank(filterBank === b ? null : b)}
-                          className={`rounded-full border px-2.5 py-1 text-xs font-medium transition-colors cursor-pointer ${
-                            filterBank === b
-                              ? "border-accent/50 bg-accent/10 text-accent-soft"
-                              : "border-line text-ink-2 hover:border-line-strong"
-                          }`}
                         >
                           {b}
-                        </button>
+                        </ToggleChip>
                       ))}
                     </div>
                   </div>
                   {activeFilterCount > 0 && (
-                    <button
-                      onClick={clearFilters}
-                      className="self-start text-xs text-ink-3 transition-colors hover:text-ink-2 cursor-pointer"
-                    >
+                    <Button variant="ghost" size="sm" onClick={clearFilters} className="-ml-2 self-start">
                       Limpiar filtros
-                    </button>
+                    </Button>
                   )}
                 </div>
               </motion.div>
@@ -260,146 +326,126 @@ export function TransactionList({
       )}
 
       {transactions.length === 0 ? (
-        <div className="mt-4 flex flex-col items-center gap-3 rounded-2xl border border-dashed border-line px-6 py-16 text-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-surface">
-            <EnvelopeSimple size={22} className="text-ink-3" />
-          </div>
-          <p className="text-sm font-medium text-ink-2">Todavía no hay movimientos</p>
-          <p className="max-w-[40ch] text-sm text-ink-3">
-            Los correos nuevos de tus bancos van a caer acá solos. Si acabás de entrar,
-            leé los que ya tenés en la bandeja para arrancar con algo.
+        // El estado vacío decía solo "esperá a que lleguen", pero alguien que
+        // recién conecta el correo ya tiene movimientos viejos esperando en la
+        // bandeja. Las dos acciones van acá mismo, donde se está mirando.
+        <div className="mt-2 border-t border-line py-10">
+          <p className="text-heading text-ink">Todavía no hay movimientos</p>
+          <p className="mt-1.5 max-w-[52ch] text-sm leading-relaxed text-ink-2">
+            Los correos nuevos de tus bancos van a aparecer acá solos. Si acabás de entrar, leé
+            los que ya tenés en la bandeja para arrancar con algo.
           </p>
-          {/* El estado vacío decía solo "esperá a que lleguen", pero alguien
-              que recién conecta el correo ya tiene movimientos viejos ahí
-              esperando — y el botón de leerlos está arriba, donde no lo busca.
-              Repetirlo acá es lo que hace que el primer uso no sea una
-              pantalla en blanco. */}
-          <div className="mt-1 flex flex-wrap items-center justify-center gap-2">
-            <SyncGmailButton />
+          <div className="mt-5 flex flex-wrap items-center gap-2">
+            {/* Sin variante primaria: la acción primaria de la pantalla ya
+                está en el encabezado. */}
+            <SyncGmailButton variant="secondary" />
+            <AddCashButton variant="ghost" />
           </div>
-          <p className="max-w-[38ch] text-xs text-ink-3">
-            También podés anotar un gasto en efectivo con el botón (+).
-          </p>
         </div>
       ) : filteredTransactions.length === 0 ? (
-        <div className="mt-4 flex flex-col items-center gap-3 rounded-2xl border border-dashed border-line px-6 py-12 text-center">
-          <p className="text-sm font-medium text-ink-2">Sin resultados</p>
-          <p className="max-w-[38ch] text-sm text-ink-3">
+        <div className="mt-2 border-t border-line py-10">
+          <p className="text-heading text-ink">Sin resultados</p>
+          <p className="mt-1.5 text-sm text-ink-2">
             Ningún movimiento coincide con la búsqueda o los filtros.
           </p>
-          <button
+          <Button
+            variant="secondary"
+            size="sm"
+            className="mt-4"
             onClick={() => {
               setQuery("");
               clearFilters();
             }}
-            className="text-xs font-medium text-accent hover:text-accent-soft cursor-pointer"
           >
             Quitar búsqueda y filtros
-          </button>
+          </Button>
         </div>
       ) : (
-        <ul className="mt-4 flex flex-col gap-2">
-          <AnimatePresence initial={false}>
-            {filteredTransactions.map((t, i) => {
-              const income = t.type === "INCOME";
-              const isNew = newIds.has(t.id);
-              const isPicked = pickedIds.has(t.id);
-              return (
-                <motion.li
-                  key={t.id}
-                  layout
-                  initial={false}
-                  animate={
-                    isNew
-                      ? {
-                          scale: [1, 1.035, 1],
-                          boxShadow: [
-                            "0 0 0 0 rgba(56,189,248,0)",
-                            "0 0 0 0 rgba(56,189,248,0.55)",
-                            "0 0 0 14px rgba(56,189,248,0)",
-                          ],
-                        }
-                      : { scale: 1 }
-                  }
-                  transition={
-                    isNew
-                      ? { duration: 1.3, ease: "easeOut", times: [0, 0.25, 1] }
-                      : { type: "spring", stiffness: 500, damping: 40 }
-                  }
-                  className={coldLoadIds.has(t.id) ? "animate-fade-up" : undefined}
-                  style={
-                    coldLoadIds.has(t.id)
-                      ? { animationDelay: `${Math.min(i, 10) * 40}ms` }
-                      : undefined
-                  }
-                >
-                  <button
-                    onClick={() => handleRowClick(t)}
-                    className={`group relative flex w-full items-center gap-4 rounded-xl border p-4 text-left transition-colors cursor-pointer ${
-                      isPicked
-                        ? "border-accent/50 bg-accent/5"
-                        : isNew
-                          ? "border-accent/40 bg-accent/5"
-                          : "border-line bg-surface/60 hover:border-line-strong"
-                    }`}
-                  >
-                    {pickMode && (
-                      <span
-                        className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition-colors ${
-                          isPicked
-                            ? "border-accent bg-accent text-on-accent"
-                            : "border-line-strong text-transparent"
-                        }`}
+        <div className="pt-2">
+          {groups.map((group) => {
+            const label = dayLabel(group.key, group.items[0].transaction_date, todayKey);
+            return (
+              <div key={group.key} className="pt-2 first:pt-0 md:pt-4 md:first:pt-1">
+                <h3 className="sticky top-14 z-10 flex items-baseline justify-between gap-3 border-b border-line bg-ground py-2 md:top-0">
+                  <span suppressHydrationWarning className="text-label text-ink-2">
+                    {label}
+                  </span>
+                  <Money value={group.net} plus className="text-meta text-ink-3" />
+                </h3>
+                <ul aria-label={label}>
+                  {group.items.map((t) => {
+                    const income = t.type === "INCOME";
+                    const isNew = newIds.has(t.id);
+                    const isPicked = pickedIds.has(t.id);
+                    return (
+                      <li
+                        key={t.id}
+                        className={`border-b border-line last:border-b-0 ${isNew ? "row-arrived" : ""}`}
                       >
-                        <Check size={12} weight="bold" />
-                      </span>
-                    )}
-                    <BankLogo bank={t.bank_name} size={40} />
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm text-ink">
-                        {t.description ?? (income ? "Ingreso" : "Gasto")}
-                      </p>
-                      <p className="text-xs text-ink-3">
-                        {t.bank_name} · {formatDate(t.transaction_date)}
-                      </p>
-                      {/* Repetir "Ver más detalles" en cada fila era puro ruido
-                          en una lista larga: la fila entera ya es un botón. Se
-                          muestra al pasar el mouse o al llegar con el teclado,
-                          que es cuando la pista sirve de algo. */}
-                      {!pickMode && (
-                        <p className="mt-0.5 text-[11px] text-accent opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
-                          Ver más detalles
-                        </p>
-                      )}
-                    </div>
-                    <span
-                      className={`font-mono text-sm ${
-                        income ? "text-income" : "text-ink-2"
-                      }`}
-                    >
-                      {income ? "+" : "-"}
-                      {formatMoney(t.amount)}
-                    </span>
-
-                    <AnimatePresence>
-                      {isNew && (
-                        <motion.span
-                          initial={{ opacity: 0, scale: 0.6, y: -4 }}
-                          animate={{ opacity: 1, scale: 1, y: 0 }}
-                          exit={{ opacity: 0, scale: 0.7 }}
-                          transition={{ type: "spring", stiffness: 420, damping: 20 }}
-                          className="absolute -right-1.5 -top-1.5 rounded-full bg-accent px-2 py-0.5 text-[10px] font-bold tracking-wide text-on-accent"
+                        <button
+                          type="button"
+                          onClick={() => handleRowClick(t)}
+                          aria-pressed={pickMode ? isPicked : undefined}
+                          className="grid w-full cursor-pointer grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 py-3 text-left transition-colors duration-150 hover:bg-surface-hover/70 focus-visible:outline-offset-[-2px] md:-mx-2 md:w-[calc(100%+1rem)] md:rounded-control md:px-2 lg:grid-cols-[auto_minmax(0,1fr)_minmax(0,9rem)_auto] lg:gap-4"
                         >
-                          NUEVO
-                        </motion.span>
-                      )}
-                    </AnimatePresence>
-                  </button>
-                </motion.li>
-              );
-            })}
-          </AnimatePresence>
-        </ul>
+                          <span className="flex items-center gap-3">
+                            {pickMode && (
+                              <span
+                                aria-hidden
+                                className={`flex h-[18px] w-[18px] items-center justify-center rounded-[4px] border transition-colors duration-150 ${
+                                  isPicked
+                                    ? "border-accent bg-accent text-on-accent"
+                                    : "border-line-strong"
+                                }`}
+                              >
+                                {isPicked && <Check size={12} weight="bold" />}
+                              </span>
+                            )}
+                            <BankLogo bank={t.bank_name} size={32} />
+                          </span>
+
+                          <span className="min-w-0">
+                            <span className="flex min-w-0 items-center gap-2">
+                              <span className="truncate text-sm font-medium text-ink">
+                                {t.description ?? (income ? "Ingreso" : "Gasto")}
+                              </span>
+                              {isNew && (
+                                <span className="shrink-0 text-micro font-medium text-accent">
+                                  Nuevo
+                                </span>
+                              )}
+                            </span>
+                            <span className="block truncate text-meta text-ink-3">
+                              {t.bank_name} · {timeFormat.format(new Date(t.transaction_date))}
+                              <span className="lg:hidden">
+                                {" · "}
+                                {t.category ?? "Sin categoría"}
+                              </span>
+                            </span>
+                          </span>
+
+                          <span
+                            className={`hidden truncate text-label font-normal lg:block ${
+                              t.category ? "text-ink-2" : "text-ink-3"
+                            }`}
+                          >
+                            {t.category ?? "Sin categoría"}
+                          </span>
+
+                          <Money
+                            value={income ? t.amount : -t.amount}
+                            plus
+                            className={`text-right text-sm font-medium ${income ? "text-income" : "text-ink"}`}
+                          />
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            );
+          })}
+        </div>
       )}
 
       <TransactionDetailModal
@@ -411,30 +457,25 @@ export function TransactionList({
       <AnimatePresence>
         {pickMode && pickedIds.size > 0 && (
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={reduce ? { opacity: 0 } : { opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 20 }}
-            transition={tap}
-            className="fixed inset-x-4 bottom-24 z-40 mx-auto flex max-w-md items-center justify-between gap-3 rounded-2xl border border-line bg-surface p-3 pl-4 shadow-[0_8px_30px_rgba(0,0,0,0.4)] sm:inset-x-0"
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.16, ease: [0.2, 0, 0, 1] }}
+            className="fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-40 border-t border-line-strong bg-surface md:inset-x-auto md:bottom-6 md:right-8 md:rounded-surface md:border md:shadow-[0_10px_30px_-12px_rgb(0_0_0/0.35)]"
           >
-            <span className="text-sm text-ink-2">
-              {pickedIds.size} seleccionado{pickedIds.size === 1 ? "" : "s"}
-            </span>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={exitPickMode}
-                aria-label="Cancelar selección"
-                className="flex h-9 w-9 items-center justify-center rounded-full text-ink-2 transition-colors hover:bg-surface-raised hover:text-ink cursor-pointer"
-              >
-                <X size={16} weight="bold" />
-              </button>
-              <button
-                onClick={() => setConfirmingBulkDelete(true)}
-                className="flex items-center gap-2 rounded-full bg-expense/10 px-4 py-2 text-xs font-semibold text-expense transition-colors hover:bg-expense/15 cursor-pointer"
-              >
-                <Trash size={14} weight="bold" />
-                Eliminar
-              </button>
+            <div className="flex items-center justify-between gap-4 px-4 py-2.5 md:pl-4 md:pr-2">
+              <span className="money text-sm text-ink-2" aria-live="polite">
+                {pickedIds.size} seleccionado{pickedIds.size === 1 ? "" : "s"}
+              </span>
+              <div className="flex items-center gap-1.5">
+                <Button variant="ghost" size="sm" onClick={exitPickMode}>
+                  Cancelar
+                </Button>
+                <Button variant="danger" size="sm" onClick={() => setConfirmingBulkDelete(true)}>
+                  <Trash size={14} />
+                  Eliminar
+                </Button>
+              </div>
             </div>
           </motion.div>
         )}
@@ -448,6 +489,6 @@ export function TransactionList({
         onConfirm={handleBulkDelete}
         onCancel={() => setConfirmingBulkDelete(false)}
       />
-    </>
+    </section>
   );
 }

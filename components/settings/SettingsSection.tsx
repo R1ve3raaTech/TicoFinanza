@@ -1,37 +1,92 @@
 import type { ReactNode } from "react";
-import type { Icon } from "@phosphor-icons/react";
+import type { SettingsSectionId } from "./sections";
 
 /**
- * Los íconos de Ajustes eran un arcoíris (violeta para perfil, ámbar para
- * categorías, verde para moneda...) donde ningún color quería decir nada — y
- * encima le robaba significado al verde/rosa/ámbar, que en el resto de la app
- * son ingreso/gasto/alerta. Ahora son neutros y solo se tiñen al pasar el
- * mouse; el único color reservado acá es el de la zona de peligro.
+ * Sección de Ajustes: título, una línea de contexto y filas separadas por
+ * líneas finas — como los ajustes de una app nativa. Reemplaza la pila de
+ * tarjetas con ícono en círculo que había antes.
  */
-const TONES = {
-  neutral: "bg-surface-raised text-ink-2 group-hover:bg-accent/10 group-hover:text-accent",
-  danger: "bg-expense/10 text-expense",
-} as const;
-
 export function SettingsSection({
-  icon: IconComponent,
-  tone = "neutral",
+  id,
+  title,
+  description,
   children,
 }: {
-  icon: Icon;
-  tone?: keyof typeof TONES;
+  id: SettingsSectionId;
+  title: string;
+  description?: ReactNode;
   children: ReactNode;
 }) {
   return (
-    <section className="group rounded-2xl border border-line bg-surface/40 p-5 transition-colors hover:border-line-strong">
-      <div className="flex items-start gap-3.5">
-        <div
-          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors ${TONES[tone]}`}
-        >
-          <IconComponent size={18} weight="bold" />
-        </div>
-        <div className="min-w-0 flex-1">{children}</div>
-      </div>
+    <section
+      id={id}
+      aria-labelledby={`${id}-titulo`}
+      // Deja lugar para lo que queda fijo arriba al saltar desde el índice:
+      // encabezado + índice en teléfono, solo el índice en tablet.
+      className="scroll-mt-28 pb-10 md:scroll-mt-16 md:pb-12 lg:scroll-mt-10"
+    >
+      <h2 id={`${id}-titulo`} className="text-heading text-ink">
+        {title}
+      </h2>
+      {description && <p className="mt-0.5 max-w-[62ch] text-sm text-ink-3">{description}</p>}
+      <div className="mt-4 border-t border-line">{children}</div>
     </section>
+  );
+}
+
+/**
+ * Fila de ajuste.
+ * - Normal: etiqueta a la izquierda y control a la derecha (apilados en
+ *   teléfono).
+ * - `inline`: descripción a la izquierda y una acción corta a la derecha,
+ *   en todos los tamaños (ej. "Descargar CSV", un interruptor).
+ */
+export function SettingsRow({
+  label,
+  description,
+  htmlFor,
+  inline = false,
+  alignTop = false,
+  children,
+}: {
+  label?: ReactNode;
+  description?: ReactNode;
+  htmlFor?: string;
+  inline?: boolean;
+  alignTop?: boolean;
+  children?: ReactNode;
+}) {
+  const text = (
+    <div className="min-w-0">
+      {label &&
+        (htmlFor ? (
+          <label htmlFor={htmlFor} className="block text-label text-ink">
+            {label}
+          </label>
+        ) : (
+          <div className="text-label text-ink">{label}</div>
+        ))}
+      {description && <p className="mt-0.5 text-meta text-ink-3">{description}</p>}
+    </div>
+  );
+
+  if (inline) {
+    return (
+      <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 border-b border-line py-3.5">
+        <div className="min-w-[12rem] flex-1">{text}</div>
+        <div className="flex shrink-0 items-center gap-2">{children}</div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={`flex flex-col gap-2 border-b border-line py-3.5 sm:grid sm:grid-cols-[180px_minmax(0,1fr)] sm:gap-6 ${
+        alignTop ? "sm:items-start" : "sm:items-center"
+      }`}
+    >
+      <div className={alignTop ? "sm:pt-2" : undefined}>{text}</div>
+      <div className="min-w-0">{children}</div>
+    </div>
   );
 }

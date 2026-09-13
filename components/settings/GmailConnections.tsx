@@ -1,13 +1,10 @@
 "use client";
 
 import { useTransition } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { EnvelopeSimple, Plus, X } from "@phosphor-icons/react";
+import { EnvelopeSimple, Plus } from "@phosphor-icons/react";
 import { disconnectGmail } from "@/app/dashboard/settings/actions";
 import { useToast } from "@/components/Toast";
-
-const tap = { type: "spring", stiffness: 400, damping: 25 } as const;
-const pop = { type: "spring", stiffness: 420, damping: 22 } as const;
+import { Button, buttonClass } from "@/components/ui/Button";
 
 export interface GmailConnection {
   id: string;
@@ -17,7 +14,7 @@ export interface GmailConnection {
 
 function formatLastSync(iso: string | null): string {
   if (!iso) return "Todavía no sincronizó";
-  return `Última sincronización: ${new Intl.DateTimeFormat("es-CR", {
+  return `Última lectura: ${new Intl.DateTimeFormat("es-CR", {
     dateStyle: "medium",
     timeStyle: "short",
     timeZone: "America/Costa_Rica",
@@ -25,7 +22,6 @@ function formatLastSync(iso: string | null): string {
 }
 
 export function GmailConnections({ connections }: { connections: GmailConnection[] }) {
-  const reduce = useReducedMotion();
   const toast = useToast();
   const [pending, startTransition] = useTransition();
 
@@ -37,61 +33,41 @@ export function GmailConnections({ connections }: { connections: GmailConnection
   }
 
   return (
-    <div className="flex flex-col gap-3">
-      <div>
-        <h3 className="text-sm font-medium text-ink">Cuentas de Gmail conectadas</h3>
-        <p className="text-xs text-ink-3">
-          Se leen automáticamente los correos bancarios de cada una.
+    <>
+      {connections.length === 0 && (
+        <p className="border-b border-line py-3.5 text-sm text-ink-2">
+          No hay ninguna cuenta conectada. Sin una, los movimientos no se registran solos.
         </p>
-      </div>
+      )}
 
-      <div className="flex flex-col gap-2">
-        {connections.length === 0 && (
-          <p className="text-xs text-ink-3">No hay ninguna cuenta conectada.</p>
-        )}
-        <AnimatePresence initial={false}>
-          {connections.map((c) => (
-            <motion.div
-              key={c.id}
-              layout
-              initial={reduce ? false : { opacity: 0, scale: 0.95, y: -8 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              transition={pop}
-              className="flex items-center gap-3 rounded-xl border border-line bg-ground p-3"
+      <ul>
+        {connections.map((c) => (
+          <li key={c.id} className="flex items-center gap-3 border-b border-line py-3">
+            <EnvelopeSimple size={18} aria-hidden className="shrink-0 text-ink-3" />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm text-ink">{c.email ?? "Cuenta conectada"}</p>
+              <p className="text-meta text-ink-3">{formatLastSync(c.last_synced_at)}</p>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => disconnect(c.id, c.email)}
+              disabled={pending}
+              aria-label={`Desconectar ${c.email ?? "cuenta"}`}
+              className="-mr-2"
             >
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-surface-raised">
-                <EnvelopeSimple size={14} weight="bold" className="text-ink-2" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm text-ink">{c.email ?? "Cuenta conectada"}</p>
-                <p className="text-xs text-ink-3">{formatLastSync(c.last_synced_at)}</p>
-              </div>
-              <motion.button
-                onClick={() => disconnect(c.id, c.email)}
-                disabled={pending}
-                aria-label={`Desconectar ${c.email}`}
-                whileTap={reduce ? undefined : { scale: 0.85 }}
-                transition={tap}
-                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-ink-3 transition-colors hover:bg-surface-raised hover:text-expense disabled:opacity-40 cursor-pointer"
-              >
-                <X size={14} weight="bold" />
-              </motion.button>
-            </motion.div>
-          ))}
-        </AnimatePresence>
-      </div>
+              Desconectar
+            </Button>
+          </li>
+        ))}
+      </ul>
 
-      <motion.a
-        href="/auth/gmail-connect"
-        whileHover={reduce ? undefined : { scale: 1.01 }}
-        whileTap={reduce ? undefined : { scale: 0.98 }}
-        transition={tap}
-        className="flex items-center justify-center gap-2 rounded-xl border border-dashed border-line-strong py-2.5 text-xs font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink"
-      >
-        <Plus size={14} weight="bold" />
-        Conectar otra cuenta de Gmail
-      </motion.a>
-    </div>
+      <div className="py-3.5">
+        <a href="/auth/gmail-connect" className={buttonClass({ variant: "secondary", size: "sm" })}>
+          <Plus size={14} />
+          {connections.length === 0 ? "Conectar Gmail" : "Conectar otra cuenta"}
+        </a>
+      </div>
+    </>
   );
 }

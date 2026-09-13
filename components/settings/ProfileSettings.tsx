@@ -1,14 +1,15 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
-import Image from "next/image";
-import { motion, useReducedMotion } from "framer-motion";
+import { useId, useRef, useState, useTransition } from "react";
 import { Camera } from "@phosphor-icons/react";
 import { updateProfile } from "@/app/dashboard/settings/actions";
 import { useToast } from "@/components/Toast";
+import { Avatar } from "@/components/shell/Avatar";
+import { Button } from "@/components/ui/Button";
+import { FormError, inputClass } from "@/components/ui/Field";
 import { createClient } from "@/lib/supabase/client";
+import { SettingsRow } from "./SettingsSection";
 
-const tap = { type: "spring", stiffness: 400, damping: 25 } as const;
 const MAX_FILE_BYTES = 5 * 1024 * 1024;
 
 export function ProfileSettings({
@@ -22,8 +23,9 @@ export function ProfileSettings({
   initialBirthDate: string | null;
   initialAvatarUrl: string | null;
 }) {
-  const reduce = useReducedMotion();
   const toast = useToast();
+  const nameId = useId();
+  const birthId = useId();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [fullName, setFullName] = useState(initialFullName);
   const [birthDate, setBirthDate] = useState(initialBirthDate ?? "");
@@ -103,72 +105,51 @@ export function ProfileSettings({
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <div>
-        <h3 className="text-sm font-medium text-ink">Perfil</h3>
-        <p className="text-xs text-ink-3">Tu nombre, foto y fecha de nacimiento.</p>
-      </div>
-
-      <div className="flex items-center gap-4">
-        <button
-          type="button"
-          onClick={() => fileInputRef.current?.click()}
-          disabled={uploading}
-          aria-label="Cambiar foto de perfil"
-          className="group relative flex h-16 w-16 shrink-0 items-center justify-center rounded-full border border-line bg-ground cursor-pointer disabled:opacity-60"
-        >
-          {avatarUrl ? (
-            <Image
-              src={avatarUrl}
-              alt="Foto de perfil"
-              width={64}
-              height={64}
-              // El avatar viene de Google o de un archivo que el propio
-              // usuario sube a Supabase Storage — sin `unoptimized`, Next
-              // procesa esos bytes en el servidor con sharp/libvips antes de
-              // mostrarlos, y esa librería tuvo CVEs de severidad alta. Acá
-              // no hace falta el redimensionado/reformateo automático (el
-              // avatar ya es chico), así que se sirve tal cual y se evita
-              // pasarle contenido controlado por el usuario a esa librería.
-              unoptimized
-              className="h-full w-full rounded-full object-cover"
-            />
-          ) : (
-            <span className="text-lg font-medium text-ink-2">
-              {fullName?.[0]?.toUpperCase() ?? "?"}
-            </span>
-          )}
-          <span className="absolute inset-0 flex items-center justify-center rounded-full bg-ground/0 text-transparent transition-colors group-hover:bg-ground/50 group-hover:text-ink">
-            <Camera size={18} weight="bold" />
-          </span>
-        </button>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          onChange={handleFileChange}
-          className="hidden"
-        />
-        <div className="text-xs text-ink-3">
-          {uploading ? "Subiendo..." : "Tocá la foto para cambiarla. Máximo 5MB."}
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        save();
+      }}
+    >
+      <SettingsRow label="Foto" description="JPG o PNG, hasta 5 MB.">
+        <div className="flex items-center gap-3">
+          <Avatar src={avatarUrl} name={fullName} size={40} />
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+          >
+            <Camera size={14} />
+            {uploading ? "Subiendo..." : "Cambiar foto"}
+          </Button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleFileChange}
+            className="hidden"
+            aria-label="Elegir foto de perfil"
+          />
         </div>
-      </div>
+      </SettingsRow>
 
-      <label className="flex flex-col gap-1.5">
-        <span className="text-xs font-medium text-ink-2">Nombre</span>
+      <SettingsRow label="Nombre" htmlFor={nameId}>
         <input
+          id={nameId}
           value={fullName}
           onChange={(e) => {
             setFullName(e.target.value);
             setSaved(false);
           }}
-          className="w-full rounded-lg border border-line bg-ground px-3 py-2 text-sm text-ink outline-none transition-colors focus:border-accent/50"
+          autoComplete="name"
+          className={`${inputClass} sm:max-w-sm`}
         />
-      </label>
+      </SettingsRow>
 
-      <label className="flex flex-col gap-1.5">
-        <span className="text-xs font-medium text-ink-2">Fecha de nacimiento</span>
+      <SettingsRow label="Fecha de nacimiento" htmlFor={birthId}>
         <input
+          id={birthId}
           type="date"
           value={birthDate}
           onChange={(e) => {
@@ -176,21 +157,18 @@ export function ProfileSettings({
             setSaved(false);
           }}
           max={new Date().toISOString().slice(0, 10)}
-          className="w-full rounded-lg border border-line bg-ground px-3 py-2 text-sm text-ink outline-none transition-colors focus:border-accent/50"
+          className={`${inputClass} sm:max-w-[12rem]`}
         />
-      </label>
+      </SettingsRow>
 
-      {error && <p className="text-xs text-expense">{error}</p>}
-
-      <motion.button
-        onClick={save}
-        disabled={pending || !fullName.trim()}
-        whileTap={reduce ? undefined : { scale: 0.98 }}
-        transition={tap}
-        className="self-start rounded-full bg-accent px-4 py-2 text-xs font-semibold text-on-accent transition-opacity disabled:opacity-40 cursor-pointer"
-      >
-        {pending ? "Guardando..." : saved ? "Guardado" : "Guardar"}
-      </motion.button>
-    </div>
+      <SettingsRow>
+        <div className="flex flex-wrap items-center gap-3">
+          <Button type="submit" variant="primary" size="sm" disabled={pending || !fullName.trim()}>
+            {pending ? "Guardando..." : saved ? "Guardado" : "Guardar cambios"}
+          </Button>
+          <FormError>{error}</FormError>
+        </div>
+      </SettingsRow>
+    </form>
   );
 }

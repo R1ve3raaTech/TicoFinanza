@@ -1,14 +1,13 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { ArrowDownLeft, ArrowUpRight, Plus, X } from "@phosphor-icons/react";
+import { X } from "@phosphor-icons/react";
 import { addCategory, deleteCategory } from "@/app/dashboard/settings/actions";
 import { useToast } from "@/components/Toast";
+import { Button } from "@/components/ui/Button";
+import { FormError, inputClass } from "@/components/ui/Field";
 import type { TransactionType, UserCategory } from "@/lib/types";
-
-const tap = { type: "spring", stiffness: 400, damping: 25 } as const;
-const pop = { type: "spring", stiffness: 420, damping: 22 } as const;
+import { SettingsRow } from "./SettingsSection";
 
 function CategoryGroup({
   title,
@@ -19,12 +18,11 @@ function CategoryGroup({
   type: TransactionType;
   categories: UserCategory[];
 }) {
-  const income = type === "INCOME";
-  const reduce = useReducedMotion();
   const toast = useToast();
   const [name, setName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const noun = type === "INCOME" ? "ingreso" : "gasto";
 
   function submit() {
     if (!name.trim()) return;
@@ -50,73 +48,51 @@ function CategoryGroup({
   }
 
   return (
-    <div className="flex flex-col gap-2">
-      <h4 className="flex items-center gap-1.5 text-xs font-medium text-ink-2">
-        {income ? (
-          <ArrowDownLeft size={12} weight="bold" className="text-income" />
-        ) : (
-          <ArrowUpRight size={12} weight="bold" className="text-ink-3" />
-        )}
-        {title}
-      </h4>
-      <div className="flex flex-wrap gap-2">
-        <AnimatePresence initial={false}>
-          {categories.map((c) => (
-            <motion.span
-              key={c.id}
-              layout
-              initial={reduce ? false : { opacity: 0, scale: 0.7, y: -8 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.7 }}
-              transition={pop}
-              className={`flex items-center gap-1.5 rounded-full border py-1.5 pl-3 pr-2 text-xs font-medium ${
-                income
-                  ? "border-income/25 bg-income/5 text-income"
-                  : "border-line text-ink-2"
-              }`}
-            >
-              {c.name}
-              <motion.button
-                onClick={() => remove(c.id, c.name)}
-                aria-label={`Borrar ${c.name}`}
-                whileTap={reduce ? undefined : { scale: 0.8 }}
-                transition={tap}
-                className={`flex h-4 w-4 items-center justify-center rounded-full transition-colors cursor-pointer ${
-                  income
-                    ? "text-income/60 hover:bg-income/15 hover:text-income"
-                    : "text-ink-3 hover:bg-surface-raised hover:text-ink"
-                }`}
+    <SettingsRow label={title} alignTop>
+      <div className="flex flex-col gap-3">
+        {categories.length > 0 ? (
+          <ul className="flex flex-wrap gap-1.5">
+            {categories.map((c) => (
+              <li
+                key={c.id}
+                className="inline-flex h-7 items-center gap-0.5 rounded-control border border-line bg-surface pl-2.5 pr-0.5 text-label font-normal text-ink"
               >
-                <X size={10} weight="bold" />
-              </motion.button>
-            </motion.span>
-          ))}
-        </AnimatePresence>
-        {categories.length === 0 && (
-          <span className="text-xs text-ink-3">Sin categorías extra todavía.</span>
+                {c.name}
+                <button
+                  type="button"
+                  onClick={() => remove(c.id, c.name)}
+                  aria-label={`Borrar ${c.name}`}
+                  className="flex h-6 w-6 items-center justify-center rounded-[4px] text-ink-3 transition-colors duration-150 cursor-pointer hover:bg-surface-hover hover:text-ink"
+                >
+                  <X size={12} />
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="pt-1 text-meta text-ink-3">Sin categorías extra todavía.</p>
         )}
-      </div>
-      <div className="flex gap-2">
-        <input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && submit()}
-          placeholder="Nueva categoría"
-          className="w-full rounded-lg border border-line bg-ground px-3 py-1.5 text-xs text-ink outline-none transition-colors placeholder:text-ink-3 focus:border-accent/50"
-        />
-        <motion.button
-          onClick={submit}
-          disabled={pending || !name.trim()}
-          aria-label="Agregar categoría"
-          whileTap={reduce ? undefined : { scale: 0.88 }}
-          transition={tap}
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-line text-ink-2 transition-colors hover:border-line-strong hover:text-ink disabled:opacity-40 cursor-pointer"
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            submit();
+          }}
+          className="flex gap-2 sm:max-w-sm"
         >
-          <Plus size={14} weight="bold" />
-        </motion.button>
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder={`Nueva categoría de ${noun}`}
+            aria-label={`Nueva categoría de ${noun}`}
+            className={inputClass}
+          />
+          <Button type="submit" variant="secondary" size="field" disabled={pending || !name.trim()}>
+            Agregar
+          </Button>
+        </form>
+        <FormError>{error}</FormError>
       </div>
-      {error && <p className="text-xs text-expense">{error}</p>}
-    </div>
+    </SettingsRow>
   );
 }
 
@@ -125,15 +101,9 @@ export function CategoryManager({ categories }: { categories: UserCategory[] }) 
   const income = categories.filter((c) => c.type === "INCOME");
 
   return (
-    <div className="flex flex-col gap-5">
-      <div>
-        <h3 className="text-sm font-medium text-ink">Categorías personalizadas</h3>
-        <p className="text-xs text-ink-3">
-          Se suman a las categorías por defecto al registrar efectivo.
-        </p>
-      </div>
+    <>
       <CategoryGroup title="De gasto" type="EXPENSE" categories={expense} />
       <CategoryGroup title="De ingreso" type="INCOME" categories={income} />
-    </div>
+    </>
   );
 }

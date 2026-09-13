@@ -45,7 +45,13 @@ export const metadata: Metadata = {
     "presupuesto colones",
   ],
   appleWebApp: { title: "TicoFinanza" },
-  icons: { icon: "/favicon.ico", apple: "/icon-192.png" },
+  icons: {
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/favicon.ico", sizes: "any" },
+    ],
+    apple: "/apple-touch-icon.png",
+  },
   alternates: { canonical: SITE_URL },
   openGraph: {
     siteName: "TicoFinanza",
@@ -67,8 +73,8 @@ export const metadata: Metadata = {
 export const viewport = {
   // Mismos valores que --ground en globals.css para cada modo.
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f3f5f9" },
-    { media: "(prefers-color-scheme: dark)", color: "#08090c" },
+    { media: "(prefers-color-scheme: light)", color: "#f6f6f7" },
+    { media: "(prefers-color-scheme: dark)", color: "#0a0a0b" },
   ],
 };
 

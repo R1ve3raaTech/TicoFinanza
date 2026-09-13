@@ -1,10 +1,12 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
-import Image from "next/image";
-import { motion, useReducedMotion } from "framer-motion";
+import { useId, useRef, useState, useTransition } from "react";
 import { ArrowRight, Camera } from "@phosphor-icons/react";
 import { completeOnboarding, skipOnboarding } from "@/app/bienvenida/actions";
+import { Logo } from "@/components/Logo";
+import { Avatar } from "@/components/shell/Avatar";
+import { Button } from "@/components/ui/Button";
+import { Field, FormError, inputClass } from "@/components/ui/Field";
 import { createClient } from "@/lib/supabase/client";
 
 const MAX_FILE_BYTES = 5 * 1024 * 1024;
@@ -18,7 +20,7 @@ export function WelcomeOnboarding({
   initialFullName: string;
   initialAvatarUrl: string | null;
 }) {
-  const reduce = useReducedMotion();
+  const formId = useId();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [fullName, setFullName] = useState(initialFullName);
   const [birthDate, setBirthDate] = useState("");
@@ -84,137 +86,99 @@ export function WelcomeOnboarding({
   }
 
   return (
-    <main className="relative flex min-h-[100dvh] flex-col items-center justify-center overflow-hidden bg-ground px-6 py-16 sm:px-10">
-      <div
-        aria-hidden="true"
-        className="auth-blob-a pointer-events-none absolute right-[-15%] top-[-10%] h-[26rem] w-[26rem] rounded-full bg-accent/[0.07] blur-[120px]"
-      />
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute bottom-[-15%] left-[-10%] h-[22rem] w-[22rem] rounded-full bg-accent/[0.04] blur-[120px]"
-      />
+    <main className="flex min-h-[100dvh] flex-col bg-ground px-6 py-8 sm:px-10">
+      <div className="mx-auto w-full max-w-md">
+        <Logo accent />
+      </div>
 
-      <div className="relative flex w-full max-w-md flex-col gap-8">
-        <motion.span
-          initial={reduce ? undefined : { opacity: 0, y: -8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4 }}
-          className="inline-flex w-fit -rotate-2 items-center rounded-md border border-dashed border-line-strong px-3 py-1.5 font-mono text-[11px] uppercase tracking-[0.15em] text-ink-2"
-        >
-          Antes de arrancar
-        </motion.span>
+      <div className="mx-auto my-auto flex w-full max-w-md flex-col py-12">
+        <p className="text-meta text-ink-3">Antes de arrancar</p>
+        <h1 className="mt-2 text-[1.75rem] font-semibold leading-tight tracking-[-0.025em] text-ink sm:text-[2rem]">
+          Qué bueno tenerte.
+        </h1>
+        <p className="mt-2 text-sm leading-relaxed text-ink-2">
+          Dos datos opcionales y listo — menos de un minuto.
+        </p>
 
-        <motion.div
-          initial={reduce ? undefined : { opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.06, ease: [0.16, 1, 0.3, 1] }}
-          className="flex flex-col gap-1"
+        <form
+          id={formId}
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (fullName.trim()) submit();
+          }}
+          className="mt-8 border-t border-line"
         >
-          <h1 className="text-3xl font-semibold leading-tight tracking-tight text-ink sm:text-4xl">
-            Qué bueno tenerte.
-          </h1>
-          <p className="text-sm leading-relaxed text-ink-3">
-            Dos datos opcionales y listo — menos de un minuto.
-          </p>
-        </motion.div>
-
-        <motion.div
-          initial={reduce ? undefined : { opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.12, ease: [0.16, 1, 0.3, 1] }}
-          className="flex items-center gap-4 rounded-2xl border border-line bg-surface/60 p-4"
-        >
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={uploading}
-            aria-label="Elegir foto de perfil"
-            className="group relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full border border-line-strong bg-ground cursor-pointer disabled:opacity-60"
-          >
-            {avatarUrl ? (
-              <Image
-                src={avatarUrl}
-                alt="Tu foto de perfil"
-                width={56}
-                height={56}
-                // Igual que en ProfileSettings/ProfileAvatar: no se manda a
-                // procesar con sharp/libvips en el servidor (ver ese archivo
-                // para el detalle — CVEs de severidad alta en esa librería).
-                unoptimized
-                className="h-full w-full object-cover"
-              />
-            ) : (
-              <Camera size={20} weight="bold" className="text-ink-3" />
-            )}
-            <span className="absolute inset-0 flex items-center justify-center bg-ground/0 text-transparent transition-colors group-hover:bg-ground/50 group-hover:text-ink">
-              <Camera size={18} weight="bold" />
-            </span>
-          </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            onChange={handleFileChange}
-            className="hidden"
-          />
-          <div className="flex min-w-0 flex-1 flex-col gap-1">
+          <div className="flex items-center gap-4 border-b border-line py-4">
+            <Avatar src={avatarUrl} name={fullName} size={48} />
+            <div className="min-w-0">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+              >
+                <Camera size={14} />
+                {uploading ? "Subiendo..." : avatarUrl ? "Cambiar foto" : "Elegir foto"}
+              </Button>
+              <p className="mt-1.5 text-meta text-ink-3">Opcional. Hasta 5 MB.</p>
+            </div>
             <input
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              placeholder="Tu nombre"
-              className="w-full border-b border-line-strong bg-transparent pb-1 text-base font-medium text-ink outline-none placeholder:text-ink-3 focus:border-accent"
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleFileChange}
+              className="hidden"
+              aria-label="Elegir foto de perfil"
             />
-            <span className="text-xs text-ink-3">
-              {uploading ? "Subiendo tu foto..." : "Tocá el círculo para ponerle una foto (opcional)"}
-            </span>
           </div>
-        </motion.div>
 
-        <motion.label
-          initial={reduce ? undefined : { opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.18, ease: [0.16, 1, 0.3, 1] }}
-          className="flex flex-col gap-1.5"
-        >
-          <span className="text-xs font-medium text-ink-2">
-            ¿Cuándo es tu cumple? <span className="font-normal text-ink-3">(opcional — por si un día te queremos saludar)</span>
-          </span>
-          <input
-            type="date"
-            value={birthDate}
-            onChange={(e) => setBirthDate(e.target.value)}
-            max={new Date().toISOString().slice(0, 10)}
-            className="w-full rounded-xl border border-line bg-surface px-4 py-2.5 text-sm text-ink outline-none transition-colors focus:border-accent/50"
-          />
-        </motion.label>
+          <div className="border-b border-line py-4">
+            <Field label="Tu nombre">
+              <input
+                data-autofocus=""
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                placeholder="Cómo querés que te llamemos"
+                autoComplete="name"
+                className={inputClass}
+              />
+            </Field>
+          </div>
 
-        {error && <p className="text-sm text-expense">{error}</p>}
+          <div className="border-b border-line py-4">
+            <Field label="¿Cuándo es tu cumple?" hint="Opcional — por si un día te queremos saludar.">
+              <input
+                type="date"
+                value={birthDate}
+                onChange={(e) => setBirthDate(e.target.value)}
+                max={new Date().toISOString().slice(0, 10)}
+                className={`${inputClass} sm:max-w-[12rem]`}
+              />
+            </Field>
+          </div>
+        </form>
 
-        <motion.div
-          initial={reduce ? undefined : { opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.24, ease: [0.16, 1, 0.3, 1] }}
-          className="flex items-center gap-5"
-        >
-          <motion.button
-            onClick={submit}
+        {error && (
+          <div className="mt-4">
+            <FormError>{error}</FormError>
+          </div>
+        )}
+
+        <div className="mt-8 flex flex-wrap items-center gap-2">
+          <Button
+            type="submit"
+            form={formId}
+            variant="primary"
+            size="lg"
             disabled={pending || !fullName.trim()}
-            whileHover={reduce ? undefined : { scale: 1.02 }}
-            whileTap={reduce ? undefined : { scale: 0.97 }}
-            transition={{ type: "spring", stiffness: 400, damping: 25 }}
-            className="inline-flex items-center gap-2 rounded-full bg-accent px-6 py-3 text-sm font-semibold text-on-accent transition-opacity disabled:opacity-40 cursor-pointer"
           >
             {pending ? "Guardando..." : "Empezar a usar TicoFinanza"}
-            {!pending && <ArrowRight size={16} weight="bold" />}
-          </motion.button>
-          <button
-            onClick={skip}
-            disabled={skipping}
-            className="text-sm text-ink-3 transition-colors hover:text-ink-2 cursor-pointer disabled:opacity-40"
-          >
+            {!pending && <ArrowRight size={16} />}
+          </Button>
+          <Button variant="ghost" size="lg" onClick={skip} disabled={skipping}>
             Ahora no
-          </button>
-        </motion.div>
+          </Button>
+        </div>
       </div>
     </main>
   );

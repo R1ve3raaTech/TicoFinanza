@@ -17,14 +17,13 @@ export default async function EntrarPage() {
 
   return (
     <main className="grid min-h-[100dvh] bg-ground lg:grid-cols-2">
-      <div className="flex flex-col items-center justify-center px-6 py-12 sm:px-10 lg:px-16">
-        <div className="w-full max-w-sm">
-          <Link href="/" className="animate-fade-up mb-10 inline-flex w-full justify-center">
-            <Logo subtitle="finanzas personales" size="lg" />
+      <div className="flex flex-col items-center justify-center px-6 py-12 sm:px-10">
+        {/* Marca y formulario centrados como una sola unidad. */}
+        <div className="flex w-full max-w-sm flex-col items-center">
+          <Link href="/" aria-label="TicoFinanza, ir al inicio" className="mb-10 rounded-control">
+            <Logo subtitle="finanzas personales" size="lg" accent />
           </Link>
-          <div className="animate-fade-up [animation-delay:80ms]">
-            <AuthForm />
-          </div>
+          <AuthForm />
         </div>
       </div>
       <AuthShowcase />

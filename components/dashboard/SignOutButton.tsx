@@ -1,81 +1,52 @@
 "use client";
 
-import { useState } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { SignOut } from "@phosphor-icons/react";
+import { useState, useTransition } from "react";
 import { signOut } from "@/app/dashboard/actions";
-import { useLockBodyScroll } from "@/lib/useLockBodyScroll";
+import { Button } from "@/components/ui/Button";
+import { Dialog } from "@/components/ui/Dialog";
 
-const tap = { type: "spring", stiffness: 400, damping: 25 } as const;
-const spring = { type: "spring", stiffness: 300, damping: 28 } as const;
-
-export function SignOutButton() {
-  const reduce = useReducedMotion();
-  const [confirming, setConfirming] = useState(false);
-  useLockBodyScroll(confirming);
+export function SignOutDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const [pending, startTransition] = useTransition();
 
   return (
-    <>
-      <motion.button
-        onClick={() => setConfirming(true)}
-        aria-label="Cerrar sesión"
-        whileHover={reduce ? undefined : { scale: 1.04 }}
-        whileTap={reduce ? undefined : { scale: 0.94 }}
-        transition={tap}
-        className="inline-flex items-center gap-2 rounded-full border border-line px-2.5 py-2 text-xs font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink cursor-pointer sm:px-4"
-      >
-        <SignOut size={14} weight="bold" />
-        <span className="hidden sm:inline">Salir</span>
-      </motion.button>
+    <Dialog
+      open={open}
+      onClose={onClose}
+      role="alertdialog"
+      size="sm"
+      dismissible={!pending}
+      title="¿Cerrar sesión?"
+      description="Vas a tener que volver a entrar con Google para ver tus movimientos."
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose} disabled={pending}>
+            Cancelar
+          </Button>
+          <Button
+            variant="primary"
+            disabled={pending}
+            onClick={() =>
+              startTransition(async () => {
+                await signOut();
+              })
+            }
+          >
+            {pending ? "Cerrando..." : "Cerrar sesión"}
+          </Button>
+        </>
+      }
+    />
+  );
+}
 
-      <AnimatePresence>
-        {confirming && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setConfirming(false)}
-              className="fixed inset-0 z-50 bg-ground/70 backdrop-blur-sm"
-            />
-            <motion.div
-              role="alertdialog"
-              aria-modal="true"
-              aria-label="Confirmar cierre de sesión"
-              initial={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.94 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.96 }}
-              transition={spring}
-              className="fixed inset-x-4 top-1/2 z-50 mx-auto max-w-sm -translate-y-1/2 rounded-2xl border border-line bg-surface p-6 sm:inset-x-0"
-            >
-              <h2 className="text-base font-semibold text-ink">
-                ¿Cerrar sesión?
-              </h2>
-              <p className="mt-1.5 text-sm text-ink-2">
-                Vas a tener que volver a iniciar sesión con Google para ver tu dashboard.
-              </p>
-              <div className="mt-5 grid grid-cols-2 gap-2">
-                <motion.button
-                  onClick={() => setConfirming(false)}
-                  whileTap={reduce ? undefined : { scale: 0.97 }}
-                  transition={tap}
-                  className="rounded-xl border border-line py-2.5 text-sm font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink cursor-pointer"
-                >
-                  Cancelar
-                </motion.button>
-                <motion.button
-                  onClick={() => signOut()}
-                  whileTap={reduce ? undefined : { scale: 0.97 }}
-                  transition={tap}
-                  className="rounded-xl bg-danger py-2.5 text-sm font-semibold text-on-danger transition-colors hover:bg-danger-hover cursor-pointer"
-                >
-                  Salir
-                </motion.button>
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
+export function SignOutButton() {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <Button variant="secondary" size="sm" onClick={() => setOpen(true)}>
+        Cerrar sesión
+      </Button>
+      <SignOutDialog open={open} onClose={() => setOpen(false)} />
     </>
   );
 }

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
 import { ArrowUpRight, ShieldCheck, SquaresFour } from "@phosphor-icons/react";
+import { BrandMark } from "@/components/brand/BrandMark";
 import { BankLogo } from "@/components/dashboard/BankLogo";
 import { GoogleMark } from "@/components/GoogleMark";
 import { AnchorLink } from "@/components/landing/AnchorLink";
@@ -36,8 +37,11 @@ export function Footer({ loggedIn = false }: { loggedIn?: boolean }) {
     >
       <div className="relative mx-auto flex w-full max-w-6xl flex-col gap-10 px-4 py-16 sm:px-6 md:flex-row md:items-end md:justify-between">
         <div className="flex flex-col items-center text-center md:items-start md:text-left">
-          <p className="select-none font-montserrat text-4xl font-bold leading-none tracking-tighter text-ink sm:text-5xl">
-            TicoFinanza
+          <p className="flex select-none items-center gap-3 text-ink">
+            <BrandMark size={40} accent className="shrink-0" />
+            <span className="text-4xl font-semibold leading-none tracking-[-0.035em] sm:text-5xl">
+              TicoFinanza
+            </span>
           </p>
           <p className="mt-4 max-w-[36ch] text-sm leading-relaxed text-ink-3">
             Tus movimientos bancarios, categorizados solos. Sin hojas de cálculo, sin

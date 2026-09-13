@@ -1,19 +1,12 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
-import { createPortal } from "react-dom";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { WarningCircle } from "@phosphor-icons/react";
-import { useLockBodyScroll } from "@/lib/useLockBodyScroll";
-
-const spring = { type: "spring", stiffness: 300, damping: 28 } as const;
+import { Button } from "@/components/ui/Button";
+import { Dialog } from "@/components/ui/Dialog";
 
 /**
- * Confirmación destructiva reusable, como diálogo propio (no un texto que
- * reemplaza el contenido de otro modal) — se monta en un portal a <body>
- * para no depender del árbol donde se la use (ver nota en GoalModal sobre
- * ancestros con `transform` rompiendo `position: fixed`), y queda por
- * encima de cualquier otro modal abierto.
+ * Confirmación destructiva reusable. Va en la capa de arriba: casi siempre
+ * se abre encima de otro diálogo (ej. eliminar desde el detalle de un
+ * movimiento), y Escape cierra solo esta.
  */
 export function ConfirmDialog({
   open,
@@ -34,68 +27,26 @@ export function ConfirmDialog({
   onConfirm: () => void;
   onCancel: () => void;
 }) {
-  const reduce = useReducedMotion();
-  useLockBodyScroll(open);
-  const mounted = useSyncExternalStore(
-    () => () => {},
-    () => true,
-    () => false
-  );
-
-  if (!mounted) return null;
-
-  return createPortal(
-    <AnimatePresence>
-      {open && (
+  return (
+    <Dialog
+      open={open}
+      onClose={onCancel}
+      role="alertdialog"
+      layer="top"
+      size="sm"
+      dismissible={!pending}
+      title={title}
+      description={description}
+      footer={
         <>
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => !pending && onCancel()}
-            className="fixed inset-0 z-[70] bg-ground/70 backdrop-blur-sm"
-          />
-          <motion.div
-            role="alertdialog"
-            aria-modal="true"
-            aria-label={title}
-            initial={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.92 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.94 }}
-            transition={spring}
-            className="fixed inset-x-4 top-1/2 z-[70] mx-auto max-w-xs -translate-y-1/2 rounded-2xl border border-expense/20 bg-surface p-5 shadow-[0_12px_40px_rgba(0,0,0,0.5)] sm:inset-x-0"
-          >
-            <div className="flex flex-col items-center gap-3 text-center">
-              <div className="flex h-11 w-11 items-center justify-center rounded-full bg-expense/10">
-                <WarningCircle size={22} weight="bold" className="text-expense" />
-              </div>
-              <div>
-                <h2 className="text-sm font-semibold text-ink">{title}</h2>
-                {description && (
-                  <p className="mt-1 text-xs text-ink-3">{description}</p>
-                )}
-              </div>
-              <div className="mt-1 grid w-full grid-cols-2 gap-2">
-                <button
-                  onClick={onCancel}
-                  disabled={pending}
-                  className="rounded-xl border border-line py-2.5 text-sm font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink disabled:opacity-50 cursor-pointer"
-                >
-                  {cancelLabel}
-                </button>
-                <button
-                  onClick={onConfirm}
-                  disabled={pending}
-                  className="rounded-xl bg-expense py-2.5 text-sm font-semibold text-on-accent transition-opacity hover:bg-expense disabled:opacity-50 cursor-pointer"
-                >
-                  {pending ? "..." : confirmLabel}
-                </button>
-              </div>
-            </div>
-          </motion.div>
+          <Button variant="secondary" onClick={onCancel} disabled={pending}>
+            {cancelLabel}
+          </Button>
+          <Button variant="danger" onClick={onConfirm} disabled={pending}>
+            {pending ? "Eliminando..." : confirmLabel}
+          </Button>
         </>
-      )}
-    </AnimatePresence>,
-    document.body
+      }
+    />
   );
 }

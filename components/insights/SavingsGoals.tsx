@@ -2,10 +2,12 @@
 
 import { useState } from "react";
 import { Plus } from "@phosphor-icons/react";
-import { formatMoney } from "@/lib/format";
+import { Button } from "@/components/ui/Button";
+import { Money } from "@/components/ui/Money";
 import { goalProgress } from "@/lib/insights";
-import { GoalModal } from "./GoalModal";
 import type { SavingsGoal, Transaction } from "@/lib/types";
+import { GoalModal } from "./GoalModal";
+import { InsightSection } from "./InsightSection";
 
 function daysLeftLabel(targetDate: string): { text: string; overdue: boolean } {
   const days = Math.ceil(
@@ -37,59 +39,64 @@ export function SavingsGoals({
   }
 
   return (
-    <>
-      <div className="mb-1 flex items-center justify-between gap-3">
-        <p className="text-xs text-ink-3">
-          El progreso se calcula solo: ingresos menos gastos en esa moneda desde que creaste la meta.
-        </p>
-        <button
-          onClick={openCreate}
-          className="flex h-8 shrink-0 items-center gap-1.5 rounded-full bg-accent/10 px-3 text-xs font-semibold text-accent-soft transition-colors hover:bg-accent/15 cursor-pointer"
-        >
-          <Plus size={14} weight="bold" />
+    <InsightSection
+      id="metas"
+      title="Metas de ahorro"
+      description="Se calculan solas: ingresos menos gastos desde que creaste cada meta."
+      action={
+        <Button variant="ghost" size="sm" onClick={openCreate}>
+          <Plus size={14} />
           Nueva meta
-        </button>
-      </div>
-
+        </Button>
+      }
+    >
       {goals.length === 0 ? (
-        <p className="mt-3 text-sm text-ink-3">
+        <p className="border-t border-line pt-3 text-sm text-ink-3">
           Todavía no tenés metas de ahorro. Creá una para ver cuánto llevás acumulado.
         </p>
       ) : (
-        <ul className="mt-4 flex flex-col gap-4">
+        <ul className="border-t border-line">
           {goals.map((g) => {
             const progress = goalProgress(transactions, g);
             const pct = Math.min(1, progress / g.target_amount);
             const reached = progress >= g.target_amount;
             const deadline = g.target_date ? daysLeftLabel(g.target_date) : null;
             return (
-              <li key={g.id}>
+              <li key={g.id} className="border-b border-line last:border-b-0">
                 <button
+                  type="button"
                   onClick={() => openEdit(g)}
-                  className="flex w-full flex-col gap-1.5 rounded-xl border border-line bg-ground/40 p-4 text-left transition-colors hover:border-line-strong cursor-pointer"
+                  aria-label={`Editar la meta ${g.name}`}
+                  className="block w-full cursor-pointer py-3 text-left transition-colors duration-150 hover:bg-surface-hover/70 focus-visible:outline-offset-[-2px] md:-mx-2 md:w-[calc(100%+1rem)] md:rounded-control md:px-2"
                 >
-                  <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-0.5 text-sm">
-                    <span className="min-w-0 truncate text-ink">{g.name}</span>
-                    <span className="shrink-0 font-mono text-xs text-ink-2 sm:text-sm">
-                      {formatMoney(progress)} / {formatMoney(g.target_amount)}
+                  <span className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+                    <span className="min-w-0 truncate text-sm text-ink">{g.name}</span>
+                    <span className="text-meta text-ink-3">
+                      <Money value={progress} className="text-sm text-ink" /> de{" "}
+                      <Money value={g.target_amount} />
                     </span>
-                  </div>
-                  <div className="h-2 w-full overflow-hidden rounded-full bg-surface-raised">
-                    <div
-                      className={`h-full w-full origin-left rounded-full transition-transform duration-500 ${
-                        reached ? "bg-income" : "bg-accent"
+                  </span>
+                  <span
+                    aria-hidden
+                    className="mt-2 block h-1.5 w-full rounded-[2px] bg-chart-track"
+                  >
+                    <span
+                      className={`block h-full rounded-r-[3px] ${
+                        reached ? "bg-chart-income" : "bg-chart-neutral"
                       }`}
-                      style={{ transform: `scaleX(${pct})` }}
+                      style={{ width: `${pct * 100}%` }}
                     />
-                  </div>
-                  <div className="flex items-center justify-between text-[11px] text-ink-3">
-                    <span>{reached ? "¡Meta cumplida!" : `${Math.round(pct * 100)}%`}</span>
+                  </span>
+                  <span className="mt-1.5 flex items-center justify-between gap-3 text-meta text-ink-3">
+                    <span className={reached ? "font-medium text-income" : "money"}>
+                      {reached ? "Meta cumplida" : `${Math.round(pct * 100)}%`}
+                    </span>
                     {deadline && (
                       <span className={deadline.overdue && !reached ? "text-warn" : undefined}>
                         {deadline.text}
                       </span>
                     )}
-                  </div>
+                  </span>
                 </button>
               </li>
             );
@@ -98,6 +105,6 @@ export function SavingsGoals({
       )}
 
       <GoalModal open={modalOpen} goal={editingGoal} onClose={() => setModalOpen(false)} />
-    </>
+    </InsightSection>
   );
 }

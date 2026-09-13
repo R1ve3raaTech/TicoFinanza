@@ -1,24 +1,25 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ChartBar, GearSix } from "@phosphor-icons/react/dist/ssr";
-import { AddCashModal } from "@/components/dashboard/AddCashModal";
-import { BalanceCard } from "@/components/dashboard/BalanceCard";
-import { DateRangeFilter } from "@/components/dashboard/DateRangeFilter";
-import { HeaderIconLink } from "@/components/dashboard/HeaderIconLink";
-import { ProfileAvatar } from "@/components/dashboard/ProfileAvatar";
-import { SignOutButton } from "@/components/dashboard/SignOutButton";
-import { TransactionList } from "@/components/dashboard/TransactionList";
-import { InstallAppButton } from "@/components/InstallAppButton";
-import { Logo } from "@/components/Logo";
-import { MonthlyBarChart } from "@/components/insights/MonthlyBarChart";
+import { DashboardView } from "@/components/dashboard/DashboardView";
 import { endOfDayISO, startOfDayISO } from "@/lib/dateRange";
 import { monthlyTotals } from "@/lib/insights";
-import { resolveAvatarUrl, resolveFirstName } from "@/lib/profile";
 import { createClient } from "@/lib/supabase/server";
 import type { Transaction, UserCategory } from "@/lib/types";
 
 export const metadata: Metadata = { title: "Dashboard" };
+
+const TZ = "America/Costa_Rica";
+
+function capitalize(text: string): string {
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+/** "YYYY-MM-DD" a "3 sep". Mediodía, para que ningún huso lo corra de día. */
+function shortDay(key: string): string {
+  return new Intl.DateTimeFormat("es-CR", { day: "numeric", month: "short" }).format(
+    new Date(`${key}T12:00:00`)
+  );
+}
 
 export default async function DashboardPage({
   searchParams,
@@ -66,17 +67,16 @@ export default async function DashboardPage({
     transactionsQuery = transactionsQuery.limit(50);
   }
 
-  const [{ data }, { data: balanceRows }, { data: categories }, { data: profile }] =
-    await Promise.all([
-      transactionsQuery,
-      balanceQuery,
-      supabase
-        .from("user_categories")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: true }),
-      supabase.from("profiles").select("full_name, avatar_url").eq("id", user.id).maybeSingle(),
-    ]);
+  // El nombre y la foto ya los trae el layout para el rail; acá no se piden.
+  const [{ data }, { data: balanceRows }, { data: categories }] = await Promise.all([
+    transactionsQuery,
+    balanceQuery,
+    supabase
+      .from("user_categories")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: true }),
+  ]);
 
   const transactions = (data ?? []) as Transaction[];
   const userCategories = (categories ?? []) as UserCategory[];
@@ -99,67 +99,35 @@ export default async function DashboardPage({
     }
   }
 
-  const firstName = resolveFirstName(user, profile?.full_name);
-  const avatarUrl = resolveAvatarUrl(user, profile?.avatar_url);
-
-  // Gráfico chico de los últimos 6 meses, solo para la columna lateral de
-  // escritorio (ver TransactionList/gráfico más abajo). Reusa las mismas
-  // filas ya traídas para el saldo — no hace falta pedirle a la base el
-  // historial de nuevo.
+  // Gráfico de los últimos 6 meses para la columna lateral de escritorio.
+  // Reusa las mismas filas ya traídas para el saldo — no hace falta pedirle a
+  // la base el historial de nuevo.
   const months = monthlyTotals((balanceRows ?? []) as Transaction[], 6);
 
+  const now = new Date();
+  const monthLabel = new Intl.DateTimeFormat("es-CR", { month: "long", timeZone: TZ }).format(now);
+  const todayLabel = capitalize(
+    new Intl.DateTimeFormat("es-CR", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      timeZone: TZ,
+    })
+      .format(now)
+      .replace(",", "")
+  );
+
   return (
-    <main className="flex min-h-[100dvh] flex-col bg-ground">
-      <header className="border-b border-line lg:hidden">
-        <div className="mx-auto flex h-[68px] w-full max-w-3xl items-center justify-between gap-3 px-4 sm:px-6">
-          <div className="flex shrink-0 items-center gap-2 sm:gap-3">
-            <HeaderIconLink href="/dashboard/settings" label="Ajustes" hoverRotate={45}>
-              <GearSix size={18} weight="bold" />
-            </HeaderIconLink>
-            <Link href="/" aria-label="Ir a la landing de TicoFinanza">
-              <Logo />
-            </Link>
-          </div>
-          <div className="flex min-w-0 items-center gap-1.5 sm:gap-2">
-            <HeaderIconLink href="/dashboard/insights" label="Estadísticas" showLabel>
-              <ChartBar size={14} weight="bold" />
-            </HeaderIconLink>
-            <InstallAppButton />
-            <SignOutButton />
-            <ProfileAvatar avatarUrl={avatarUrl} name={firstName} />
-          </div>
-        </div>
-      </header>
-
-      <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-8 px-4 pb-28 pt-8 sm:px-6 sm:pb-32 sm:pt-10 lg:max-w-5xl lg:px-10 lg:pt-10">
-        <h1 className="hidden text-2xl font-semibold tracking-tight text-ink lg:block">Dashboard</h1>
-
-        <DateRangeFilter />
-
-        <BalanceCard crc={balance} filtered={hasRange} month={hasRange ? undefined : month} />
-
-        {/* En escritorio la lista y el gráfico van uno al lado del otro; en
-            mobile el gráfico chico se esconde (ya hay una versión completa
-            en Estadísticas — acá solo hay lugar de sobra para mostrarlo). */}
-        <div className="flex flex-col gap-8 lg:flex-row lg:items-start">
-          <section className="flex min-w-0 flex-1 flex-col">
-            <TransactionList
-              title={hasRange ? "Movimientos del período" : "Últimas transacciones"}
-              transactions={transactions}
-              customCategories={userCategories}
-            />
-          </section>
-
-          {!hasRange && (
-            <aside className="hidden w-[320px] shrink-0 flex-col gap-3 rounded-2xl border border-line bg-surface/40 p-5 lg:flex">
-              <h2 className="text-sm font-medium text-ink-2">Últimos 6 meses</h2>
-              <MonthlyBarChart data={months} />
-            </aside>
-          )}
-        </div>
-      </div>
-
-      <AddCashModal customCategories={userCategories} />
-    </main>
+    <DashboardView
+      balance={balance}
+      filtered={hasRange}
+      month={hasRange ? undefined : month}
+      monthLabel={monthLabel}
+      rangeLabel={hasRange ? `${shortDay(from!)} – ${shortDay(to!)}` : undefined}
+      todayLabel={todayLabel}
+      months={months}
+      transactions={transactions}
+      customCategories={userCategories}
+    />
   );
 }

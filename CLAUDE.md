@@ -172,3 +172,65 @@ selector de tema claro/oscuro/sistema. Deployado a producción.
   convertidas a colones, check constraints de `currency` endurecidos a
   solo `'CRC'`, y `user_settings.default_currency` renombrada a `theme`.
   No queda ninguna migración pendiente de correr.
+
+## Dónde quedamos (2026-09-13)
+
+Rediseño completo de la interfaz autenticada + nueva marca. Solo UI: no se
+tocó `lib/`, Supabase, parsers ni lógica (la única consulta que cambió es el
+perfil duplicado que el dashboard pedía y ya traía el layout). **No
+commiteado ni deployado** al cierre: pendiente de que Camil lo revise.
+Reemplaza varias decisiones de la nota del 2026-08-15 (segunda parte):
+
+- **Estructura**: `components/shell/AppShell` → rail (`AppRail`, angosto
+  con etiqueta abajo en md–xl, ancho desde xl) y barra de pestañas abajo en
+  teléfono (`MobileTabBar`). Cada pantalla usa `PageHeader` (barra fija en
+  teléfono, título de sección en escritorio). Cerrar sesión e instalar la
+  app viven en el menú de cuenta del rail (`UserMenu`) y en Ajustes → Sesión.
+- **Composición separada de datos**: `DashboardView`, `InsightsView` y
+  `SettingsView` reciben props planas; los `page.tsx` solo consultan. Así la
+  preview con datos falsos renderiza exactamente lo mismo.
+- **Kit en `components/ui/`**: `Button` (primary/secondary/ghost/danger/
+  danger-ghost; regla: una sola primary por pantalla), `Dialog` (único
+  diálogo de la app: hoja inferior en teléfono, Escape, foco atrapado y
+  devuelto; enfoca `data-autofocus`, no `autoFocus`), `Segmented`, `Field`/
+  `Select`, `Switch`, `ToggleChip`, `Money` (signo siempre escrito;
+  `tabular` en listas, proporcional en cifras sueltas grandes).
+- **Tokens** (`app/globals.css`): neutros casi puros (ya no con tinte azul),
+  dark `--ground #0a0a0b`. Escalas nuevas: radios `rounded-control/surface/
+  dialog` y tipografía `text-display/figure/title/heading/label/meta/micro`.
+  El acento celeste queda para acción primaria, foco, selección y links.
+  **Las reglas base van en `@layer base`**: sin capa le ganaban a las
+  utilidades de Tailwind v4 (un `outline-none` no sacaba el foco global).
+- **Gráficos** (validados con el script de la skill `dataviz`):
+  `--chart-income` pasó a teal `#0d9488` — emerald contra rosa daba ΔE 5.8
+  en deuteranopía (falla); teal da 10.2. El de 6 meses sigue divergente. Los
+  desgloses por categoría/banco son una sola serie → un solo color neutro
+  (`--chart-neutral`), no un arcoíris; medidores neutro/ámbar/rosa con texto
+  e ícono.
+- **Marca**: no llegó asset definitivo, así que el símbolo (tres barras:
+  pieza suelta arriba, barra partida con acento, barra entera abajo) vive en
+  `components/brand/BrandMark.tsx` y `public/brand/mark.svg`. Íconos PWA,
+  maskable, apple-touch, favicon (.ico con versión en grilla de píxeles para
+  16/32) y badge de push salen de `node scripts/generate-brand-icons.mjs`.
+  Si llega el asset real: cambiar la geometría en esos dos archivos y en el
+  script, y volver a correrlo. El `og-image.png` y la captura de la landing
+  se regeneraron desde la preview.
+- **Preview**: ahora con grupo de rutas, `app/preview-tmp/(app)/dashboard|
+  insights|settings` (con el shell) y datos en `app/preview-tmp/data.ts`;
+  soporta `?empty=1` y `?from=&to=`. Se borra antes de commitear.
+- **Entorno local**: en `.env.local` las variables sensibles (URL y claves
+  de Supabase, claves y subject de VAPID) valen 11 caracteres, que coincide
+  con el marcador `[SENSITIVE]` que deja `vercel env pull`. Por eso `/` y
+  `/entrar` dan 500 en `next dev`, y `npm run build` falla en
+  `/api/sync-gmail` (`lib/push/send.ts` valida VAPID al cargar el módulo).
+  No es del código: el build pasa dándole valores de reemplazo solo al
+  comando (claves VAPID descartables + URL de Supabase de prueba). Vercel
+  compila en sus servidores con las variables reales.
+
+**Pendientes, sin resolver:**
+- Landing: varios componentes (`Footer`, `Reveal`, `PasswordTrust`,
+  `PrivacySnippet`, `SupportedBanks`, `Faq`) usan `initial={reduce ? … : …}`
+  y con reduced motion dan un error de hidratación. Es anterior a este
+  rediseño; en el gráfico de 6 meses se corrigió dejando `initial` fijo.
+- `components/landing/MockupPreview.tsx` todavía muestra un monto en
+  dólares (`-$12,90`).

@@ -1,64 +1,65 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { motion, useReducedMotion } from "framer-motion";
+import { useTransition } from "react";
 import { ArrowsClockwise } from "@phosphor-icons/react";
 import { syncMyGmail } from "@/app/dashboard/actions";
+import { useToast } from "@/components/Toast";
+import { Button, type ButtonVariant } from "@/components/ui/Button";
 
-const tap = { type: "spring", stiffness: 400, damping: 25 } as const;
-
-export function SyncGmailButton() {
-  const reduce = useReducedMotion();
+/**
+ * Lee los correos ahora mismo. El resultado va por toast (antes era un texto
+ * al lado del botón que en teléfono estaba escondido: ahí no había ninguna
+ * respuesta visible).
+ */
+export function SyncGmailButton({
+  variant = "secondary",
+  iconOnly = false,
+}: {
+  variant?: ButtonVariant;
+  iconOnly?: boolean;
+}) {
+  const toast = useToast();
   const [pending, startTransition] = useTransition();
-  const [message, setMessage] = useState<string | null>(null);
 
   function sync() {
-    setMessage(null);
     startTransition(async () => {
       const result = await syncMyGmail();
       if (result.error) {
-        setMessage(result.error);
+        toast.error(result.error);
       } else if (result.inserted === 0) {
-        setMessage("Sin movimientos nuevos.");
+        toast.success("Sin movimientos nuevos");
       } else {
-        setMessage(
+        toast.success(
           `${result.inserted} movimiento${result.inserted === 1 ? "" : "s"} nuevo${
             result.inserted === 1 ? "" : "s"
-          }.`
+          }`
         );
       }
     });
   }
 
-  return (
-    <div className="flex items-center gap-2">
-      {message && (
-        <span className="hidden max-w-[16ch] truncate text-xs text-ink-3 sm:inline">
-          {message}
-        </span>
-      )}
-      <motion.button
+  const spin = pending ? "animate-spin motion-reduce:animate-none" : "";
+
+  if (iconOnly) {
+    return (
+      <Button
+        variant="ghost"
+        size="lg"
+        icon
         onClick={sync}
         disabled={pending}
-        aria-label="Leer correos ahora"
-        whileHover={reduce ? undefined : { scale: 1.03 }}
-        whileTap={reduce ? undefined : { scale: 0.94 }}
-        transition={tap}
-        className="flex h-8 items-center gap-1.5 rounded-full bg-accent/10 px-3 text-xs font-semibold text-accent-soft shadow-[0_0_0_1px_rgba(56,189,248,0.3)] transition-colors hover:bg-accent/15 disabled:opacity-50 cursor-pointer"
+        aria-busy={pending}
+        aria-label={pending ? "Leyendo correos" : "Leer correos ahora"}
       >
-        <motion.span
-          animate={pending ? { rotate: 360 } : { rotate: 0 }}
-          transition={
-            pending
-              ? { repeat: Infinity, duration: 0.8, ease: "linear" }
-              : { duration: 0.2 }
-          }
-          className="flex"
-        >
-          <ArrowsClockwise size={14} weight="bold" />
-        </motion.span>
-        <span>{pending ? "Leyendo..." : "Leer correos"}</span>
-      </motion.button>
-    </div>
+        <ArrowsClockwise size={20} className={spin} />
+      </Button>
+    );
+  }
+
+  return (
+    <Button variant={variant} onClick={sync} disabled={pending} aria-busy={pending}>
+      <ArrowsClockwise size={15} className={spin} />
+      {pending ? "Leyendo..." : "Leer correos"}
+    </Button>
   );
 }

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none">
+  <!-- Símbolo de TicoFinanza. Misma geometría que components/brand/BrandMark.tsx. -->
+  <path d="M10.5 2.5H21.5V7.5H10.5A2.5 2.5 0 0 1 10.5 2.5Z" fill="currentColor"/>
+  <rect x="2.5" y="9.5" width="13" height="5" fill="currentColor"/>
+  <rect x="17.5" y="9.5" width="4" height="5" fill="currentColor"/>
+  <rect x="2.5" y="16.5" width="19" height="5" fill="currentColor"/>
+</svg>

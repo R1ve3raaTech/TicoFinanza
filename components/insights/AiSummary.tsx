@@ -1,13 +1,18 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { ArrowsClockwise, Sparkle } from "@phosphor-icons/react";
+import { ArrowsClockwise, CircleNotch } from "@phosphor-icons/react";
 import { generateInsightsSummary } from "@/app/dashboard/actions";
+import { Button } from "@/components/ui/Button";
+import { FormError } from "@/components/ui/Field";
 import type { FinanceSnapshot } from "@/lib/ai/insightsSummary";
 
+/**
+ * Resumen escrito del mes. Va como una fila de informe (título a la
+ * izquierda, texto a la derecha) y no como una tarjeta con degradé y
+ * destellos: es un párrafo, se tiene que leer como tal.
+ */
 export function AiSummary({ snapshot }: { snapshot: FinanceSnapshot }) {
-  const reduce = useReducedMotion();
   const [summary, setSummary] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -22,76 +27,44 @@ export function AiSummary({ snapshot }: { snapshot: FinanceSnapshot }) {
   }
 
   return (
-    <section className="animate-fade-up rounded-2xl border border-accent/20 bg-gradient-to-br from-accent/[0.06] to-transparent p-5">
-      <div className="flex items-center gap-2">
-        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent/10 text-accent">
-          <Sparkle size={14} weight="fill" />
-        </div>
-        <h2 className="text-sm font-medium text-ink-2">Resumen con IA</h2>
+    <section
+      aria-labelledby="resumen-ia-titulo"
+      className="grid gap-3 border-t border-line pb-8 pt-5 md:grid-cols-[220px_minmax(0,1fr)] md:gap-10"
+    >
+      <div>
+        <h2 id="resumen-ia-titulo" className="text-heading text-ink">
+          Resumen con IA
+        </h2>
+        <p className="mt-0.5 text-meta text-ink-3">
+          Un párrafo corto sobre cómo viene tu mes, generado por Claude.
+        </p>
       </div>
 
-      <AnimatePresence mode="wait">
-        {!summary && !pending && (
-          <motion.div
-            key="cta"
-            initial={reduce ? undefined : { opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="mt-3 flex flex-wrap items-center justify-between gap-3"
-          >
-            <p className="text-xs text-ink-3">
-              Un resumen corto de cómo viene tu mes, generado por Claude.
-            </p>
-            <button
-              onClick={generate}
-              className="flex h-8 shrink-0 items-center gap-1.5 rounded-full bg-accent/10 px-3 text-xs font-semibold text-accent-soft transition-colors hover:bg-accent/15 cursor-pointer"
-            >
-              <Sparkle size={13} weight="fill" />
-              Generar resumen
-            </button>
-          </motion.div>
-        )}
-
-        {pending && (
-          <motion.div
-            key="loading"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="mt-3 flex items-center gap-2 text-xs text-accent"
-          >
-            <motion.span
-              animate={reduce ? undefined : { rotate: 360 }}
-              transition={{ repeat: Infinity, duration: 0.9, ease: "linear" }}
-              className="flex"
-            >
-              <Sparkle size={13} weight="fill" />
-            </motion.span>
-            Pensando...
-          </motion.div>
-        )}
-
-        {summary && !pending && (
-          <motion.div
-            key="summary"
-            initial={reduce ? undefined : { opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            className="mt-3 flex flex-col gap-3"
-          >
-            <p className="text-sm leading-relaxed text-ink">{summary}</p>
-            <button
-              onClick={generate}
-              className="flex w-fit items-center gap-1.5 text-xs text-ink-3 transition-colors hover:text-ink-2 cursor-pointer"
-            >
-              <ArrowsClockwise size={12} weight="bold" />
+      <div className="min-w-0 md:pt-0.5" aria-live="polite" aria-busy={pending}>
+        {pending ? (
+          <p className="flex h-9 items-center gap-2 text-sm text-ink-2">
+            <CircleNotch size={15} aria-hidden className="animate-spin motion-reduce:animate-none" />
+            Leyendo tus números…
+          </p>
+        ) : summary ? (
+          <>
+            <p className="max-w-[68ch] text-[0.9375rem] leading-relaxed text-ink">{summary}</p>
+            <Button variant="ghost" size="sm" onClick={generate} className="-ml-2.5 mt-2">
+              <ArrowsClockwise size={14} />
               Regenerar
-            </button>
-          </motion.div>
+            </Button>
+          </>
+        ) : (
+          <Button variant="secondary" onClick={generate}>
+            Generar resumen
+          </Button>
         )}
-      </AnimatePresence>
-
-      {error && <p className="mt-2 text-xs text-expense">{error}</p>}
+        {error && (
+          <div className="mt-2">
+            <FormError>{error}</FormError>
+          </div>
+        )}
+      </div>
     </section>
   );
 }

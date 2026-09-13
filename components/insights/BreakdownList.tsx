@@ -1,34 +1,27 @@
-"use client";
-
-import { motion } from "framer-motion";
-import { formatMoney } from "@/lib/format";
+import { Money } from "@/components/ui/Money";
 import type { BreakdownItem } from "@/lib/insights";
 
-// Paleta categórica validada (8 tonos, orden fijo, modo oscuro) para
-// agrupaciones sin color de marca propio (ej. categorías de gasto).
-const CATEGORICAL_DARK = [
-  "#3987e5", "#d95926", "#199e70", "#c98500",
-  "#d55181", "#008300", "#9085e9", "#e66767",
-];
-
+/**
+ * Gasto agrupado (por categoría o por banco). Es una sola serie sobre
+ * categorías sin orden natural, así que todas las barras van en un mismo
+ * color neutro: la identidad la da el nombre escrito, no un tono por fila.
+ * Las barras se miden contra la fila más grande (para comparar de un
+ * vistazo) y el porcentaje del total va escrito al lado.
+ */
 export function BreakdownList({
   items,
-  colorMap,
   emptyLabel,
 }: {
   items: BreakdownItem[];
-  /** Color por etiqueta; si falta una, cae a la paleta categórica en orden fijo. */
-  colorMap?: Record<string, string>;
   emptyLabel: string;
 }) {
   if (items.length === 0) {
-    return <p className="text-sm text-ink-3">{emptyLabel}</p>;
+    return <p className="border-t border-line pt-3 text-sm text-ink-3">{emptyLabel}</p>;
   }
 
   // Antes se mostraban los 8 primeros y el resto simplemente desaparecía,
-  // pero los porcentajes seguían calculándose contra el total completo: las
-  // barras no sumaban el 100% y no había forma de saber que faltaba plata.
-  // Ahora la cola se junta en "Otros" en vez de esfumarse.
+  // pero los porcentajes seguían calculándose contra el total completo: no
+  // había forma de saber que faltaba plata. La cola se junta en "Otros".
   const MAX_ROWS = 8;
   const head = items.slice(0, MAX_ROWS - 1);
   const tail = items.slice(MAX_ROWS - 1);
@@ -43,37 +36,29 @@ export function BreakdownList({
           },
         ]
       : items;
+  const largest = Math.max(...rows.map((r) => r.amount), 1);
 
   return (
-    <ul className="flex flex-col gap-3">
-      {rows.map((item, i) => {
-        const color = colorMap?.[item.label] ?? CATEGORICAL_DARK[i % CATEGORICAL_DARK.length];
-        return (
-          <li key={item.label} className="flex flex-col gap-1.5">
-            <div className="flex items-center justify-between gap-3 text-sm">
-              <span className="flex min-w-0 items-center gap-2 text-ink">
-                <span
-                  className="h-2 w-2 shrink-0 rounded-full"
-                  style={{ background: color }}
-                />
-                <span className="truncate">{item.label}</span>
+    <ul className="border-t border-line">
+      {rows.map((item) => (
+        <li key={item.label} className="border-b border-line py-2.5 last:border-b-0">
+          <div className="flex items-baseline justify-between gap-3">
+            <span className="min-w-0 truncate text-sm text-ink">{item.label}</span>
+            <span className="flex shrink-0 items-baseline gap-3">
+              <span className="money w-9 text-right text-meta text-ink-3">
+                {Math.round(item.share * 100)}%
               </span>
-              <span className="shrink-0 font-mono text-ink-2">
-                {formatMoney(item.amount)}
-              </span>
-            </div>
-            <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface-raised">
-              <motion.div
-                initial={{ scaleX: 0 }}
-                animate={{ scaleX: item.share }}
-                transition={{ type: "spring", stiffness: 120, damping: 22 }}
-                className="h-full w-full origin-left rounded-full"
-                style={{ background: color }}
-              />
-            </div>
-          </li>
-        );
-      })}
+              <Money value={item.amount} className="min-w-[5.5rem] text-right text-sm text-ink" />
+            </span>
+          </div>
+          <div aria-hidden className="mt-2 h-1.5 w-full rounded-[2px] bg-chart-track">
+            <div
+              className="h-full rounded-r-[3px] bg-chart-neutral"
+              style={{ width: `${Math.max((item.amount / largest) * 100, 1)}%` }}
+            />
+          </div>
+        </li>
+      ))}
     </ul>
   );
 }

@@ -5,20 +5,6 @@ import { MockupPreview } from "./MockupPreview";
 export function Hero({ loggedIn = false }: { loggedIn?: boolean }) {
   return (
     <section className="relative overflow-hidden">
-      {/* Luz de fondo detrás del mockup: le da profundidad al hero sin meter
-          una imagen ni un gradiente de esos que gritan "plantilla". Está
-          detrás del contenido y no captura clicks. */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute right-[-12%] top-[-25%] h-[360px] w-[360px] rounded-full opacity-[0.14] blur-[100px] md:h-[680px] md:w-[680px] md:opacity-[0.22] md:blur-[130px]"
-        style={{ background: "radial-gradient(circle, var(--accent), transparent 70%)" }}
-      />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute bottom-[-30%] left-[-15%] h-[420px] w-[420px] rounded-full opacity-[0.10] blur-[120px]"
-        style={{ background: "radial-gradient(circle, var(--accent), transparent 70%)" }}
-      />
-
       <div className="relative mx-auto grid w-full max-w-6xl items-center gap-12 px-4 pb-20 pt-16 sm:px-6 md:min-h-[calc(100dvh-68px)] md:grid-cols-[1.1fr_1fr] md:gap-16 md:pb-24 md:pt-0">
         <div className="relative flex flex-col items-center gap-7 text-center md:items-start md:text-left">
           <h1 className="animate-fade-up text-balance font-montserrat text-[2.75rem] font-bold leading-[0.98] tracking-tighter text-ink md:text-7xl [animation-delay:90ms]">

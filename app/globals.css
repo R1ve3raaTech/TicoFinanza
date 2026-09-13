@@ -1,62 +1,81 @@
 @import "tailwindcss";
 
 /* ---------------------------------------------------------------------------
-   Sistema de color de TicoFinanza.
+   Sistema visual de TicoFinanza (segunda generación, 2026-09).
 
-   Regla que gobierna todo: en una app de plata el color significa algo, así
-   que verde/rosa/ámbar quedan reservados para ingreso/gasto/alerta y NUNCA se
-   usan como color de marca. El acento vive en un tono que no compite con
-   ninguno de esos — el mismo celeste del ícono de la app (`public/icon-192.png`),
-   que hasta ahora era lo único azul de un producto pintado de naranja.
+   Regla de color que gobierna todo: en una app de plata el color significa
+   algo, así que verde/rosa/ámbar quedan reservados para ingreso/gasto/alerta
+   y NUNCA se usan para decorar. El acento celeste de la marca (#38BDF8) queda
+   para lo interactivo: la acción primaria de cada pantalla, el foco, la
+   selección y los links. Todo lo demás es neutro — la jerarquía sale de la
+   tipografía, el espacio y las líneas finas, no de cajas pintadas.
 
-   Los grises llevan una pizca de azul en vez de ser neutros puros: un gris
-   frío-neutro al lado del celeste se ve sucio, y un dark mode de zinc plano es
-   justo el default que hace que una app parezca generada sola.
+   Los neutros son grises casi puros. La versión anterior les ponía una pizca
+   de azul; al lado del celeste eso terminaba leyéndose como el dark mode
+   navy de cualquier plantilla fintech.
 --------------------------------------------------------------------------- */
 :root {
   color-scheme: light;
 
   /* Superficies, de más profunda a más elevada */
-  --ground: #f3f5f9;
+  --ground: #f6f6f7;
   --surface: #ffffff;
-  --surface-raised: #edf0f5;
-  --surface-hover: #e3e7ee;
+  --surface-raised: #efeff1;
+  --surface-hover: #e9e9ec;
+  /* Opción elegida dentro de un control segmentado */
+  --surface-selected: #ffffff;
 
-  /* Líneas: casi siempre alcanza con la sutil; la fuerte es para foco/hover */
-  --line: rgb(15 23 42 / 0.09);
-  --line-strong: rgb(15 23 42 / 0.18);
+  /* Líneas: casi siempre alcanza con la sutil; la fuerte es para bordes de
+     campos y separadores que tienen que verse sí o sí */
+  --line: rgb(17 17 19 / 0.08);
+  --line-strong: rgb(17 17 19 / 0.16);
 
-  /* Texto, en tres niveles de jerarquía */
-  --ink: #10151d;
-  --ink-2: #4c5566;
-  --ink-3: #838da0;
+  /* Texto, en tres niveles. ink-3 está calibrado para pasar 4.5:1 incluso
+     sobre surface-raised — es el color de toda la metadata chica. */
+  --ink: #111113;
+  --ink-2: #505058;
+  --ink-3: #6b6b73;
 
-  /* Marca. Más profunda que en dark mode: el mismo celeste vibrante pierde
-     contraste apenas se lo pone sobre blanco, así que acá hace de sky-700 en
-     vez de sky-400. */
+  /* Acento. Más profundo que en dark mode: el celeste vibrante no llega a
+     contraste sobre blanco, así que acá hace de sky-700. */
   --accent: #0369a1;
   --accent-soft: #0284c7;
   --accent-deep: #075985;
   --on-accent: #ffffff;
+  /* La pieza de acento del símbolo de marca (ver components/brand) */
+  --brand-accent: #0284c7;
 
-  /* Semántica de plata — reservada, no decorativa. Igual de más profundas
-     que en dark mode por la misma razón que el acento. */
-  --income: #059669;
+  /* Semántica de plata — reservada, no decorativa. El verde de texto es
+     emerald-700: el 600 de antes daba 3.8:1 sobre blanco y no alcanzaba
+     para montos de 14px. */
+  --income: #047857;
   --expense: #e11d48;
   --warn: #b45309;
 
-  /* Botón destructivo sólido (borrar cuenta, cerrar sesión): un rojo fijo
-     con texto blanco fijo, no ligado al texto/fondo del tema — antes usaba
-     `text-ink`, que en modo claro daba texto casi negro sobre rojo. */
-  --danger: #e11d48;
-  --danger-hover: #f43f5e;
+  /* Botón destructivo sólido: rojo fijo con texto blanco fijo */
+  --danger: #dc2626;
+  --danger-hover: #b91c1c;
   --on-danger: #ffffff;
 
-  /* Rellenos de gráficos. Mismos tonos profundos en los dos modos: ya
-     pasaban contraste contra tarjetas oscuras y también lo hacen contra
-     blanco. */
-  --chart-income: #059669;
+  /* Rellenos de gráficos. Mismos tonos en los dos modos, validados con el
+     script de la skill dataviz contra #f6f6f7 y #0a0a0b: banda de luminancia
+     OK, contraste >= 3:1, ΔE CVD 10.2 y visión normal 32.4. El ingreso es
+     teal y no el emerald del texto: emerald contra rosa daba ΔE 5.8 en
+     deuteranopía (falla). Igual el gráfico de 6 meses es divergente — la
+     posición es la que identifica la serie. No usar para texto. */
+  --chart-income: #0d9488;
   --chart-expense: #e11d48;
+  /* Una sola serie sobre categorías sin orden (gasto por categoría, por
+     banco) va en un único color neutro: pintar cada barra de un tono
+     distinto era un arcoíris que además usaba verde y rojo sin que
+     significaran ingreso ni gasto. También es el relleno de medidores en
+     estado normal. */
+  --chart-neutral: #71717a;
+  /* Riel sin llenar de barras y medidores */
+  --chart-track: #e4e4e7;
+
+  /* Fondo detrás de un diálogo abierto */
+  --scrim: rgb(0 0 0 / 0.45);
 
   /* Compatibilidad con el nombre viejo */
   --background: var(--ground);
@@ -64,54 +83,64 @@
 }
 
 /* Dark mode: automático por `prefers-color-scheme` cuando la preferencia es
-   "sistema" (sin atributo explícito), y forzado por la clase `.dark` que
-   agrega next-themes cuando el usuario elige "Oscuro" a mano. */
+   "sistema" (sin clase), y forzado por la clase `.dark` que agrega
+   next-themes cuando el usuario elige "Oscuro" a mano. */
 @media (prefers-color-scheme: dark) {
   :root:not(.light) {
     color-scheme: dark;
-    --ground: #08090c;
-    --surface: #0e1014;
-    --surface-raised: #14171d;
-    --surface-hover: #191d24;
-    --line: rgb(255 255 255 / 0.08);
-    --line-strong: rgb(255 255 255 / 0.16);
-    --ink: #f4f6f8;
-    --ink-2: #a2aab8;
-    --ink-3: #6b7382;
+    --ground: #0a0a0b;
+    --surface: #111113;
+    --surface-raised: #17171a;
+    --surface-hover: #1d1d21;
+    --surface-selected: #2a2a2f;
+    --line: rgb(255 255 255 / 0.07);
+    --line-strong: rgb(255 255 255 / 0.14);
+    --ink: #ededef;
+    --ink-2: #a1a1a8;
+    --ink-3: #85858e;
     --accent: #38bdf8;
     --accent-soft: #7dd3fc;
     --accent-deep: #0ea5e9;
     --on-accent: #04141f;
+    --brand-accent: #38bdf8;
     --income: #34d399;
     --expense: #fb7185;
     --warn: #fbbf24;
     --danger: #dc2626;
     --danger-hover: #ef4444;
     --on-danger: #ffffff;
+    --chart-neutral: #8b8b94;
+    --chart-track: #232327;
+    --scrim: rgb(0 0 0 / 0.62);
   }
 }
 
 .dark {
   color-scheme: dark;
-  --ground: #08090c;
-  --surface: #0e1014;
-  --surface-raised: #14171d;
-  --surface-hover: #191d24;
-  --line: rgb(255 255 255 / 0.08);
-  --line-strong: rgb(255 255 255 / 0.16);
-  --ink: #f4f6f8;
-  --ink-2: #a2aab8;
-  --ink-3: #6b7382;
+  --ground: #0a0a0b;
+  --surface: #111113;
+  --surface-raised: #17171a;
+  --surface-hover: #1d1d21;
+  --surface-selected: #2a2a2f;
+  --line: rgb(255 255 255 / 0.07);
+  --line-strong: rgb(255 255 255 / 0.14);
+  --ink: #ededef;
+  --ink-2: #a1a1a8;
+  --ink-3: #85858e;
   --accent: #38bdf8;
   --accent-soft: #7dd3fc;
   --accent-deep: #0ea5e9;
   --on-accent: #04141f;
+  --brand-accent: #38bdf8;
   --income: #34d399;
   --expense: #fb7185;
   --warn: #fbbf24;
   --danger: #dc2626;
   --danger-hover: #ef4444;
   --on-danger: #ffffff;
+  --chart-neutral: #8b8b94;
+  --chart-track: #232327;
+  --scrim: rgb(0 0 0 / 0.62);
 }
 
 @theme inline {
@@ -119,6 +148,7 @@
   --color-surface: var(--surface);
   --color-surface-raised: var(--surface-raised);
   --color-surface-hover: var(--surface-hover);
+  --color-surface-selected: var(--surface-selected);
 
   --color-line: var(--line);
   --color-line-strong: var(--line-strong);
@@ -131,6 +161,7 @@
   --color-accent-soft: var(--accent-soft);
   --color-accent-deep: var(--accent-deep);
   --color-on-accent: var(--on-accent);
+  --color-brand-accent: var(--brand-accent);
 
   --color-income: var(--income);
   --color-expense: var(--expense);
@@ -140,6 +171,9 @@
   --color-on-danger: var(--on-danger);
   --color-chart-income: var(--chart-income);
   --color-chart-expense: var(--chart-expense);
+  --color-chart-neutral: var(--chart-neutral);
+  --color-chart-track: var(--chart-track);
+  --color-scrim: var(--scrim);
 
   --color-background: var(--ground);
   --color-foreground: var(--ink);
@@ -149,30 +183,76 @@
   --font-montserrat: var(--font-montserrat);
 }
 
+/* ---------------------------------------------------------------------------
+   Escalas. Pocas y con nombre de función, para que ningún componente
+   invente su propio tamaño.
+--------------------------------------------------------------------------- */
+@theme {
+  /* Radios: control (botones, campos, chips) < surface (paneles, menús)
+     < dialog. Los avatares y switches son los únicos redondos del todo. */
+  --radius-control: 6px;
+  --radius-surface: 8px;
+  --radius-dialog: 12px;
+
+  /* Tipografía de la app. El saldo es la única cifra "display" y nunca baja
+     de 48px. */
+  --text-display: 3rem;
+  --text-display--line-height: 1;
+  --text-display--letter-spacing: -0.04em;
+  --text-display--font-weight: 500;
+
+  --text-display-lg: 3.5rem;
+  --text-display-lg--line-height: 1;
+  --text-display-lg--letter-spacing: -0.045em;
+  --text-display-lg--font-weight: 500;
+
+  /* Cifras de resumen (ingresos/gastos/neto) */
+  --text-figure: 1.375rem;
+  --text-figure--line-height: 1.75rem;
+  --text-figure--letter-spacing: -0.02em;
+  --text-figure--font-weight: 500;
+
+  /* Título de página interna: no es un hero */
+  --text-title: 1.25rem;
+  --text-title--line-height: 1.75rem;
+  --text-title--letter-spacing: -0.015em;
+  --text-title--font-weight: 600;
+
+  /* Título de sección */
+  --text-heading: 0.9375rem;
+  --text-heading--line-height: 1.375rem;
+  --text-heading--letter-spacing: -0.005em;
+  --text-heading--font-weight: 600;
+
+  /* Etiqueta de campo o fila */
+  --text-label: 0.8125rem;
+  --text-label--line-height: 1.125rem;
+  --text-label--font-weight: 500;
+
+  /* Metadata: fechas, bancos, ayudas */
+  --text-meta: 0.75rem;
+  --text-meta--line-height: 1rem;
+
+  /* Rótulos de ejes y encabezados de grupo */
+  --text-micro: 0.6875rem;
+  --text-micro--line-height: 0.875rem;
+}
+
+/* Reglas base dentro de @layer base. Sin capa le ganan a cualquier utilidad
+   de Tailwind: un `outline-none` en un campo no podía sacar el anillo de foco
+   global, y un `outline-offset` por componente no hacía nada. */
+@layer base {
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans), system-ui, sans-serif;
+  -webkit-tap-highlight-color: transparent;
   /* Se siente más "app" y menos "sitio web" sin poder arrastrar para
      seleccionar texto. Los campos editables quedan afuera, si no no se
      podría ni escribir/copiar un monto. */
   -webkit-user-select: none;
   user-select: none;
   -webkit-touch-callout: none;
-}
-
-/* Grano sutil sobre toda la app: rompe el gris plano típico de una
-   pantalla renderizada por IA sin meter ningún color nuevo. Estático,
-   no se anima, no cuesta nada en 120Hz. */
-body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: 999;
-  pointer-events: none;
-  opacity: 0.035;
-  mix-blend-mode: overlay;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
 input,
@@ -183,11 +263,10 @@ textarea,
   -webkit-touch-callout: default;
 }
 
-/* Scrollbar propia en vez de la del sistema: delgada, transparente hasta
-   que se usa, con el acento de la marca al pasar el mouse. */
+/* Scrollbar propia: delgada, del color de las líneas del tema. */
 * {
   scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+  scrollbar-color: var(--line-strong) transparent;
 }
 
 ::-webkit-scrollbar {
@@ -200,37 +279,85 @@ textarea,
 }
 
 ::-webkit-scrollbar-thumb {
-  background-color: rgba(255, 255, 255, 0.15);
+  background-color: var(--line-strong);
   background-clip: padding-box;
   border: 2px solid transparent;
   border-radius: 999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background-color: rgb(56 189 248 / 0.4);
-  background-clip: padding-box;
+  background-color: var(--ink-3);
 }
 
 ::selection {
-  background: rgb(56 189 248 / 0.25);
+  background: color-mix(in srgb, var(--accent) 25%, transparent);
 }
 
-/* Foco visible y consistente en toda la app. Se usa :focus-visible (no
-   :focus) para que el anillo aparezca al navegar con teclado pero no cada vez
-   que alguien toca un botón con el dedo o el mouse. */
+/* Foco visible y consistente en toda la app. :focus-visible (no :focus) para
+   que el anillo aparezca al navegar con teclado y no con cada toque. No se
+   toca el border-radius: pisarlo acá cambiaba la forma de avatares y
+   switches justo al enfocarlos. */
 :focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
-  border-radius: 4px;
+}
 }
 
-/* Los montos siempre en cifras de ancho fijo: sin esto las columnas de plata
-   bailan de píxel cuando cambia un dígito. */
-.money {
-  font-variant-numeric: tabular-nums;
-  font-feature-settings: "tnum";
+@layer components {
+  /* Montos en columnas y listas: cifras de ancho fijo, si no bailan de
+     píxel cuando cambia un dígito. */
+  .money {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+  }
 }
 
+@utility scrollbar-none {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Placeholder de carga. El pulso es funcional (dice "está cargando"), pero
+   igual se apaga con reduced motion. */
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+
+/* Sin border-radius acá: los estilos sin capa le ganan a las utilidades de
+   Tailwind, así que la forma se pone con clases `rounded-*` en cada uso. */
+@layer components {
+  .skeleton {
+    background: var(--surface-raised);
+    animation: skeleton-pulse 1.6s ease-in-out infinite;
+  }
+}
+
+/* Fila recién llegada (tras leer correos o anotar efectivo): un fondo de
+   acento que se desvanece solo, sin escalar ni brillar. */
+@keyframes row-arrived {
+  0%, 45% { background-color: color-mix(in srgb, var(--accent) 9%, transparent); }
+  100% { background-color: transparent; }
+}
+
+@layer components {
+  .row-arrived {
+    animation: row-arrived 2.6s ease-out both;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton,
+  .row-arrived {
+    animation: none;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Landing. Lo de abajo solo lo usan las secciones de marketing.
+--------------------------------------------------------------------------- */
 @keyframes fade-up {
   from {
     opacity: 0;
@@ -314,29 +441,16 @@ textarea,
   }
 }
 
-/* Panel de la página de login/registro: blobs a la deriva + marquee de
-   bancos, ambos en loop infinito y solo con transform (sin animar
-   width/height/top/left) para que no traben en pantallas de 120Hz. */
-@keyframes auth-blob-a {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  50% { transform: translate(6%, 8%) scale(1.08); }
-}
-@keyframes auth-blob-b {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  50% { transform: translate(-8%, -6%) scale(1.1); }
-}
+/* Marquee de bancos del footer de la landing: solo transform, para que no
+   trabe en pantallas de 120Hz. */
 @keyframes auth-marquee {
   from { transform: translateX(0); }
   to { transform: translateX(-50%); }
 }
 
-.auth-blob-a { animation: auth-blob-a 16s ease-in-out infinite; }
-.auth-blob-b { animation: auth-blob-b 18s ease-in-out infinite; }
 .auth-marquee { animation: auth-marquee 28s linear infinite; }
 
 @media (prefers-reduced-motion: reduce) {
-  .auth-blob-a,
-  .auth-blob-b,
   .auth-marquee {
     animation: none;
   }

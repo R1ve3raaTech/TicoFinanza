@@ -1,13 +1,12 @@
 "use client";
 
 import { useEffect, useState, useSyncExternalStore, useTransition } from "react";
-import { motion, useReducedMotion } from "framer-motion";
-import { BellRinging, BellSlash } from "@phosphor-icons/react";
 import { subscribeToPush } from "@/app/dashboard/actions";
 import { setNotificationsEnabled } from "@/app/dashboard/settings/actions";
 import { useToast } from "@/components/Toast";
-
-const knobSpring = { type: "spring", stiffness: 500, damping: 30 } as const;
+import { FormError } from "@/components/ui/Field";
+import { Switch } from "@/components/ui/Switch";
+import { SettingsRow } from "./SettingsSection";
 
 function isPushSupported() {
   if (typeof navigator === "undefined" || typeof window === "undefined") return false;
@@ -24,7 +23,6 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array<ArrayBuffer> {
 }
 
 export function NotificationsSetting() {
-  const reduce = useReducedMotion();
   const toast = useToast();
   // El estado real es "¿este navegador tiene una suscripción push activa?",
   // no el flag guardado en la base (que es a nivel de usuario, no de
@@ -117,53 +115,36 @@ export function NotificationsSetting() {
     });
   }
 
+  const status = !checked
+    ? ""
+    : !supported
+      ? "No disponible en este navegador"
+      : enabled
+        ? "Activadas"
+        : "Desactivadas";
+
   return (
-    <div className="flex flex-col gap-3">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h3 className="text-sm font-medium text-ink">Notificaciones push</h3>
-          <p className="text-xs text-ink-3">
-            Avisos en este dispositivo cuando se detecta un movimiento nuevo.
-          </p>
-          <p
-            className={`mt-1 text-[11px] font-medium ${enabled ? "text-accent" : "text-ink-3"}`}
-          >
-            {checked ? (enabled ? "Activadas en este dispositivo" : "Desactivadas") : ""}
-          </p>
-        </div>
-        <motion.button
-          onClick={toggle}
+    <>
+      <SettingsRow
+        inline
+        label="Notificaciones push"
+        description="Avisos en este dispositivo cuando entra un movimiento nuevo o te pasás de un presupuesto."
+      >
+        <span className="text-meta text-ink-3" aria-live="polite">
+          {status}
+        </span>
+        <Switch
+          checked={enabled}
+          onChange={toggle}
           disabled={pending || !supported || !checked}
-          aria-label="Notificaciones push"
-          whileTap={reduce ? undefined : { scale: 0.92 }}
-          animate={{
-            backgroundColor: enabled ? "rgba(56,189,248,0.15)" : "rgba(63,63,70,0.6)",
-            borderColor: enabled ? "rgba(56,189,248,0.4)" : "rgba(255,255,255,0.1)",
-          }}
-          transition={{ duration: 0.2 }}
-          className="relative h-8 w-14 shrink-0 rounded-full border disabled:opacity-40 cursor-pointer"
-        >
-          <motion.span
-            animate={{ x: enabled ? 26 : 3 }}
-            transition={knobSpring}
-            className={`absolute top-1 flex h-6 w-6 items-center justify-center rounded-full shadow-sm ${
-              enabled ? "bg-accent text-on-accent" : "bg-zinc-200 text-zinc-500"
-            }`}
-          >
-            {enabled ? (
-              <BellRinging size={13} weight="fill" />
-            ) : (
-              <BellSlash size={13} weight="bold" />
-            )}
-          </motion.span>
-        </motion.button>
-      </div>
-      {!supported && checked && (
-        <p className="text-xs text-ink-3">
-          Tu navegador no soporta notificaciones push.
-        </p>
+          label="Notificaciones push en este dispositivo"
+        />
+      </SettingsRow>
+      {error && (
+        <div className="border-b border-line py-3">
+          <FormError>{error}</FormError>
+        </div>
       )}
-      {error && <p className="text-xs text-expense">{error}</p>}
-    </div>
+    </>
   );
 }

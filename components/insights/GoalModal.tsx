@@ -1,16 +1,15 @@
 "use client";
 
-import { useState, useSyncExternalStore, useTransition } from "react";
-import { createPortal } from "react-dom";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { Trash, X } from "@phosphor-icons/react";
+import { useId, useState, useTransition } from "react";
+import { Trash } from "@phosphor-icons/react";
 import { createSavingsGoal, deleteSavingsGoal, updateSavingsGoal } from "@/app/dashboard/actions";
+import { AmountInput } from "@/components/dashboard/TransactionFormFields";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useToast } from "@/components/Toast";
-import { useLockBodyScroll } from "@/lib/useLockBodyScroll";
+import { Button } from "@/components/ui/Button";
+import { Dialog } from "@/components/ui/Dialog";
+import { Field, FormError, inputClass } from "@/components/ui/Field";
 import type { SavingsGoal } from "@/lib/types";
-
-const spring = { type: "spring", stiffness: 300, damping: 28 } as const;
 
 export function GoalModal({
   open,
@@ -22,25 +21,14 @@ export function GoalModal({
   goal: SavingsGoal | null;
   onClose: () => void;
 }) {
-  const reduce = useReducedMotion();
-  useLockBodyScroll(open);
   const toast = useToast();
+  const formId = useId();
   const [name, setName] = useState("");
   const [amount, setAmount] = useState("");
   const [targetDate, setTargetDate] = useState("");
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-  // La sección que envuelve este componente tiene una animación de entrada
-  // que deja un `transform` en el ancestro (aunque sea la identidad), lo
-  // cual crea un containing block nuevo para `position: fixed` y rompe el
-  // modal (queda posicionado relativo a la sección, no al viewport, y los
-  // clicks caen en el contenido de atrás). Un portal a <body> lo evita.
-  const mounted = useSyncExternalStore(
-    () => () => {},
-    () => true,
-    () => false
-  );
 
   // Reinicializa el formulario cada vez que el modal se abre (para una meta
   // nueva o para editar otra) comparando contra la sesión anterior durante
@@ -55,6 +43,7 @@ export function GoalModal({
     setConfirmingDelete(false);
     setError(null);
   }
+  if (sessionKey === null && lastSessionKey !== null) setLastSessionKey(null);
 
   function handleSave() {
     setError(null);
@@ -92,115 +81,88 @@ export function GoalModal({
         setError(result.error);
       } else {
         toast.success("Meta eliminada");
+        setConfirmingDelete(false);
         onClose();
       }
     });
   }
 
-  if (!mounted) return null;
-
-  return createPortal(
+  return (
     <>
-    <AnimatePresence>
-      {open && (
-        <>
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={onClose}
-            className="fixed inset-0 z-50 bg-ground/70 backdrop-blur-sm"
-          />
-          <motion.div
-            role="dialog"
-            aria-modal="true"
-            aria-label={goal ? "Editar meta de ahorro" : "Nueva meta de ahorro"}
-            initial={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.94 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.96 }}
-            transition={spring}
-            className="fixed inset-x-4 top-1/2 z-50 mx-auto max-h-[85dvh] max-w-md -translate-y-1/2 overflow-y-auto rounded-2xl border border-line bg-surface p-6 sm:inset-x-0"
-          >
-            <div className="mb-4 flex items-center justify-between gap-4">
-              <h2 className="text-base font-semibold text-ink">
-                {goal ? "Editar meta" : "Nueva meta de ahorro"}
-              </h2>
-              <button
-                onClick={onClose}
-                aria-label="Cerrar"
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-ink-2 transition-colors hover:bg-surface-raised hover:text-ink cursor-pointer"
+      <Dialog
+        open={open}
+        onClose={onClose}
+        dismissible={!isPending}
+        title={goal ? "Editar meta" : "Nueva meta de ahorro"}
+        footer={
+          <>
+            {goal && (
+              <Button
+                variant="danger-ghost"
+                onClick={() => setConfirmingDelete(true)}
+                disabled={isPending}
+                className="sm:mr-auto"
               >
-                <X size={16} weight="bold" />
-              </button>
-            </div>
+                <Trash size={15} />
+                Eliminar
+              </Button>
+            )}
+            <Button variant="secondary" onClick={onClose} disabled={isPending}>
+              Cancelar
+            </Button>
+            <Button variant="primary" type="submit" form={formId} disabled={isPending}>
+              {isPending ? "Guardando..." : goal ? "Guardar cambios" : "Crear meta"}
+            </Button>
+          </>
+        }
+      >
+        <form
+          id={formId}
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleSave();
+          }}
+          className="flex flex-col gap-5"
+        >
+          <Field label="Nombre">
+            <input
+              data-autofocus=""
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="¿Para qué? (ej. Viaje a Nicaragua)"
+              className={inputClass}
+            />
+          </Field>
 
-            <div className="flex flex-col gap-5">
-              <input
-                autoFocus
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="¿Para qué? (ej. Viaje a Nicaragua)"
-                className="w-full rounded-xl border border-line bg-ground px-4 py-2.5 text-sm text-ink outline-none transition-colors placeholder:text-ink-3 focus:border-accent/50"
-              />
+          <AmountInput label="Monto objetivo" value={amount} onChange={setAmount} />
 
-              <div className="flex items-center justify-center gap-2">
-                <span className="font-mono text-3xl text-ink-3">₡</span>
-                <input
-                  inputMode="decimal"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  placeholder="0"
-                  className="w-40 bg-transparent text-center font-mono text-5xl text-ink outline-none placeholder:text-ink-3"
-                />
-              </div>
+          <Field
+            label={
+              <>
+                ¿Para cuándo? <span className="font-normal text-ink-3">(opcional)</span>
+              </>
+            }
+          >
+            <input
+              type="date"
+              value={targetDate}
+              onChange={(e) => setTargetDate(e.target.value)}
+              className={`${inputClass} sm:max-w-[12rem]`}
+            />
+          </Field>
 
-              <label className="flex flex-col gap-1.5">
-                <span className="text-xs font-medium text-ink-2">
-                  ¿Para cuándo? <span className="font-normal text-ink-3">(opcional)</span>
-                </span>
-                <input
-                  type="date"
-                  value={targetDate}
-                  onChange={(e) => setTargetDate(e.target.value)}
-                  className="w-full rounded-xl border border-line bg-ground px-4 py-2.5 text-sm text-ink outline-none transition-colors focus:border-accent/50"
-                />
-              </label>
+          <FormError>{error}</FormError>
+        </form>
+      </Dialog>
 
-              {error && <p className="text-sm text-expense">{error}</p>}
-
-              <div className="flex gap-2">
-                {goal && (
-                  <button
-                    onClick={() => setConfirmingDelete(true)}
-                    disabled={isPending}
-                    aria-label="Eliminar meta"
-                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-expense/20 text-expense transition-colors hover:border-expense/40 hover:bg-expense/10 disabled:opacity-50 cursor-pointer"
-                  >
-                    <Trash size={16} weight="bold" />
-                  </button>
-                )}
-                <button
-                  onClick={handleSave}
-                  disabled={isPending}
-                  className="flex-1 rounded-xl bg-accent py-3 text-sm font-semibold text-on-accent transition-opacity disabled:opacity-40 cursor-pointer"
-                >
-                  {isPending ? "Guardando..." : goal ? "Guardar cambios" : "Crear meta"}
-                </button>
-              </div>
-            </div>
-          </motion.div>
-        </>
-      )}
-    </AnimatePresence>
-    <ConfirmDialog
-      open={confirmingDelete}
-      title="¿Eliminar esta meta?"
-      description="Esta acción no se puede deshacer."
-      pending={isPending}
-      onConfirm={handleDelete}
-      onCancel={() => setConfirmingDelete(false)}
-    />
-    </>,
-    document.body
+      <ConfirmDialog
+        open={confirmingDelete}
+        title="¿Eliminar esta meta?"
+        description="Esta acción no se puede deshacer."
+        pending={isPending}
+        onConfirm={handleDelete}
+        onCancel={() => setConfirmingDelete(false)}
+      />
+    </>
   );
 }

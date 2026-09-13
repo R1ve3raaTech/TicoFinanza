@@ -1,27 +1,19 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import {
-  ArrowDownLeft,
-  ArrowUpRight,
-  CaretDown,
-  Check,
-  Plus,
-  Sparkle,
-  X,
-} from "@phosphor-icons/react";
+import { useEffect, useId, useRef, useState, useTransition } from "react";
+import { CaretDown, CheckCircle } from "@phosphor-icons/react";
 import { addCashTransaction, suggestCategory } from "@/app/dashboard/actions";
-import { BankLogo } from "@/components/dashboard/BankLogo";
+import { Button } from "@/components/ui/Button";
+import { Dialog } from "@/components/ui/Dialog";
+import { Field, FormError, inputClass } from "@/components/ui/Field";
 import { BANK_BRAND } from "@/lib/bankBrand";
-import { DEFAULT_EXPENSE_CATEGORIES as expenseCategories, DEFAULT_INCOME_CATEGORIES as incomeCategories } from "@/lib/categories";
-import { manualBankOptions } from "@/lib/transactionFormOptions";
-import { useLockBodyScroll } from "@/lib/useLockBodyScroll";
+import {
+  DEFAULT_EXPENSE_CATEGORIES as expenseCategories,
+  DEFAULT_INCOME_CATEGORIES as incomeCategories,
+} from "@/lib/categories";
 import type { BankName, TransactionType, UserCategory } from "@/lib/types";
+import { AmountInput, BankPicker, CategoryPicker, TypeToggle } from "./TransactionFormFields";
 
-const spring = { type: "spring", stiffness: 300, damping: 28 } as const;
-const bounce = { type: "spring", stiffness: 400, damping: 22 } as const;
-const tap = { type: "spring", stiffness: 400, damping: 25 } as const;
 // Tiempo de pausa al tipear antes de pedirle a la IA que sugiera categoría.
 const AI_SUGGEST_DELAY_MS = 650;
 
@@ -32,15 +24,22 @@ function nowForInput(): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
+/**
+ * Formulario de movimiento manual. Se abre desde CashEntryProvider, que lo
+ * remonta en cada apertura — por eso el estado arranca limpio sin reset.
+ */
 export function AddCashModal({
+  open,
+  onClose,
   customCategories = [],
 }: {
+  open: boolean;
+  onClose: () => void;
   customCategories?: UserCategory[];
 }) {
-  const reduce = useReducedMotion();
-  const [open, setOpen] = useState(false);
+  const formId = useId();
+  const detailsId = useId();
   const [saved, setSaved] = useState(false);
-  useLockBodyScroll(open);
 
   const allExpenseCategories = [
     ...expenseCategories,
@@ -59,32 +58,12 @@ export function AddCashModal({
   const [suggesting, setSuggesting] = useState(false);
   const categories = type === "EXPENSE" ? allExpenseCategories : allIncomeCategories;
   const [description, setDescription] = useState("");
-  const [date, setDate] = useState(nowForInput());
+  const [date, setDate] = useState(nowForInput);
   const [showDetails, setShowDetails] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const suggestTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const suggestRequestId = useRef(0);
-
-  function reset() {
-    setSaved(false);
-    setType("EXPENSE");
-    setAmount("");
-    setBank("Efectivo");
-    setCategory(allExpenseCategories[0]);
-    setCategoryIsAiPick(false);
-    setSuggesting(false);
-    setDescription("");
-    setDate(nowForInput());
-    setShowDetails(false);
-    setError(null);
-    if (suggestTimer.current) clearTimeout(suggestTimer.current);
-  }
-
-  function close() {
-    setOpen(false);
-    setTimeout(reset, 200);
-  }
 
   function pickType(t: TransactionType) {
     setType(t);
@@ -152,252 +131,109 @@ export function AddCashModal({
         setError(result.error);
       } else {
         setSaved(true);
-        setTimeout(close, 1100);
+        setTimeout(onClose, 900);
       }
     });
   }
 
+  const categoryStatus = suggesting
+    ? "buscando la categoría…"
+    : categoryIsAiPick
+      ? "sugerida según la descripción"
+      : null;
+
   return (
-    <>
-      <motion.button
-        onClick={() => setOpen(true)}
-        whileHover={reduce ? undefined : { scale: 1.05 }}
-        whileTap={reduce ? undefined : { scale: 0.94 }}
-        transition={spring}
-        aria-label="Registrar efectivo"
-        className="fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-accent text-on-accent shadow-[0_8px_30px_rgba(56,189,248,0.35)] cursor-pointer"
-      >
-        <Plus size={24} weight="bold" />
-      </motion.button>
-
-      <AnimatePresence>
-        {open && (
+    <Dialog
+      open={open}
+      onClose={onClose}
+      dismissible={!pending && !saved}
+      title="Nuevo movimiento"
+      footer={
+        saved ? undefined : (
           <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => !saved && close()}
-              className="fixed inset-0 z-50 bg-ground/70 backdrop-blur-sm"
-            />
-            <motion.div
-              role="dialog"
-              aria-modal="true"
-              aria-label="Registrar movimiento"
-              initial={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.94 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.96 }}
-              transition={spring}
-              className="fixed inset-x-4 top-1/2 z-50 mx-auto flex max-h-[85dvh] max-w-md -translate-y-1/2 flex-col overflow-y-auto rounded-2xl border border-line bg-surface sm:inset-x-0"
-            >
-              {!saved && (
-                <div className="sticky top-0 z-10 flex items-center justify-between bg-surface px-6 pt-5 pb-2">
-                  <h2 className="text-base font-semibold text-ink">Nuevo movimiento</h2>
-                  <button
-                    onClick={close}
-                    aria-label="Cerrar"
-                    className="flex h-8 w-8 items-center justify-center rounded-full text-ink-2 transition-colors hover:bg-surface-raised hover:text-ink cursor-pointer"
-                  >
-                    <X size={16} weight="bold" />
-                  </button>
-                </div>
-              )}
-
-              <div className="relative min-h-[320px] px-6 pb-6 pt-2">
-                <AnimatePresence mode="wait" initial={false}>
-                  {!saved ? (
-                    <motion.div
-                      key="form"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      transition={{ duration: 0.15 }}
-                      className="flex flex-col gap-5"
-                    >
-                      <div className="mx-auto flex rounded-xl border border-line p-1">
-                        <motion.button
-                          onClick={() => pickType("EXPENSE")}
-                          whileTap={reduce ? undefined : { scale: 0.96 }}
-                          transition={bounce}
-                          className={`flex items-center gap-1.5 rounded-lg px-4 py-1.5 text-sm font-medium transition-colors cursor-pointer ${
-                            type === "EXPENSE"
-                              ? "bg-surface-raised text-ink"
-                              : "text-ink-3 hover:text-ink-2"
-                          }`}
-                        >
-                          <ArrowUpRight size={14} weight="bold" />
-                          Gasto
-                        </motion.button>
-                        <motion.button
-                          onClick={() => pickType("INCOME")}
-                          whileTap={reduce ? undefined : { scale: 0.96 }}
-                          transition={bounce}
-                          className={`flex items-center gap-1.5 rounded-lg px-4 py-1.5 text-sm font-medium transition-colors cursor-pointer ${
-                            type === "INCOME"
-                              ? "bg-income/15 text-income"
-                              : "text-ink-3 hover:text-ink-2"
-                          }`}
-                        >
-                          <ArrowDownLeft size={14} weight="bold" />
-                          Ingreso
-                        </motion.button>
-                      </div>
-
-                      <div className="flex items-center justify-center gap-2">
-                        <span className="font-mono text-3xl text-ink-3">₡</span>
-                        <input
-                          autoFocus
-                          inputMode="decimal"
-                          value={amount}
-                          onChange={(e) => setAmount(e.target.value)}
-                          placeholder="0"
-                          className="w-40 bg-transparent text-center font-mono text-5xl text-ink outline-none placeholder:text-ink-3"
-                        />
-                      </div>
-
-                      <input
-                        value={description}
-                        onChange={(e) => handleDescriptionChange(e.target.value)}
-                        placeholder={type === "EXPENSE" ? "¿En qué? (ej. Uber, súper...)" : "¿De dónde? (opcional)"}
-                        className="w-full rounded-xl border border-line bg-ground px-4 py-2.5 text-sm text-ink outline-none transition-colors placeholder:text-ink-3 focus:border-accent/50"
-                      />
-
-                      <div className="flex flex-col gap-2">
-                        <span className="flex items-center gap-1.5 text-xs font-medium text-ink-2">
-                          Categoría
-                          {suggesting && (
-                            <motion.span
-                              animate={{ opacity: [0.4, 1, 0.4] }}
-                              transition={{ repeat: Infinity, duration: 1.2 }}
-                              className="flex items-center gap-1 text-accent"
-                            >
-                              <Sparkle size={12} weight="fill" />
-                              pensando...
-                            </motion.span>
-                          )}
-                          {!suggesting && categoryIsAiPick && (
-                            <span className="flex items-center gap-1 text-accent">
-                              <Sparkle size={12} weight="fill" />
-                              sugerido por IA
-                            </span>
-                          )}
-                        </span>
-                        <div className="flex flex-wrap gap-2">
-                          {categories.map((c) => (
-                            <button
-                              key={c}
-                              onClick={() => pickCategory(c)}
-                              className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer ${
-                                category === c
-                                  ? "border-accent/50 bg-accent/10 text-accent-soft"
-                                  : "border-line text-ink-2 hover:border-line-strong"
-                              }`}
-                            >
-                              {c}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="flex flex-col gap-3 rounded-xl border border-line bg-ground/50">
-                        <button
-                          onClick={() => setShowDetails((v) => !v)}
-                          className="flex items-center justify-between px-4 py-2.5 text-xs font-medium text-ink-2 transition-colors hover:text-ink cursor-pointer"
-                        >
-                          <span>
-                            {bank === "Efectivo" ? "Efectivo" : BANK_BRAND[bank].initials} ·{" "}
-                            {new Date(date).toLocaleDateString("es-CR", { day: "numeric", month: "short" })}
-                          </span>
-                          <motion.span animate={{ rotate: showDetails ? 180 : 0 }} transition={tap}>
-                            <CaretDown size={14} weight="bold" />
-                          </motion.span>
-                        </button>
-                        <AnimatePresence initial={false}>
-                          {showDetails && (
-                            <motion.div
-                              initial={{ height: 0, opacity: 0 }}
-                              animate={{ height: "auto", opacity: 1 }}
-                              exit={{ height: 0, opacity: 0 }}
-                              transition={{ duration: 0.2 }}
-                              className="overflow-hidden"
-                            >
-                              <div className="flex flex-col gap-3 px-4 pb-4">
-                                <div className="flex flex-col gap-2">
-                                  <span className="text-xs font-medium text-ink-2">
-                                    ¿De dónde salió? (si no te llegó solo)
-                                  </span>
-                                  <div className="flex flex-wrap gap-2">
-                                    {manualBankOptions.map((b) => (
-                                      <button
-                                        key={b}
-                                        onClick={() => setBank(b)}
-                                        className={`flex items-center gap-1.5 rounded-full border py-1 pl-1 pr-3 text-xs font-medium transition-colors cursor-pointer ${
-                                          bank === b
-                                            ? "border-accent/50 bg-accent/10 text-accent-soft"
-                                            : "border-line text-ink-2 hover:border-line-strong"
-                                        }`}
-                                      >
-                                        <BankLogo bank={b} size={18} />
-                                        {BANK_BRAND[b].initials}
-                                      </button>
-                                    ))}
-                                  </div>
-                                </div>
-                                <input
-                                  type="datetime-local"
-                                  value={date}
-                                  onChange={(e) => setDate(e.target.value)}
-                                  className="w-full rounded-xl border border-line bg-surface px-4 py-2.5 text-sm text-ink outline-none transition-colors focus:border-accent/50"
-                                />
-                              </div>
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
-                      </div>
-
-                      {error && <p className="text-sm text-expense">{error}</p>}
-
-                      <motion.button
-                        onClick={submit}
-                        disabled={pending}
-                        whileTap={reduce ? undefined : { scale: 0.98 }}
-                        className="rounded-xl bg-accent py-3 text-sm font-semibold text-on-accent transition-opacity disabled:opacity-40 cursor-pointer"
-                      >
-                        {pending ? "Guardando..." : "Guardar movimiento"}
-                      </motion.button>
-                    </motion.div>
-                  ) : (
-                    <motion.div
-                      key="done"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      className="flex flex-col items-center justify-center gap-4 py-10"
-                    >
-                      <motion.div
-                        initial={reduce ? { opacity: 0 } : { scale: 0, rotate: -20 }}
-                        animate={{ scale: 1, rotate: 0 }}
-                        transition={{ type: "spring", stiffness: 480, damping: 18 }}
-                        className="flex h-16 w-16 items-center justify-center rounded-full bg-income"
-                      >
-                        <Check size={30} weight="bold" className="text-ground" />
-                      </motion.div>
-                      <motion.p
-                        initial={{ opacity: 0, y: 6 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.1 }}
-                        className="text-sm font-medium text-ink"
-                      >
-                        ¡Listo!
-                      </motion.p>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            </motion.div>
+            <Button variant="secondary" onClick={onClose} disabled={pending}>
+              Cancelar
+            </Button>
+            <Button variant="primary" type="submit" form={formId} disabled={pending}>
+              {pending ? "Guardando..." : "Guardar movimiento"}
+            </Button>
           </>
-        )}
-      </AnimatePresence>
-    </>
+        )
+      }
+    >
+      {saved ? (
+        <p role="status" className="flex items-center gap-2.5 py-6 text-sm text-ink">
+          <CheckCircle size={20} weight="fill" className="shrink-0 text-income" aria-hidden />
+          Listo, ya está en tus movimientos.
+        </p>
+      ) : (
+        <form
+          id={formId}
+          onSubmit={(e) => {
+            e.preventDefault();
+            submit();
+          }}
+          className="flex flex-col gap-5"
+        >
+          <TypeToggle value={type} onChange={pickType} />
+
+          <AmountInput value={amount} onChange={setAmount} autoFocus />
+
+          <Field label="Descripción">
+            <input
+              value={description}
+              onChange={(e) => handleDescriptionChange(e.target.value)}
+              placeholder={type === "EXPENSE" ? "¿En qué? (ej. Uber, súper...)" : "¿De dónde? (opcional)"}
+              className={inputClass}
+            />
+          </Field>
+
+          <CategoryPicker
+            categories={categories}
+            value={category}
+            onChange={pickCategory}
+            status={categoryStatus}
+          />
+
+          <div className="border-y border-line">
+            <button
+              type="button"
+              aria-expanded={showDetails}
+              aria-controls={detailsId}
+              onClick={() => setShowDetails((v) => !v)}
+              className="flex h-11 w-full items-center justify-between gap-3 text-left text-label text-ink-2 transition-colors duration-150 cursor-pointer hover:text-ink"
+            >
+              <span>
+                Origen y fecha{" "}
+                <span className="font-normal text-ink-3">
+                  · {bank === "Efectivo" ? "Efectivo" : BANK_BRAND[bank].initials},{" "}
+                  {new Date(date).toLocaleDateString("es-CR", { day: "numeric", month: "short" })}
+                </span>
+              </span>
+              <CaretDown
+                size={14}
+                aria-hidden
+                className={`shrink-0 transition-transform duration-150 ${showDetails ? "rotate-180" : ""}`}
+              />
+            </button>
+            {showDetails && (
+              <div id={detailsId} className="flex flex-col gap-4 pb-4">
+                <BankPicker label="¿De dónde salió? (si no te llegó solo)" value={bank} onChange={setBank} />
+                <Field label="Fecha y hora">
+                  <input
+                    type="datetime-local"
+                    value={date}
+                    onChange={(e) => setDate(e.target.value)}
+                    className={inputClass}
+                  />
+                </Field>
+              </div>
+            )}
+          </div>
+
+          <FormError>{error}</FormError>
+        </form>
+      )}
+    </Dialog>
   );
 }

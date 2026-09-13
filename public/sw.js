@@ -10,7 +10,9 @@ self.addEventListener("push", (event) => {
     self.registration.showNotification(data.title || "finanzascr", {
       body: data.body,
       icon: "/icon-192.png",
-      badge: "/icon-192.png",
+      // Android usa solo el canal alfa del badge: tiene que ser una silueta
+      // sin fondo, si no se ve un cuadrado blanco.
+      badge: "/badge-96.png",
       data: { url: data.url || "/dashboard" },
     })
   );

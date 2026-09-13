@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { Check, Warning } from "@phosphor-icons/react";
+import { CheckCircle, WarningCircle } from "@phosphor-icons/react";
 
 interface ToastItem {
   id: number;
@@ -46,34 +46,31 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   return (
     <ToastContext.Provider value={value}>
       {children}
-      <div className="pointer-events-none fixed inset-x-0 bottom-6 z-[100] flex flex-col items-center gap-2 px-4">
+      {/* En teléfono queda por encima de la barra de pestañas. */}
+      <div
+        role="status"
+        aria-live="polite"
+        className="pointer-events-none fixed inset-x-0 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-[100] flex flex-col items-center gap-2 px-4 md:bottom-6"
+      >
         <AnimatePresence>
           {toasts.map((t) => (
             <motion.div
               key={t.id}
-              layout
-              initial={reduce ? { opacity: 0 } : { opacity: 0, y: 16, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={reduce ? { opacity: 0 } : { opacity: 0, y: 8, scale: 0.96 }}
-              transition={{ type: "spring", stiffness: 420, damping: 30 }}
-              className={`pointer-events-auto flex items-center gap-2 rounded-full border px-4 py-2.5 text-sm font-medium shadow-[0_8px_30px_rgba(0,0,0,0.4)] backdrop-blur-md ${
-                t.kind === "success"
-                  ? "border-income/25 bg-surface/95 text-ink"
-                  : "border-expense/25 bg-surface/95 text-ink"
-              }`}
+              initial={reduce ? { opacity: 0 } : { opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.16, ease: [0.2, 0, 0, 1] }}
+              className="pointer-events-auto flex max-w-sm items-center gap-2.5 rounded-surface border border-line-strong bg-surface py-2.5 pl-3 pr-4 text-sm text-ink shadow-[0_10px_30px_-12px_rgb(0_0_0/0.35)]"
             >
-              <span
-                className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${
-                  t.kind === "success" ? "bg-income/15 text-income" : "bg-expense/15 text-expense"
-                }`}
-              >
-                {t.kind === "success" ? (
-                  <Check size={12} weight="bold" />
-                ) : (
-                  <Warning size={12} weight="bold" />
-                )}
+              {t.kind === "success" ? (
+                <CheckCircle size={18} weight="fill" className="shrink-0 text-income" aria-hidden />
+              ) : (
+                <WarningCircle size={18} weight="fill" className="shrink-0 text-expense" aria-hidden />
+              )}
+              <span>
+                <span className="sr-only">{t.kind === "success" ? "Listo: " : "Error: "}</span>
+                {t.message}
               </span>
-              {t.message}
             </motion.div>
           ))}
         </AnimatePresence>
