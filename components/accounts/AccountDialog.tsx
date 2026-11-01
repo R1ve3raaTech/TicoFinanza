@@ -35,8 +35,10 @@ export function AccountDialog({
 
   const [name, setName] = useState(account?.name ?? "");
   const [type, setType] = useState<AccountType>(account?.type ?? "efectivo");
-  const [initial, setInitial] = useState(
-    account ? formatAmountInput(account.initial_balance) : ""
+  // Se precarga el saldo de HOY, no el de partida: es el número que la
+  // persona puede comparar con su banco.
+  const [balance, setBalance] = useState(
+    account ? formatAmountInput(account.current_balance) : ""
   );
   const [error, setError] = useState<string | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -46,18 +48,18 @@ export function AccountDialog({
 
   function submit() {
     setError(null);
-    const value = initial.trim() === "" ? 0 : parseAmount(initial);
+    const value = balance.trim() === "" ? 0 : parseAmount(balance);
     if (!name.trim()) {
       setError("Ponele un nombre (ej. BAC débito, Efectivo, Visa).");
       return;
     }
     if (!Number.isFinite(value)) {
-      setError("El saldo inicial no es un número válido.");
+      setError("El saldo no es un número válido.");
       return;
     }
 
     startTransition(async () => {
-      const input = { name, type, initialBalance: value };
+      const input = { name, type, currentBalance: value };
       const result = account
         ? await updateAccount(account.id, input)
         : await createAccount(input);
@@ -150,23 +152,21 @@ export function AccountDialog({
           </Field>
 
           <Field
-            label="Saldo inicial"
-            hint="Lo que hay en la cuenta hoy, antes de registrar movimientos. En una tarjeta de crédito puede ser negativo."
+            label={editing ? "Saldo de hoy" : "Saldo actual"}
+            hint={
+              editing
+                ? "Lo que dice tu banco ahora mismo. Si no coincide con lo que ves acá, corregilo y la app ajusta el punto de partida sin tocar tus movimientos."
+                : "Lo que hay en la cuenta en este momento. En una tarjeta de crédito puede ser negativo."
+            }
           >
             <input
               inputMode="decimal"
-              value={initial}
-              onChange={(e) => setInitial(e.target.value)}
+              value={balance}
+              onChange={(e) => setBalance(e.target.value)}
               placeholder="0"
               className={`${inputClass} money`}
             />
           </Field>
-
-          {editing && (
-            <p className="text-meta leading-relaxed text-ink-3">
-              Saldo de hoy: el inicial más todo lo registrado en esta cuenta. Se recalcula solo.
-            </p>
-          )}
 
           <FormError>{error}</FormError>
         </form>

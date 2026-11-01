@@ -225,14 +225,24 @@ export async function getReceiptUrl(path: string) {
 export interface AccountInput {
   name: string;
   type: AccountType;
-  initialBalance: number;
+  /**
+   * Lo que hay en la cuenta HOY, no el saldo de partida.
+   *
+   * Antes el formulario pedía el saldo inicial con la ayuda "lo que hay en
+   * la cuenta hoy, antes de registrar movimientos", que se contradice sola:
+   * quien ponía 0 y después anotaba gastos terminaba con un saldo negativo
+   * que no era el suyo (pasó de verdad: una cuenta con ₡3.000 mostraba
+   * −₡4.100 porque nunca se cargó el punto de partida). La gente sabe
+   * cuánto tiene hoy, no cuánto tenía antes de empezar a usar la app, así
+   * que se pide eso y el saldo inicial se deduce.
+   */
+  currentBalance: number;
 }
 
 function validateAccount(input: AccountInput): string | null {
   if (!input.name.trim()) return "Ponele un nombre a la cuenta.";
-  // El saldo inicial puede ser negativo: una tarjeta de crédito arranca
-  // debiendo.
-  if (!Number.isFinite(input.initialBalance)) return "El saldo inicial no es válido.";
+  // Puede ser negativo: una tarjeta de crédito arranca debiendo.
+  if (!Number.isFinite(input.currentBalance)) return "El saldo no es válido.";
   return null;
 }
 
@@ -242,11 +252,13 @@ export async function createAccount(input: AccountInput) {
   const invalid = validateAccount(input);
   if (invalid) return { error: invalid };
 
+  // Cuenta nueva: todavía no hay movimientos, así que lo que hay hoy es
+  // exactamente el punto de partida.
   const { error } = await supabase.from("accounts").insert({
     user_id: user.id,
     name: input.name.trim(),
     type: input.type,
-    initial_balance: input.initialBalance,
+    initial_balance: input.currentBalance,
     currency: "CRC",
   });
 
@@ -262,14 +274,30 @@ export async function updateAccount(id: string, input: AccountInput) {
   const invalid = validateAccount(input);
   if (invalid) return { error: invalid };
 
-  // `current_balance` no se toca: lo recalcula la base cuando cambia el
-  // saldo inicial (ver los triggers de la migración 0020).
+  // Se ajusta el punto de partida para que el saldo de hoy dé lo que la
+  // persona dice que tiene. `current_balance` no se escribe nunca: lo
+  // recalcula la base al cambiar `initial_balance` (triggers de la 0020).
+  const { data: current } = await supabase
+    .from("accounts")
+    .select("initial_balance, current_balance")
+    .eq("id", id)
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (!current) return { error: "Esa cuenta no existe o no es tuya." };
+
+  // Si entra un movimiento justo entre esta lectura y la escritura, el
+  // ajuste queda corrido por ese monto. Con un solo usuario por cuenta la
+  // ventana es de milisegundos, y se corrige volviendo a ajustar.
+  const nextInitial =
+    Number(current.initial_balance) + (input.currentBalance - Number(current.current_balance));
+
   const { error } = await supabase
     .from("accounts")
     .update({
       name: input.name.trim(),
       type: input.type,
-      initial_balance: input.initialBalance,
+      initial_balance: nextInitial,
     })
     .eq("id", id)
     .eq("user_id", user.id);

@@ -747,3 +747,61 @@ a `/entrar`. Se comprueban las dos mitades por separado: que el chip escribe
 
 **Estado**: `npm test` (53, 8 nuevas sobre períodos y husos), `eslint`, `tsc`
 y `npm run build` pasan.
+
+## Dónde quedamos (2026-11-02, cuarta parte)
+
+Cuatro cosas de la pantalla de entrada y una de saldos.
+
+**El saldo de una cuenta no cuadraba (no era un bug de cálculo)**
+
+Camil reportó una cuenta con ₡3.000 reales que mostraba −₡4.100. La resta
+estaba bien; lo que faltaba era el punto de partida. El formulario pedía
+**"Saldo inicial"** con la ayuda *"lo que hay en la cuenta hoy, antes de
+registrar movimientos"*, que se contradice sola: quien pone 0 (o lo deja
+vacío) y después anota gastos termina con un saldo que no es el suyo.
+
+- Ahora el campo pide **el saldo de hoy**, que es el número que la persona
+  puede comparar contra su banco. Al guardar, la acción ajusta
+  `initial_balance` por la diferencia (`initial + (deseado − actual)`) y el
+  trigger recalcula el actual. Los movimientos no se tocan.
+- En una cuenta nueva no hay movimientos, así que lo de hoy es el punto de
+  partida y se guarda tal cual.
+- Hay una ventana de carrera mínima entre leer el saldo actual y escribir el
+  inicial; con un usuario por cuenta son milisegundos y se corrige volviendo
+  a ajustar. Está comentado en `updateAccount`.
+
+**Cierre por inactividad: ahora es un modal**
+
+`components/auth/IdleNoticeDialog.tsx`, sobre `/entrar?motivo=inactividad`.
+Antes era una línea de texto debajo del botón y se perdía entre el resto:
+quien vuelve a la pestaña ve la pantalla de entrada y piensa que algo se
+rompió. El modal dice por qué pasó y que no se perdió nada.
+
+**Términos con casilla explícita**
+
+Antes el consentimiento era implícito ("al entrar aceptás los términos", en
+letra chica). Ahora hay que marcar la casilla.
+
+- Es un `<input type="checkbox">` nativo con su `<label>`, y **los enlaces
+  legales van fuera de esa etiqueta**: un enlace dentro de un label hace que
+  tocarlo marque la casilla además de abrir la página. El primer intento fue
+  un `<button role="checkbox">` con los enlaces dentro del label y alternaba
+  dos veces (quedaba igual que antes del clic).
+- El botón de Google **queda habilitado** aunque falte marcar: uno
+  deshabilitado no recibe foco ni explica por qué no anda. Al tocarlo sin
+  marcar, muestra el error y manda el foco a la casilla.
+
+**Rediseño de `/entrar`**
+
+- El panel derecho muestra el producto (`HeroMockup`, el mismo de la
+  landing) en vez de tres párrafos de promesas: la pregunta de quien está
+  por entrar es "¿qué voy a ver adentro?".
+- Entrada escalonada con `animate-fade-up`, la utilidad que **ya existe** en
+  globals.css y que respeta `prefers-reduced-motion`. No se agregaron
+  animaciones nuevas ni se tocó globals.css.
+- En teléfono el panel derecho no se muestra, así que los tres puntos van
+  resumidos a una línea cada uno debajo del botón.
+
+**Estado**: `npm test` (53), `eslint`, `tsc` y `npm run build` pasan. QA con
+Playwright a 1440/1024/768/360: sin overflow ni errores de consola, más 8
+comprobaciones de la casilla y el modal.
