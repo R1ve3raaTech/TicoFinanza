@@ -35,6 +35,13 @@ export function PageHeader({
         )}
       </header>
 
+      {/* En teléfono la barra de arriba es fija y compacta, así que no
+          entra la descripción: va acá, en el flujo. Antes la explicación de
+          qué hace cada sección solo se veía en escritorio. */}
+      {meta && (
+        <p className="pb-1 pt-3 text-meta leading-relaxed text-ink-3 md:hidden">{meta}</p>
+      )}
+
       <header className="hidden items-end justify-between gap-6 pb-6 pt-8 md:flex xl:pt-10">
         <div className="min-w-0">
           <h1 className="text-title text-ink">{title}</h1>

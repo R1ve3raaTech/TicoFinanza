@@ -50,7 +50,7 @@ export function FixedExpensesView({
       <main id="contenido" className="mx-auto w-full max-w-[1000px] px-4 pb-12 md:px-8 xl:px-12">
         <PageHeader
           title="Gastos fijos"
-          meta={`Membresías y pagos recurrentes · ${monthLabel}`}
+          meta={`Lo que se cobra todos los meses, con su día. Marcás pagado y en ${monthLabel} vuelve a empezar.`}
           actions={<AddFixedExpenseButton />}
           mobileActions={
             <>

@@ -6,6 +6,7 @@ import type { Theme, UserCategory } from "@/lib/types";
 import { CategoryManager } from "./CategoryManager";
 import { DangerZone } from "./DangerZone";
 import { DeleteAccountFlow } from "./DeleteAccountFlow";
+import { AppGuide } from "./AppGuide";
 import { ProfileSettings } from "./ProfileSettings";
 import { RemindersSetting } from "./RemindersSetting";
 import { SessionSettings } from "./SessionSettings";
@@ -37,12 +38,20 @@ export function SettingsView({
 }) {
   return (
     <main id="contenido" className="mx-auto w-full max-w-[1000px] px-4 pb-16 md:px-8 xl:px-12">
-      <PageHeader title="Ajustes" meta="Tu cuenta, tus categorías y cómo se ve la app." />
+      <PageHeader title="Ajustes" meta="Tu cuenta, tus categorías, los recordatorios y cómo se ve la app." />
 
       <div className="lg:grid lg:grid-cols-[170px_minmax(0,1fr)] lg:gap-14">
         <SettingsIndex />
 
         <div className="min-w-0 max-w-[720px]">
+          <SettingsSection
+            id="guia"
+            title="Guía de la app"
+            description="Qué hace cada sección y las dos o tres cosas que suelen confundirse."
+          >
+            <AppGuide />
+          </SettingsSection>
+
           <SettingsSection id="perfil" title="Perfil" description="Tu nombre y tu foto.">
             <ProfileSettings
               userId={userId}

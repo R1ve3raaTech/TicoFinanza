@@ -9,7 +9,7 @@ export const metadata: Metadata = { title: "Entrar", robots: { index: false } };
 export default async function EntrarPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; salida?: string }>;
+  searchParams: Promise<{ error?: string; salida?: string; motivo?: string }>;
 }) {
   const params = await searchParams;
   if (getSupabaseConfig()) {
@@ -26,6 +26,7 @@ export default async function EntrarPage({
         params.error === "auth" ? "No se pudo entrar con Google. Intentá de nuevo." : undefined
       }
       signOutWarning={params.salida === "pendiente"}
+      idleNotice={params.motivo === "inactividad"}
     />
   );
 }

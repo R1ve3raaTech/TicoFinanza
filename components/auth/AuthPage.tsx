@@ -30,9 +30,12 @@ const POINTS = [
 export function AuthPage({
   initialError,
   signOutWarning,
+  idleNotice,
 }: {
   initialError?: string;
   signOutWarning?: boolean;
+  /** La sesión se cerró sola por inactividad. */
+  idleNotice?: boolean;
 }) {
   const configured = Boolean(getSupabaseConfig());
 
@@ -58,6 +61,7 @@ export function AuthPage({
               disabled={!configured}
               initialError={configured ? initialError : AUTH_CONFIGURATION_ERROR}
               signOutWarning={signOutWarning}
+              idleNotice={idleNotice}
             />
           </div>
 

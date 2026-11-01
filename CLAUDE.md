@@ -569,3 +569,69 @@ Quedan en Vercel dos variables muertas de las funciones eliminadas,
 `ANTHROPIC_API_KEY` y `GMAIL_TOKEN_ENCRYPTION_KEY`. No las usa nada; borrarlas
 es irreversible (son "Sensitive", no se pueden volver a leer), así que quedó
 pendiente de que Camil lo pida.
+
+## Dónde quedamos (2026-11-01, segunda parte)
+
+Camil pidió tres cosas sobre la app ya deployada: cierre de sesión por
+inactividad, que lo de adentro se sienta más intuitivo y personalizado, y
+que cada sección se explique. Sin tocar colores ni tipografías.
+
+**Cierre por inactividad (15 min)**
+
+- `lib/idle.ts` + `components/shell/IdleLogout.tsx`, montado en el layout de
+  `/dashboard` (afuera no hay sesión que cerrar).
+- **La cuenta va contra una marca de tiempo, no contra un `setTimeout`.** Si
+  la máquina se suspende, el temporizador se congela con ella y al despertar
+  la sesión seguiría abierta; comparando contra el reloj, una compu que
+  durmió dos horas aparece vencida apenas se despierta.
+- Aviso un minuto antes, con cuenta regresiva. Mientras el aviso está en
+  pantalla la actividad suelta **no** reinicia el conteo: si bastara mover la
+  rueda del mouse, el aviso se cerraría solo y nadie se enteraría de que
+  estuvo por perder la sesión.
+- `mousemove` no está entre las señales de actividad: un mouse apoyado en una
+  mesa que tiembla mantendría la sesión abierta toda la tarde.
+- La última actividad se comparte entre pestañas por `localStorage`, si no la
+  pestaña de atrás se vence sola y saca de las dos. Una marca guardada en el
+  futuro se descarta (reloj desajustado dejaría la sesión abierta para
+  siempre).
+- `signOutIdle()` usa alcance **local**, no global como `signOut()`:
+  olvidarse una pestaña en el trabajo no es razón para cerrar la sesión del
+  teléfono. Redirige a `/entrar?motivo=inactividad`, que lo explica.
+
+**Personalización e intuición**
+
+- El resumen abre con saludo por nombre y una frase que contesta "cómo
+  vengo" con los números de la persona (`lib/greeting.ts`). La hora se
+  resuelve **en el servidor** en hora de Costa Rica: calcularla en el
+  navegador rompía la hidratación en la frontera de las 12 y las 19.
+- `FirstSteps` reemplaza al "Empezá por acá" fijo de antes, que no sabía qué
+  habías hecho ya. Son **tres** pasos (cuenta, fijos, un movimiento) y no
+  cuatro: presupuestos y metas son opcionales, y en la lista el panel no
+  desaparecería nunca para quien no los usa. El botón celeste está solo en
+  el siguiente paso pendiente, que de paso respeta la regla de una sola
+  acción primaria por pantalla.
+- Con cero cuentas el panel "Tus cuentas" **no se muestra**: su estado vacío
+  decía lo mismo que el primer paso, con otro botón al lado.
+
+**Explicaciones**
+
+- `PageHeader` ahora muestra la descripción de la sección **también en
+  teléfono** (antes solo en escritorio, porque la barra de arriba es fija y
+  compacta). Se reescribieron las cinco descripciones.
+- Ajustes → **Guía de la app** (`components/settings/AppGuide.tsx`): qué hace
+  cada sección y las tres confusiones reales — un gasto fijo no es un
+  movimiento, una transferencia no es ingreso ni gasto, y una deuda no toca
+  las cuentas hasta que se salda. Va en Ajustes y no en un tour al entrar:
+  un tour se cierra una vez y después no hay forma de volver a verlo.
+
+**Para QA con Playwright**: `page.clock.install()` sirve para simular los 15
+minutos, pero **congela las animaciones de framer-motion**, así que el
+diálogo queda en el DOM con opacidad 0 y las capturas salen en blanco. No
+medir "¿se cerró?" por presencia del nodo — medir conducta (que la marca de
+actividad se reinicie, que no redirija). Para una captura de verdad del
+aviso, bajar un momento `IDLE_TIMEOUT_MS` y usar tiempo real.
+
+**Estado**: `npm test` (44, 12 nuevas entre inactividad y saludo), `eslint`,
+`tsc` y `npm run build` pasan. QA con Playwright en 1440 oscuro y 360 claro
+sobre las cinco pantallas, más 13 comprobaciones de conducta. Sin overflow ni
+errores de consola.

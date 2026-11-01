@@ -58,7 +58,7 @@ export function PlanView({
     <main id="contenido" className="mx-auto w-full max-w-[1000px] px-4 pb-12 md:px-8 xl:px-12">
       <PageHeader
         title="Plan"
-        meta="Topes de gasto, metas de ahorro y deudas."
+        meta="Lo que te proponés: topes de gasto del mes, metas de ahorro y las deudas con otras personas."
         mobileActions={<InstallAppButton />}
       />
 

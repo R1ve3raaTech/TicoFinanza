@@ -64,7 +64,7 @@ export function MovementsView({
       <main id="contenido" className="mx-auto w-full max-w-[1000px] px-4 pb-12 md:px-8 xl:px-12">
         <PageHeader
           title="Movimientos"
-          meta={`Ingresos, gastos y transferencias · ${periodLabel}`}
+          meta={`Lo que entró y lo que salió, anotado uno por uno · ${periodLabel}`}
           actions={
             <>
               <a

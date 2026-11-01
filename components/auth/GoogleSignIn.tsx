@@ -14,11 +14,14 @@ export function GoogleSignIn({
   disabled = false,
   initialError,
   signOutWarning = false,
+  idleNotice = false,
 }: {
   /** Falta configurar Supabase o Google en el servidor. */
   disabled?: boolean;
   initialError?: string;
   signOutWarning?: boolean;
+  /** Llegó acá porque se cerró la sesión por inactividad. */
+  idleNotice?: boolean;
 }) {
   const [starting, setStarting] = useState(false);
   const error = initialError;
@@ -44,6 +47,12 @@ export function GoogleSignIn({
       {error && (
         <p role="alert" className="text-sm text-expense">
           {error}
+        </p>
+      )}
+      {idleNotice && (
+        <p role="status" className="text-meta text-ink-3">
+          Cerramos tu sesión porque estuviste 15 minutos sin usar la app. Entrá de nuevo y seguís
+          donde estabas.
         </p>
       )}
       {signOutWarning && (

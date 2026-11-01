@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
 import { AppShell } from "@/components/shell/AppShell";
+import { IdleLogout } from "@/components/shell/IdleLogout";
 import { ThemeSync } from "@/components/ThemeSync";
 import { resolveAvatarUrl, resolveFirstName } from "@/lib/profile";
 import { createClient } from "@/lib/supabase/server";
@@ -34,6 +35,8 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   return (
     <AppShell name={firstName} email={user?.email ?? undefined} avatarUrl={avatarUrl}>
       <ThemeSync dbTheme={dbTheme} />
+      {/* Solo dentro del área con sesión: afuera no hay nada que cerrar. */}
+      <IdleLogout />
       {children}
     </AppShell>
   );

@@ -10,7 +10,9 @@ import {
   monthKeyOf,
   upcomingPayments,
 } from "@/lib/fixedExpenses";
+import { greeting, monthHeadline } from "@/lib/greeting";
 import { categorySpending, monthSummary, monthlyTotals } from "@/lib/insights";
+import { resolveFirstName } from "@/lib/profile";
 import { createClient } from "@/lib/supabase/server";
 import type { Account, FixedExpense, Transaction, UserCategory } from "@/lib/types";
 
@@ -74,6 +76,17 @@ export default async function DashboardPage() {
     month: "long",
     timeZone: CR_TZ,
   }).format(now);
+  // La hora se resuelve en el servidor, en hora de Costa Rica: si el saludo
+  // lo decidiera el navegador, el servidor podría renderizar "Buenas noches"
+  // y el cliente "Buenas tardes", y React tira un error de hidratación.
+  const hourInCR = Number(
+    new Intl.DateTimeFormat("es-CR", {
+      hour: "numeric",
+      hour12: false,
+      timeZone: CR_TZ,
+    }).format(now)
+  );
+
   const todayLabel = capitalize(
     new Intl.DateTimeFormat("es-CR", {
       weekday: "long",
@@ -98,7 +111,11 @@ export default async function DashboardPage() {
       todayKey={todayKey}
       todayLabel={todayLabel}
       monthLabel={monthLabel}
+      greeting={greeting(hourInCR, resolveFirstName(user))}
+      headline={monthHeadline(summary, totals.pending)}
       isEmpty={history.length === 0 && fixed.length === 0}
+      hasFixed={fixed.length > 0}
+      hasMovement={history.length > 0}
     />
   );
 }

@@ -2,6 +2,7 @@
 // del cliente lean la misma lista: una constante exportada desde un módulo de
 // cliente le llega al servidor como referencia, no como valor.
 export const SETTINGS_SECTIONS = [
+  { id: "guia", label: "Guía" },
   { id: "perfil", label: "Perfil" },
   { id: "categorias", label: "Categorías" },
   { id: "apariencia", label: "Apariencia" },

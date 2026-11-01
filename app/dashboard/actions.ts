@@ -376,3 +376,26 @@ export async function signOut() {
   }
   return { destination: revocationFailed ? "/entrar?salida=pendiente" : "/entrar" };
 }
+
+/**
+ * Cierre por inactividad (ver components/shell/IdleLogout.tsx).
+ *
+ * A diferencia de `signOut`, el alcance es **local** y no global: que te
+ * olvides una pestaña abierta en la compu del trabajo no es razón para
+ * sacarte la sesión del teléfono. Lo que hay que proteger es este
+ * dispositivo, que es el que quedó solo.
+ */
+export async function signOutIdle() {
+  try {
+    const supabase = await createClient();
+    await supabase.auth.signOut({ scope: "local" });
+  } catch {
+    // Aunque la revocación falle, las cookies de abajo igual se borran: sin
+    // ellas esta sesión del navegador no sirve.
+  }
+  const store = await cookies();
+  for (const { name } of store.getAll()) {
+    if (isProjectAuthCookie(name)) store.delete(name);
+  }
+  return { destination: "/entrar?motivo=inactividad" };
+}
