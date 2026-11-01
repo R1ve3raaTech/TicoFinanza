@@ -1,7 +1,6 @@
 import { it } from "node:test";
 import assert from "node:assert/strict";
 import {
-  calendarMonth,
   chargeDayKey,
   daysBetween,
   effectiveStatus,
@@ -84,32 +83,6 @@ it("suma los totales del mes separando pagado de pendiente", () => {
     "2026-10"
   );
   assert.deepEqual(totals, { total: 232000, paid: 185000, pending: 47000 });
-});
-
-it("arma la cuadrícula del mes de lunes a domingo con los cobros en su día", () => {
-  const { days, label } = calendarMonth(
-    "2026-10",
-    [expense({ id: "f1", charge_day: 5 }), expense({ id: "f2", charge_day: 31 })],
-    "2026-10-02"
-  );
-
-  assert.equal(label, "octubre de 2026");
-  assert.equal(days.length % 7, 0, "la cuadrícula siempre cierra en semanas enteras");
-  // El 1 de octubre de 2026 es jueves: tres huecos antes (lunes a miércoles).
-  assert.deepEqual(
-    days.slice(0, 4).map((d) => d.day),
-    [null, null, null, 1]
-  );
-
-  const day5 = days.find((d) => d.day === 5)!;
-  assert.deepEqual(
-    day5.charges.map((c) => c.id),
-    ["f1"]
-  );
-  assert.equal(day5.isPast, false, "el 5 todavía no llega si hoy es 2");
-  assert.equal(days.find((d) => d.day === 1)!.isPast, true);
-  assert.equal(days.find((d) => d.day === 2)!.isToday, true);
-  assert.equal(days.find((d) => d.day === 31)!.charges.length, 1);
 });
 
 it("cuenta los días entre fechas sin que el huso corra el resultado", () => {

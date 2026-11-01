@@ -805,3 +805,60 @@ letra chica). Ahora hay que marcar la casilla.
 **Estado**: `npm test` (53), `eslint`, `tsc` y `npm run build` pasan. QA con
 Playwright a 1440/1024/768/360: sin overflow ni errores de consola, más 8
 comprobaciones de la casilla y el modal.
+
+## Dónde quedamos (2026-11-02, quinta parte)
+
+**Hay una migración sin correr: `0022_fixed_expense_payments.sql`.** Agrega
+`transactions.fixed_expense_id`. Las consultas del resumen y de Plan ya la
+usan (`.is("fixed_expense_id", null)`), así que **deployar antes de correrla
+rompe las dos pantallas**. Primero la migración, después el deploy.
+
+**Marcar un gasto fijo como pagado ahora mueve el saldo**
+
+Era un hueco: `fixed_expenses.account_id` se guardaba y no se usaba para
+nada. Marcabas el alquiler como pagado y el saldo de la cuenta quedaba
+intacto, así que el número de la app se alejaba del banco el total de los
+fijos, todos los meses.
+
+- Marcar pagado abre `MarkPaidDialog` con un interruptor **prendido** para
+  descontarlo de la cuenta, igual que "Saldar" en deudas. Desmarcar borra el
+  movimiento de este ciclo (si lo creó la app, deshacer el pago tiene que
+  deshacerlo).
+- **El movimiento generado NO cuenta como gasto variable.** El resumen hace
+  ingresos − fijos − variables y los topes miden movimientos MÁS fijos: sin
+  excluirlo, el alquiler sumaría por los dos lados. Por eso la columna
+  `fixed_expense_id` y el filtro en las consultas del resumen y de Plan. Sí
+  cuenta para el saldo de la cuenta, que es justo el punto, y se ve en
+  Movimientos.
+- El gráfico de 6 meses también los excluye: si no, los meses en que
+  marcaste pagado no serían comparables con los que no.
+
+**El neto del mes ahora distingue lo ejecutado de lo comprometido**
+
+`monthSummary` devuelve `net` (ingresos − variables − fijos **ya pagados**)
+y `projectedNet` (restando todos). La tarjeta muestra el ejecutado y dice
+aparte cuánto falta por pagar, sin pintarlo de rojo.
+
+Esto salió de una pregunta real de Camil: el día 2 del mes la tarjeta decía
+"Déficit neto −₡15.100" cuando lo único que pasaba era que el salario no
+había entrado y todos los fijos ya restaban. Un número que alarma todos los
+primeros de mes deja de mirarse.
+
+**Saldo proyectado**: bajo el saldo total, "si pagás los ₡X de fijos que
+faltan → ₡Y". **No suma ingresos esperados**: la app no tiene gastos ni
+ingresos recurrentes de entrada, no sabe cuándo entra tu salario, y
+proyectar con un número inventado sería peor que no proyectar. Si algún día
+hay ingresos recurrentes, ese término se agrega acá.
+
+**Se eliminó el calendario del resumen**: contestaba lo mismo que "Próximos
+pagos", que estaba al lado. Se fueron `PaymentCalendar.tsx`, `calendarMonth()`
+y `CalendarDay` de `lib/fixedExpenses.ts` con su prueba, y se actualizó toda
+la copia que lo mencionaba (landing, /entrar, /privacidad, /terminos, el alt
+de la captura y la meta description). La captura
+`public/screenshots/dashboard.png` se regeneró (1440×1334).
+
+**Estado**: `npm test` (56, 4 nuevas sobre ejecutado vs. proyectado),
+`eslint`, `tsc` y `npm run build` pasan. QA con Playwright a 1440/1024/360
+sobre resumen y fijos: sin overflow ni errores de consola, más 6
+comprobaciones del neto, la proyección, la ausencia del calendario y el
+diálogo de marcar pagado.

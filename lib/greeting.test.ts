@@ -5,7 +5,15 @@ import type { MonthSummary } from "./insights";
 
 function summary(partial: Partial<MonthSummary>): MonthSummary {
   const base = { income: 0, fixedExpenses: 0, variableExpenses: 0, ...partial };
-  return { ...base, net: base.income - base.fixedExpenses - base.variableExpenses };
+  // Los fijos de estas pruebas se toman como ya pagados: lo que se verifica
+  // es la frase, no el reparto entre pagado y pendiente.
+  return {
+    ...base,
+    fixedPaid: base.fixedExpenses,
+    fixedPending: 0,
+    net: base.income - base.fixedExpenses - base.variableExpenses,
+    projectedNet: base.income - base.fixedExpenses - base.variableExpenses,
+  };
 }
 
 it("saluda según la hora", () => {

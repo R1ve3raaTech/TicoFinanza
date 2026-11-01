@@ -21,6 +21,7 @@ function transaction(
     type,
     account_id: "a1",
     receipt_url: null,
+    fixed_expense_id: null,
     transaction_date: date,
     created_at: date,
   };

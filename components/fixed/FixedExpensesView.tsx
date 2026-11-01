@@ -75,7 +75,7 @@ export function FixedExpensesView({
         </dl>
 
         <div className="pt-4">
-          <FixedExpensesList expenses={expenses} payments={payments} />
+          <FixedExpensesList expenses={expenses} payments={payments} accounts={accounts} />
         </div>
       </main>
     </FixedExpenseEntryProvider>

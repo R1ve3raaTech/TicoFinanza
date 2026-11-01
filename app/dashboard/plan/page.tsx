@@ -67,11 +67,15 @@ export default async function PlanPage({
     { data: debts },
   ] = await Promise.all([
     supabase.from("budgets").select("*").eq("user_id", user.id).eq("month_year", monthYear),
+    // Sin los movimientos nacidos de un gasto fijo: el tope mide
+    // movimientos MÁS gastos fijos de la categoría, así que incluirlos haría
+    // que un fijo pagado consumiera el tope dos veces.
     supabase
       .from("transactions")
       .select("category, amount, type, transaction_date")
       .eq("user_id", user.id)
       .eq("type", "EXPENSE")
+      .is("fixed_expense_id", null)
       .gte("transaction_date", monthStart)
       .lt("transaction_date", monthEnd),
     supabase.from("fixed_expenses").select("*").eq("user_id", user.id),

@@ -42,6 +42,12 @@ export interface Transaction {
   /** null cuando el movimiento no está asignado a ninguna cuenta. */
   account_id: string | null;
   /**
+   * Gasto fijo que originó este movimiento, si se registró al marcarlo
+   * pagado. Un movimiento con esto puesto **no** cuenta como gasto variable
+   * (el fijo ya suma por su lado), pero sí mueve el saldo de la cuenta.
+   */
+  fixed_expense_id: string | null;
+  /**
    * Comprobante adjunto: la RUTA del archivo dentro del bucket privado
    * `receipts` ("<user_id>/<uuid>.jpg"), no una URL que se pueda abrir. Para
    * mostrarlo hay que pedir una URL firmada con `getReceiptUrl()`.

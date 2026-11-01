@@ -6,6 +6,7 @@ import { TransferDialog } from "@/components/movements/TransferDialog";
 import { Button } from "@/components/ui/Button";
 import { Money } from "@/components/ui/Money";
 import { accountTypeLabel, totalBalance } from "@/lib/accounts";
+import { formatMoney } from "@/lib/format";
 import type { Account } from "@/lib/types";
 import { AccountDialog } from "./AccountDialog";
 
@@ -16,7 +17,14 @@ import { AccountDialog } from "./AccountDialog";
  * lo registrado. Tocar una tarjeta abre la cuenta para cambiarle el nombre,
  * el tipo o ese saldo inicial.
  */
-export function AccountsPanel({ accounts }: { accounts: Account[] }) {
+export function AccountsPanel({
+  accounts,
+  pendingFixed = 0,
+}: {
+  accounts: Account[];
+  /** Gastos fijos del mes que todavía no se pagaron. */
+  pendingFixed?: number;
+}) {
   const [editing, setEditing] = useState<Account | null>(null);
   const [accountOpen, setAccountOpen] = useState(false);
   const [transferOpen, setTransferOpen] = useState(false);
@@ -63,12 +71,30 @@ export function AccountsPanel({ accounts }: { accounts: Account[] }) {
         </div>
       ) : (
         <>
-          <div className="flex items-baseline justify-between gap-4 border-y border-line py-3">
-            <span className="text-meta text-ink-3">Saldo total</span>
-            <Money
-              value={total}
-              className={`text-figure ${total < 0 ? "text-expense" : "text-ink"}`}
-            />
+          <div className="border-y border-line py-3">
+            <div className="flex items-baseline justify-between gap-4">
+              <span className="text-meta text-ink-3">Saldo total</span>
+              <Money
+                value={total}
+                className={`text-figure ${total < 0 ? "text-expense" : "text-ink"}`}
+              />
+            </div>
+
+            {/* Lo que va a quedar cuando salgan los fijos que faltan. No
+                suma ingresos futuros: la app no sabe cuándo entra tu
+                salario, y proyectar con un número inventado sería peor que
+                no proyectar. */}
+            {pendingFixed > 0 && (
+              <div className="mt-2 flex items-baseline justify-between gap-4 text-meta">
+                <span className="min-w-0 text-ink-3">
+                  Si pagás los {formatMoney(pendingFixed)} de fijos que faltan
+                </span>
+                <Money
+                  value={total - pendingFixed}
+                  className={total - pendingFixed < 0 ? "text-expense" : "text-ink-2"}
+                />
+              </div>
+            )}
           </div>
 
           <ul className="grid gap-2 pt-3 sm:grid-cols-2 xl:grid-cols-3">

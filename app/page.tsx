@@ -37,7 +37,7 @@ const jsonLd = {
   operatingSystem: "Web, Android, iOS",
   url: "https://www.ticofinanza.com",
   description:
-    "Registrá tus gastos fijos con su día de cobro y tus ingresos y gastos del día a día. Próximos pagos, calendario y desglose por categoría, en colones. Hecho para Costa Rica.",
+    "Registrá tus gastos fijos con su día de cobro y tus ingresos y gastos del día a día. Próximos pagos, cuentas y desglose por categoría, en colones. Hecho para Costa Rica.",
   offers: { "@type": "Offer", price: "0", priceCurrency: "CRC" },
   areaServed: "CR",
   inLanguage: "es-CR",
@@ -155,7 +155,7 @@ export default async function LandingPage() {
                 air="wide"
                 label="Así se ve"
                 title="Todo el mes en una pantalla"
-                lead="El resumen del mes, lo que vence primero, el calendario de cobros y en qué se te va la plata."
+                lead="El resumen del mes, lo que vence primero, tus cuentas y en qué se te va la plata."
               >
                 <DashboardPreview />
               </Section>

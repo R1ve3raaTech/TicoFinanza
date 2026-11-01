@@ -107,8 +107,34 @@ export async function updateFixedExpense(id: string, input: FixedExpenseInput) {
 }
 
 /** Marcar pagado / pendiente desde la lista, sin abrir el formulario. */
-export async function setFixedExpenseStatus(id: string, status: FixedExpenseStatus) {
+/**
+ * Marca un gasto fijo como pagado o pendiente y, si se pide, registra el
+ * movimiento real en la cuenta.
+ *
+ * Registrar es opcional pero viene prendido: el caso normal es que el cobro
+ * salió de una cuenta de verdad y el saldo tiene que bajar. Queda la salida
+ * para quien lo pagó en efectivo sin anotar la cuenta, o para quien ya
+ * registró el movimiento a mano.
+ *
+ * Desmarcar borra el movimiento que creó la app, igual que reabrir una
+ * deuda: si lo creó marcar el pago, deshacer el pago tiene que deshacerlo o
+ * la plata queda descontada dos veces.
+ */
+export async function setFixedExpenseStatus(
+  id: string,
+  status: FixedExpenseStatus,
+  options: { registerMovement?: boolean; accountId?: string | null } = {}
+) {
   const { supabase, user } = await requireUser();
+
+  const { data: expense } = await supabase
+    .from("fixed_expenses")
+    .select("id, name, amount, category, account_id")
+    .eq("id", id)
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (!expense) return { error: "Ese gasto fijo no existe o no es tuyo." };
 
   const { error } = await supabase
     .from("fixed_expenses")
@@ -118,7 +144,50 @@ export async function setFixedExpenseStatus(id: string, status: FixedExpenseStat
 
   if (error) return { error: "No se pudo cambiar el estado. Intentá de nuevo." };
 
+  if (status === "PAID" && options.registerMovement) {
+    const accountId =
+      options.accountId !== undefined ? options.accountId : (expense.account_id as string | null);
+
+    if (!(await ownsRow(supabase, "accounts", accountId))) {
+      return { error: "Esa cuenta no existe o no es tuya." };
+    }
+
+    const { error: movementError } = await supabase.from("transactions").insert({
+      user_id: user.id,
+      amount: expense.amount,
+      currency: "CRC",
+      description: expense.name,
+      category: expense.category,
+      type: "EXPENSE",
+      account_id: accountId,
+      fixed_expense_id: id,
+      transaction_date: new Date().toISOString(),
+    });
+
+    if (movementError) {
+      // El estado ya cambió; se avisa que el movimiento no entró en vez de
+      // dejar creer que el saldo se actualizó.
+      revalidateFixed();
+      return { error: "Se marcó como pagado, pero no se pudo registrar el movimiento." };
+    }
+  }
+
+  if (status === "PENDING") {
+    // Solo los de ESTE ciclo: los de meses anteriores son historia y se
+    // quedan donde están.
+    const [year, month] = monthKey().split("-").map(Number);
+    const monthStart = new Date(Date.UTC(year, month - 1, 1)).toISOString();
+
+    await supabase
+      .from("transactions")
+      .delete()
+      .eq("user_id", user.id)
+      .eq("fixed_expense_id", id)
+      .gte("transaction_date", monthStart);
+  }
+
   revalidateFixed();
+  revalidatePath("/dashboard/movimientos");
   return { error: null };
 }
 

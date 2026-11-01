@@ -15,7 +15,7 @@ const POINTS = [
   {
     icon: CalendarCheck,
     title: "Qué se vence primero",
-    body: "Ordenados por fecha, con el calendario del mes.",
+    body: "Ordenados por el que vence primero, con los días que faltan.",
   },
   {
     icon: ChartDonut,

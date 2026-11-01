@@ -15,7 +15,7 @@ const steps = [
   },
   {
     title: "Mirá el resumen",
-    body: "Ingresos, gastos fijos, gastos variables y lo que queda. Con los próximos pagos ordenados y el calendario del mes.",
+    body: "Ingresos, gastos fijos, gastos variables y lo que queda. Con los próximos pagos ordenados por el que vence primero.",
   },
 ];
 

@@ -46,15 +46,28 @@ export interface MonthSummary {
   income: number;
   /** Suma de las membresías y gastos fijos del mes (pagados y pendientes). */
   fixedExpenses: number;
+  /** De esos fijos, los que ya se marcaron pagados este mes. */
+  fixedPaid: number;
+  /** Y los que todavía no: plata comprometida que aún no salió. */
+  fixedPending: number;
   /** Gastos anotados uno por uno, que no son fijos. */
   variableExpenses: number;
-  /** Ingresos − fijos − variables. Negativo es déficit. */
+  /**
+   * Lo que de verdad pasó: ingresos − variables − fijos YA PAGADOS.
+   *
+   * Antes esto restaba todos los fijos del mes, pagados o no, y el día 2 ya
+   * mostraba un déficit rojo aunque el salario simplemente no hubiera
+   * entrado todavía. Un número que alarma todos los primeros de mes deja de
+   * mirarse.
+   */
   net: number;
+  /** Ingresos − variables − TODOS los fijos: cómo cerraría el mes. */
+  projectedNet: number;
 }
 
 export function monthSummary(
   transactionsOfMonth: Pick<Transaction, "type" | "amount">[],
-  fixedTotal: number
+  fixed: { total: number; paid: number; pending: number }
 ): MonthSummary {
   let income = 0;
   let variableExpenses = 0;
@@ -64,9 +77,12 @@ export function monthSummary(
   }
   return {
     income,
-    fixedExpenses: fixedTotal,
+    fixedExpenses: fixed.total,
+    fixedPaid: fixed.paid,
+    fixedPending: fixed.pending,
     variableExpenses,
-    net: income - fixedTotal - variableExpenses,
+    net: income - fixed.paid - variableExpenses,
+    projectedNet: income - fixed.total - variableExpenses,
   };
 }
 

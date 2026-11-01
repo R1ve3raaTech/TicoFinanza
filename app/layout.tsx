@@ -19,7 +19,7 @@ const geistMono = Geist_Mono({
 
 const SITE_URL = "https://www.ticofinanza.com";
 const DESCRIPTION =
-  "Anotá tus gastos fijos con su día de cobro y tus ingresos y gastos del día a día. Próximos pagos, calendario y desglose por categoría, en colones. Hecho para Costa Rica.";
+  "Anotá tus gastos fijos con su día de cobro y tus ingresos y gastos del día a día. Próximos pagos, cuentas y desglose por categoría, en colones. Hecho para Costa Rica.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),

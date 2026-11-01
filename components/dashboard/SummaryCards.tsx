@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { Money } from "@/components/ui/Money";
+import { formatMoney } from "@/lib/format";
 import type { MonthSummary } from "@/lib/insights";
 
 function Card({
@@ -32,6 +33,12 @@ function Card({
  * El neto es la única cifra que cambia de color, y solo porque el signo ahí
  * significa algo (superávit o déficit); las otras tres van en tinta con su
  * cuadradito de serie, el mismo que usan los gráficos.
+ *
+ * **El neto cuenta solo los fijos YA PAGADOS.** Antes restaba todos los del
+ * mes: el día 2 mostraba un déficit rojo aunque lo único que pasara fuera
+ * que el salario todavía no había entrado. Lo que falta por pagar se dice
+ * aparte, en la misma tarjeta, sin pintarlo de rojo — es un compromiso, no
+ * una pérdida.
  */
 export function SummaryCards({ summary }: { summary: MonthSummary }) {
   const deficit = summary.net < 0;
@@ -43,15 +50,27 @@ export function SummaryCards({ summary }: { summary: MonthSummary }) {
       <Card label="Ingreso total" swatch="bg-chart-income">
         <Money value={summary.income} plus tabular={false} className="text-ink" />
       </Card>
-      <Card label="Gastos fijos" swatch="bg-chart-ramp-1" hint="Membresías y pagos recurrentes">
+      <Card
+        label="Gastos fijos"
+        swatch="bg-chart-ramp-1"
+        hint={
+          summary.fixedPending > 0
+            ? `${formatMoney(summary.fixedPaid)} pagados · ${formatMoney(summary.fixedPending)} por pagar`
+            : "Todos pagados este mes"
+        }
+      >
         <Money value={-summary.fixedExpenses} tabular={false} className="text-ink" />
       </Card>
       <Card label="Gastos variables" swatch="bg-chart-expense" hint="Lo anotado a mano este mes">
         <Money value={-summary.variableExpenses} tabular={false} className="text-ink" />
       </Card>
       <Card
-        label={deficit ? "Déficit neto" : "Superávit neto"}
-        hint="Ingresos − fijos − variables"
+        label={deficit ? "Déficit del mes" : "Superávit del mes"}
+        hint={
+          summary.fixedPending > 0
+            ? `Ya ejecutado. Faltan ${formatMoney(summary.fixedPending)} de fijos por pagar.`
+            : "Ingresos − fijos − variables"
+        }
       >
         <Money value={summary.net} plus tabular={false} className={netTone} />
       </Card>

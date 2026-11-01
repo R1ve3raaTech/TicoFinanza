@@ -10,9 +10,9 @@ export function DashboardPreview() {
     <div className="overflow-hidden rounded-dialog border border-line-strong bg-surface shadow-[0_30px_80px_-24px_rgba(0,0,0,0.45)]">
           <Image
             src="/screenshots/dashboard.png"
-            alt="Resumen de TicoFinanza con el ingreso total, los gastos fijos, los gastos variables y el superávit neto del mes, la tabla de próximos pagos, el calendario de cobros y el desglose de gastos por categoría"
+            alt="Resumen de TicoFinanza con el ingreso total, los gastos fijos, los gastos variables y el superávit neto del mes, los saldos de las cuentas, la tabla de próximos pagos y el desglose de gastos por categoría"
             width={1440}
-            height={1451}
+            height={1334}
             sizes="(min-width: 1152px) 1152px, 100vw"
         className="w-full"
       />

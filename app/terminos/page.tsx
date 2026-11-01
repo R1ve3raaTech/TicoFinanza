@@ -21,7 +21,7 @@ export default function TermsOfServicePage() {
           TicoFinanza es una aplicación de finanzas personales para Costa Rica, de registro
           manual: vos anotás tus ingresos y gastos, y tus membresías y gastos fijos con su día de
           cobro del mes, y la app los organiza por categoría y te muestra el resumen del mes, los
-          próximos pagos, el calendario de cobros y los gráficos de gasto. Todo se registra y se
+          próximos pagos, el saldo de tus cuentas y los gráficos de gasto. Todo se registra y se
           suma en colones.
         </p>
         <p>

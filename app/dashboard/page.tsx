@@ -3,7 +3,6 @@ import { redirect } from "next/navigation";
 import { DashboardView } from "@/components/dashboard/DashboardView";
 import {
   CR_TZ,
-  calendarMonth,
   dayKey,
   fixedTotals,
   monthKey,
@@ -31,7 +30,7 @@ export default async function DashboardPage() {
 
   // "Hoy" se resuelve una vez en el servidor, en hora de Costa Rica, y baja
   // como dato a los componentes: si el navegador lo recalculara, un día de
-  // diferencia rompía la hidratación del calendario.
+  // diferencia rompía la hidratación de los días que faltan.
   const todayKey = dayKey();
   const currentMonth = monthKeyOf(todayKey);
 
@@ -39,10 +38,16 @@ export default async function DashboardPage() {
     await Promise.all([
       // Seis meses de historial: alcanza para el gráfico, y de paso trae el
       // mes en curso para los totales y el desglose por categoría.
+      //
+      // Se excluyen los movimientos que generó marcar un gasto fijo como
+      // pagado: el fijo ya suma por su lado en todos estos cálculos, así que
+      // contarlos acá sería contar el alquiler dos veces. Sí cuentan para el
+      // saldo de la cuenta, que lo lleva la base.
       supabase
         .from("transactions")
         .select("amount, currency, type, category, transaction_date")
         .eq("user_id", user.id)
+        .is("fixed_expense_id", null)
         .gte("transaction_date", sixMonthsAgoISO())
         .order("transaction_date", { ascending: false }),
       supabase.from("fixed_expenses").select("*").eq("user_id", user.id),
@@ -68,8 +73,7 @@ export default async function DashboardPage() {
   // las 7 p.m. es 1 del mes siguiente en UTC y caería en el mes equivocado.
   const ofThisMonth = history.filter((t) => monthKey(new Date(t.transaction_date)) === currentMonth);
   const totals = fixedTotals(fixed, currentMonth);
-  const summary = monthSummary(ofThisMonth, totals.total);
-  const { days, label } = calendarMonth(currentMonth, fixed, todayKey);
+  const summary = monthSummary(ofThisMonth, totals);
 
   const now = new Date();
   const monthLabel = new Intl.DateTimeFormat("es-CR", {
@@ -103,8 +107,6 @@ export default async function DashboardPage() {
       summary={summary}
       accounts={(accounts ?? []) as Account[]}
       payments={upcomingPayments(fixed, todayKey)}
-      calendar={days}
-      calendarLabel={label}
       categorySlices={categorySpending(ofThisMonth, fixed, currentMonth)}
       months={monthlyTotals(history, 6)}
       customCategories={(categories ?? []) as UserCategory[]}

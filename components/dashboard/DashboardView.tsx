@@ -7,12 +7,11 @@ import { FixedExpenseEntryProvider } from "@/components/fixed/FixedExpenseEntry"
 import { InstallAppButton } from "@/components/InstallAppButton";
 import { AddMovementButton, MovementEntryProvider } from "@/components/movements/MovementEntry";
 import { PageHeader } from "@/components/shell/PageHeader";
-import type { CalendarDay, UpcomingPayment } from "@/lib/fixedExpenses";
+import type { UpcomingPayment } from "@/lib/fixedExpenses";
 import type { MonthHeadline } from "@/lib/greeting";
 import type { CategorySlice, MonthSummary, MonthTotal } from "@/lib/insights";
 import type { Account, UserCategory } from "@/lib/types";
 import { FirstSteps } from "./FirstSteps";
-import { PaymentCalendar } from "./PaymentCalendar";
 import { SummaryCards } from "./SummaryCards";
 import { UpcomingPayments } from "./UpcomingPayments";
 
@@ -20,7 +19,11 @@ import { UpcomingPayments } from "./UpcomingPayments";
  * Resumen: la pantalla que contesta "cómo vengo este mes".
  *
  * Arriba el resumen ejecutivo; abajo, lo que vence pronto (lo único que pide
- * acción) con el calendario del mes al lado, y al final los dos gráficos.
+ * acción) y al final los dos gráficos.
+ *
+ * El calendario del mes se quitó: contestaba lo mismo que "Próximos pagos",
+ * que está al lado, y en teléfono eran dos pantallazos para la misma
+ * pregunta.
  * Composición separada de la carga de datos (page.tsx) para poder verla con
  * datos de ejemplo.
  */
@@ -28,8 +31,6 @@ export function DashboardView({
   summary,
   accounts,
   payments,
-  calendar,
-  calendarLabel,
   categorySlices,
   months,
   customCategories,
@@ -45,8 +46,6 @@ export function DashboardView({
   summary: MonthSummary;
   accounts: Account[];
   payments: UpcomingPayment[];
-  calendar: CalendarDay[];
-  calendarLabel: string;
   categorySlices: CategorySlice[];
   months: MonthTotal[];
   customCategories: UserCategory[];
@@ -62,7 +61,6 @@ export function DashboardView({
   hasMovement: boolean;
 }) {
   const monthExpenses = summary.fixedExpenses + summary.variableExpenses;
-  const chargesThisMonth = calendar.reduce((sum, day) => sum + day.charges.length, 0);
 
   return (
     <FixedExpenseEntryProvider
@@ -127,19 +125,14 @@ export function DashboardView({
               Dos invitaciones a lo mismo, una debajo de la otra. */}
           {accounts.length > 0 && (
             <div className="pt-8">
-              <AccountsPanel accounts={accounts} />
+              <AccountsPanel accounts={accounts} pendingFixed={summary.fixedPending} />
             </div>
           )}
 
           {!isEmpty && (
             <>
-              <div className="grid gap-10 pt-8 lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-12 xl:gap-16">
+              <div className="pt-8">
                 <UpcomingPayments payments={payments} />
-                <PaymentCalendar
-                  days={calendar}
-                  label={calendarLabel}
-                  total={chargesThisMonth}
-                />
               </div>
 
               <div className="grid gap-10 pt-10 lg:grid-cols-2 lg:gap-12 xl:gap-16">
@@ -170,9 +163,9 @@ export function DashboardView({
                   <div className="border-t border-line pt-5">
                     <IncomeExpenseChart data={months} size="lg" />
                     <p className="mt-4 max-w-[52ch] text-meta leading-relaxed text-ink-3">
-                      Movimientos registrados mes a mes. Los gastos fijos no entran acá: son un
-                      plan mensual, no un movimiento con fecha — su total está arriba y en el
-                      calendario.
+                      Movimientos registrados mes a mes. Los gastos fijos no entran acá, ni
+                      siquiera los que marcaste pagados: son un plan mensual y ya suman en las
+                      tarjetas de arriba. Contarlos dos veces sería peor que no mostrarlos.
                     </p>
                   </div>
                 </section>

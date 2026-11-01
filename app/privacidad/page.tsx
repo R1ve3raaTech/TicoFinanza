@@ -84,7 +84,7 @@ export default function PrivacyPolicyPage() {
           </li>
           <li>
             <span>Datos financieros</span>: calcular tus totales del mes, ordenar tus próximos
-            pagos, armar el calendario de cobros y los gráficos de gasto por categoría e ingresos
+            pagos, llevar el saldo de tus cuentas y los gráficos de gasto por categoría e ingresos
             contra egresos.
           </li>
           <li>

@@ -215,7 +215,7 @@ export function FixedExpenseDialog({
       <ConfirmDialog
         open={confirmingDelete}
         title="¿Eliminar este gasto fijo?"
-        description="Deja de aparecer en próximos pagos y en el calendario. No se puede deshacer."
+        description="Deja de aparecer en próximos pagos y de contar en el resumen. No se puede deshacer."
         pending={pending}
         onConfirm={remove}
         onCancel={() => setConfirmingDelete(false)}
