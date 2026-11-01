@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { SquaresFour } from "@phosphor-icons/react";
-import { GoogleMark } from "@/components/GoogleMark";
 
 export function LoginButton({
   large = false,
@@ -11,11 +10,7 @@ export function LoginButton({
   large?: boolean;
   loggedIn?: boolean;
 }) {
-  const fullLabel = loggedIn ? "Ir al dashboard" : "Iniciar sesión con Google";
-  // En el header de un teléfono, "Iniciar sesión con Google" no cabe en una
-  // línea: partía el botón en dos y le comía el espacio al logo. Ahí va la
-  // versión corta — el botón grande del hero, que sí tiene ancho, mantiene el
-  // texto completo.
+  const fullLabel = loggedIn ? "Ir al dashboard" : "Iniciar sesión";
   const shortLabel = loggedIn ? "Dashboard" : "Entrar";
 
   return (
@@ -25,10 +20,8 @@ export function LoginButton({
         large ? "h-12 gap-3 px-6 text-base" : "h-10 gap-2.5 px-4 text-sm"
       }`}
     >
-      {loggedIn ? (
+      {loggedIn && (
         <SquaresFour size={large ? 20 : 18} aria-hidden />
-      ) : (
-        <GoogleMark size={large ? 20 : 18} />
       )}
       {large ? (
         fullLabel

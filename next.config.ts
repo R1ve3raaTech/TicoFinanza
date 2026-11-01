@@ -1,10 +1,12 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // pdf-parse (vía pdfjs-dist) resuelve su worker con requires dinámicos que
-  // el bundler de Next rompe; se deja fuera del bundle para que corra tal
-  // cual como en Node.
-  serverExternalPackages: ["pdf-parse", "pdfjs-dist"],
+  // Next 16 loguea los argumentos de las Server Functions por defecto, que
+  // acá son montos y descripciones de movimientos de gente real.
+  logging: {
+    serverFunctions: false,
+    incomingRequests: { ignore: [/\/auth\//] },
+  },
   images: {
     remotePatterns: [
       { hostname: "lh3.googleusercontent.com" },

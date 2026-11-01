@@ -1,12 +1,15 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { signOut } from "@/app/dashboard/actions";
 import { Button } from "@/components/ui/Button";
 import { Dialog } from "@/components/ui/Dialog";
 
 export function SignOutDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const router = useRouter();
   const [pending, startTransition] = useTransition();
+  const [error, setError] = useState("");
 
   return (
     <Dialog
@@ -16,7 +19,7 @@ export function SignOutDialog({ open, onClose }: { open: boolean; onClose: () =>
       size="sm"
       dismissible={!pending}
       title="¿Cerrar sesión?"
-      description="Vas a tener que volver a entrar con Google para ver tus movimientos."
+      description="Vas a tener que volver a iniciar sesión para ver tus movimientos."
       footer={
         <>
           <Button variant="secondary" onClick={onClose} disabled={pending}>
@@ -27,7 +30,13 @@ export function SignOutDialog({ open, onClose }: { open: boolean; onClose: () =>
             disabled={pending}
             onClick={() =>
               startTransition(async () => {
-                await signOut();
+                setError("");
+                try {
+                  const result = await signOut();
+                  router.replace(result.destination);
+                } catch {
+                  setError("No pudimos conectar para cerrar sesión. Intentá de nuevo.");
+                }
               })
             }
           >
@@ -35,7 +44,9 @@ export function SignOutDialog({ open, onClose }: { open: boolean; onClose: () =>
           </Button>
         </>
       }
-    />
+    >
+      {error && <p role="alert" className="text-sm text-expense">{error}</p>}
+    </Dialog>
   );
 }
 

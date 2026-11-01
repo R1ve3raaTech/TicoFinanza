@@ -6,7 +6,7 @@ import { Trash } from "@phosphor-icons/react";
 import {
   confirmAccountDeletion,
   requestAccountDeletionCode,
-} from "@/app/dashboard/settings/actions";
+} from "@/app/dashboard/ajustes/actions";
 import { Button } from "@/components/ui/Button";
 import { Dialog } from "@/components/ui/Dialog";
 import { Field, FormError, inputClass } from "@/components/ui/Field";
@@ -118,7 +118,7 @@ export function DeleteAccountFlow({ email }: { email: string }) {
         {step === "warn" && (
           <div className="flex flex-col gap-3 text-sm leading-relaxed text-ink-2">
             <p>
-              Se borran tus movimientos, categorías, presupuestos, metas y la conexión con Gmail.
+              Se borran tus movimientos, gastos fijos, categorías y tu perfil.
               No hay forma de recuperarlo después.
             </p>
             <p className="text-ink-3">

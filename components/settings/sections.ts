@@ -3,11 +3,9 @@
 // cliente le llega al servidor como referencia, no como valor.
 export const SETTINGS_SECTIONS = [
   { id: "perfil", label: "Perfil" },
-  { id: "gmail", label: "Gmail" },
   { id: "categorias", label: "Categorías" },
-  { id: "presupuestos", label: "Presupuestos" },
-  { id: "notificaciones", label: "Notificaciones" },
   { id: "apariencia", label: "Apariencia" },
+  { id: "recordatorios", label: "Recordatorios" },
   { id: "datos", label: "Datos" },
   { id: "sesion", label: "Sesión" },
   { id: "peligro", label: "Zona de peligro" },

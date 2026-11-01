@@ -5,10 +5,11 @@ import { usePathname } from "next/navigation";
 import { NAV_ITEMS, isNavActive } from "./navItems";
 
 /**
- * Navegación de teléfono. Son tres secciones pares y se salta entre ellas
- * todo el tiempo, así que van abajo, al alcance del pulgar y siempre a la
- * vista — antes Estadísticas y Ajustes eran pantallas "hijas" con flecha de
- * volver, y para ir de una a la otra había que pasar por el dashboard.
+ * Navegación de teléfono. Son secciones pares y se salta entre ellas todo el
+ * tiempo, así que van abajo, al alcance del pulgar y siempre a la vista.
+ *
+ * Con cinco pestañas el ancho es el que manda: las que tienen nombre largo
+ * usan su `shortLabel` acá, para no truncarse a 360px.
  */
 export function MobileTabBar() {
   const pathname = usePathname();
@@ -37,8 +38,10 @@ export function MobileTabBar() {
                     active ? "opacity-100" : "opacity-0"
                   }`}
                 />
-                <Icon size={22} weight={active ? "fill" : "regular"} />
-                {item.label}
+                <Icon size={20} weight={active ? "fill" : "regular"} />
+                <span className="max-w-full truncate px-0.5">
+                  {item.shortLabel ?? item.label}
+                </span>
               </Link>
             </li>
           );

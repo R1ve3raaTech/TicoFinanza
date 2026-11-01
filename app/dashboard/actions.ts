@@ -2,289 +2,163 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
+import { ownsReceiptPath, RECEIPTS_BUCKET } from "@/lib/receipts";
+import { isProjectAuthCookie } from "@/lib/supabase/cookies";
+import { ownsRow } from "@/lib/supabase/ownership";
 import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
-import { syncGmailForUser } from "@/lib/google/sync";
-import { sendPushToUser } from "@/lib/push/send";
-import { categorizeTransactions } from "@/lib/ai/categorize";
-import { summarizeFinances, type FinanceSnapshot } from "@/lib/ai/insightsSummary";
-import { AI_ERROR_MESSAGE } from "@/lib/ai/errorMessage";
-import { formatMoney } from "@/lib/format";
-import { checkRateLimit } from "@/lib/rateLimit";
-import { decryptToken } from "@/lib/tokenCrypto";
-import { DEFAULT_EXPENSE_CATEGORIES, DEFAULT_INCOME_CATEGORIES } from "@/lib/categories";
-import type { BankName, TransactionType } from "@/lib/types";
+import type { AccountType, TransactionType } from "@/lib/types";
 
-/**
- * Avisa por push la primera vez que un gasto categorizado hace que el mes
- * se pase del presupuesto de esa categoría (no en cada gasto siguiente).
- */
-async function checkBudgetAndNotify(userId: string, category: string, justSpent: number) {
-  const admin = createAdminClient();
-  const { data: budget } = await admin
-    .from("budgets")
-    .select("monthly_limit")
-    .eq("user_id", userId)
-    .eq("category", category)
-    .maybeSingle();
-  if (!budget) return;
-
-  const start = new Date();
-  start.setDate(1);
-  start.setHours(0, 0, 0, 0);
-
-  const { data: rows } = await admin
-    .from("transactions")
-    .select("amount")
-    .eq("user_id", userId)
-    .eq("category", category)
-    .eq("type", "EXPENSE")
-    .gte("transaction_date", start.toISOString());
-
-  const spent = (rows ?? []).reduce((sum, r) => sum + r.amount, 0);
-  const spentBefore = spent - justSpent;
-
-  if (spent > budget.monthly_limit && spentBefore <= budget.monthly_limit) {
-    await sendPushToUser(admin, userId, {
-      title: "Te pasaste del presupuesto",
-      body: `${category}: ${formatMoney(spent)} de ${formatMoney(budget.monthly_limit)} este mes.`,
-      url: "/dashboard/insights",
-    }).catch(() => {});
-  }
+/** Pantallas que muestran movimientos o saldos y hay que refrescar. */
+function revalidateMovements() {
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/movimientos");
+  revalidatePath("/dashboard/plan");
 }
 
-export async function addCashTransaction(input: {
+async function requireUser() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/entrar");
+  return { supabase, user };
+}
+
+const UNKNOWN_ACCOUNT = "Esa cuenta no existe o no es tuya.";
+
+// ---------------------------------------------------------------------------
+// Movimientos
+// ---------------------------------------------------------------------------
+
+export interface MovementInput {
   amount: number;
   description: string;
   category: string;
   type: TransactionType;
   transactionDate: string;
-  bank?: BankName;
-}) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/");
+  accountId: string | null;
+  /**
+   * Ruta del comprobante en el bucket `receipts`, o null si no tiene. El
+   * archivo lo sube el navegador directo a Storage (ver ReceiptField): por
+   * acá solo pasa la ruta, no los bytes — una Server Action tiene un tope de
+   * 1 MB de cuerpo y la foto de un recibo lo pasa fácil.
+   */
+  receiptPath?: string | null;
+}
 
+function validate(input: MovementInput): string | null {
   if (!Number.isFinite(input.amount) || input.amount <= 0) {
-    return { error: "El monto debe ser mayor a cero." };
+    return "El monto debe ser mayor a cero.";
   }
+  if (Number.isNaN(new Date(input.transactionDate).getTime())) {
+    return "La fecha no es válida.";
+  }
+  return null;
+}
 
-  const transactionDate = new Date(input.transactionDate);
-  if (Number.isNaN(transactionDate.getTime())) {
-    return { error: "La fecha no es válida." };
+const UNKNOWN_RECEIPT = "Ese comprobante no es tuyo.";
+
+/**
+ * Borra archivos del bucket sin dejar que un fallo tumbe la operación: si el
+ * archivo queda huérfano es basura de 200 KB, mientras que fallar acá
+ * dejaría al usuario sin poder borrar un movimiento.
+ */
+async function removeReceipts(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  paths: (string | null | undefined)[]
+) {
+  const real = paths.filter((path): path is string => Boolean(path));
+  if (real.length === 0) return;
+  await supabase.storage.from(RECEIPTS_BUCKET).remove(real);
+}
+
+export async function addTransaction(input: MovementInput) {
+  const { supabase, user } = await requireUser();
+
+  const invalid = validate(input);
+  if (invalid) return { error: invalid };
+  if (!(await ownsRow(supabase, "accounts", input.accountId))) {
+    return { error: UNKNOWN_ACCOUNT };
+  }
+  if (input.receiptPath && !ownsReceiptPath(input.receiptPath, user.id)) {
+    return { error: UNKNOWN_RECEIPT };
   }
 
   const { error } = await supabase.from("transactions").insert({
     user_id: user.id,
-    bank_name: input.bank ?? "Efectivo",
     amount: input.amount,
     currency: "CRC",
-    description: input.description || null,
+    description: input.description.trim() || null,
     category: input.category || null,
     type: input.type,
-    is_automated: false,
-    transaction_date: transactionDate.toISOString(),
+    account_id: input.accountId,
+    receipt_url: input.receiptPath ?? null,
+    transaction_date: new Date(input.transactionDate).toISOString(),
   });
 
-  if (error) {
-    return { error: "No se pudo guardar la transacción. Intentá de nuevo." };
-  }
+  if (error) return { error: "No se pudo guardar el movimiento. Intentá de nuevo." };
 
-  if (input.type === "EXPENSE" && input.category) {
-    await checkBudgetAndNotify(user.id, input.category, input.amount);
-  }
-
-  revalidatePath("/dashboard");
+  revalidateMovements();
   return { error: null };
 }
 
-/**
- * Sugiere una categoría para un movimiento que el usuario todavía está
- * escribiendo a mano (antes de guardarlo), usando la misma IA que categoriza
- * las transacciones automáticas. Se llama mientras el usuario tipea la
- * descripción, así que falla en silencio (sin `error` visible) si no hay
- * suficiente texto o si se pasó del límite de tasa.
- */
-export async function suggestCategory(input: {
-  description: string;
-  type: TransactionType;
-  amount: number;
-  bank: BankName;
-}) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { category: null };
+export async function updateTransaction(id: string, input: MovementInput) {
+  const { supabase, user } = await requireUser();
 
-  if (!input.description.trim()) return { category: null };
-
-  const admin = createAdminClient();
-  const rateLimit = await checkRateLimit(admin, user.id, "suggest_category_ai", {
-    maxCalls: 20,
-    windowSeconds: 60,
-  });
-  if (!rateLimit.allowed) return { category: null };
-
-  const { data: customCategories } = await admin
-    .from("user_categories")
-    .select("name, type")
-    .eq("user_id", user.id);
-
-  const categories =
-    input.type === "EXPENSE"
-      ? [
-          ...DEFAULT_EXPENSE_CATEGORIES,
-          ...(customCategories ?? []).filter((c) => c.type === "EXPENSE").map((c) => c.name),
-        ]
-      : [
-          ...DEFAULT_INCOME_CATEGORIES,
-          ...(customCategories ?? []).filter((c) => c.type === "INCOME").map((c) => c.name),
-        ];
-
-  try {
-    const assignments = await categorizeTransactions(
-      [
-        {
-          id: "draft",
-          bank_name: input.bank,
-          description: input.description,
-          amount: input.amount || 0,
-          currency: "CRC",
-          type: input.type,
-        },
-      ],
-      categories
-    );
-    return { category: assignments.get("draft") ?? null };
-  } catch (err) {
-    console.error("[suggestCategory]", err);
-    return { category: null };
+  const invalid = validate(input);
+  if (invalid) return { error: invalid };
+  if (!(await ownsRow(supabase, "accounts", input.accountId))) {
+    return { error: UNKNOWN_ACCOUNT };
   }
-}
-
-export async function syncMyGmail() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/");
-
-  const admin = createAdminClient();
-
-  const rateLimit = await checkRateLimit(admin, user.id, "sync_gmail", {
-    maxCalls: 1,
-    windowSeconds: 30,
-  });
-  if (!rateLimit.allowed) {
-    return {
-      error: `Espera ${rateLimit.retryAfterSeconds}s antes de volver a leer los correos.`,
-      inserted: 0,
-    };
+  const nextReceipt = input.receiptPath ?? null;
+  if (nextReceipt && !ownsReceiptPath(nextReceipt, user.id)) {
+    return { error: UNKNOWN_RECEIPT };
   }
 
-  const { data: tokenRows, error: tokenError } = await admin
-    .from("gmail_tokens")
-    .select("id, refresh_token")
-    .eq("user_id", user.id);
-
-  if (tokenError || !tokenRows || tokenRows.length === 0) {
-    return {
-      error:
-        "No encontramos tu conexión con Gmail. Volvé a iniciar sesión con Google para reconectarla.",
-      inserted: 0,
-    };
-  }
-
-  let inserted = 0;
-  let hadError = false;
-  // Cada cuenta conectada es independiente entre sí — sincronizarlas en
-  // paralelo en vez de una por una acelera mucho el botón cuando hay
-  // varias cuentas de Gmail conectadas.
-  const results = await Promise.allSettled(
-    tokenRows.map((row) =>
-      syncGmailForUser({
-        admin,
-        userId: user.id,
-        refreshToken: decryptToken(row.refresh_token),
-        tokenId: row.id,
-      })
-    )
-  );
-
-  for (const result of results) {
-    if (result.status === "fulfilled") {
-      inserted += result.value.transactionsInserted;
-      if (result.value.errors.length > 0) {
-        hadError = true;
-        console.error("[syncMyGmail]", result.value.errors);
-      }
-    } else {
-      hadError = true;
-      console.error("[syncMyGmail]", result.reason);
-    }
-  }
-
-  revalidatePath("/dashboard");
-  return { error: hadError ? "Hubo un error. Volvé a intentarlo." : null, inserted };
-}
-
-export async function updateTransaction(
-  id: string,
-  input: {
-    amount: number;
-    description: string;
-    category: string;
-    type: TransactionType;
-    transactionDate: string;
-    bank: BankName;
-  }
-) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/");
-
-  if (!Number.isFinite(input.amount) || input.amount <= 0) {
-    return { error: "El monto debe ser mayor a cero." };
-  }
-
-  const transactionDate = new Date(input.transactionDate);
-  if (Number.isNaN(transactionDate.getTime())) {
-    return { error: "La fecha no es válida." };
-  }
+  // Se lee el comprobante que tenía para poder borrar el archivo viejo si lo
+  // cambió o lo quitó: si no, cada reemplazo deja una foto suelta en el
+  // bucket que nadie va a volver a abrir.
+  const { data: current } = await supabase
+    .from("transactions")
+    .select("receipt_url")
+    .eq("id", id)
+    .eq("user_id", user.id)
+    .maybeSingle();
 
   const { error } = await supabase
     .from("transactions")
     .update({
-      bank_name: input.bank,
       amount: input.amount,
-      description: input.description || null,
+      description: input.description.trim() || null,
       category: input.category || null,
       type: input.type,
-      transaction_date: transactionDate.toISOString(),
+      account_id: input.accountId,
+      receipt_url: nextReceipt,
+      transaction_date: new Date(input.transactionDate).toISOString(),
     })
     .eq("id", id)
     .eq("user_id", user.id);
 
-  if (error) {
-    return { error: "No se pudo guardar el cambio. Intentá de nuevo." };
+  if (error) return { error: "No se pudo guardar el cambio. Intentá de nuevo." };
+
+  if (current?.receipt_url && current.receipt_url !== nextReceipt) {
+    await removeReceipts(supabase, [current.receipt_url]);
   }
 
-  revalidatePath("/dashboard");
-  revalidatePath("/dashboard/insights");
+  revalidateMovements();
   return { error: null };
 }
 
 export async function deleteTransaction(id: string) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/");
+  const { supabase, user } = await requireUser();
+
+  const { data: current } = await supabase
+    .from("transactions")
+    .select("receipt_url")
+    .eq("id", id)
+    .eq("user_id", user.id)
+    .maybeSingle();
 
   const { error } = await supabase
     .from("transactions")
@@ -292,23 +166,23 @@ export async function deleteTransaction(id: string) {
     .eq("id", id)
     .eq("user_id", user.id);
 
-  if (error) {
-    return { error: "Hubo un error. Volvé a intentarlo." };
-  }
+  if (error) return { error: "Hubo un error. Volvé a intentarlo." };
 
-  revalidatePath("/dashboard");
-  revalidatePath("/dashboard/insights");
+  await removeReceipts(supabase, [current?.receipt_url]);
+
+  revalidateMovements();
   return { error: null };
 }
 
 export async function deleteTransactions(ids: string[]) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/");
-
+  const { supabase, user } = await requireUser();
   if (ids.length === 0) return { error: null };
+
+  const { data: current } = await supabase
+    .from("transactions")
+    .select("receipt_url")
+    .in("id", ids)
+    .eq("user_id", user.id);
 
   const { error } = await supabase
     .from("transactions")
@@ -316,228 +190,189 @@ export async function deleteTransactions(ids: string[]) {
     .in("id", ids)
     .eq("user_id", user.id);
 
-  if (error) {
-    return { error: "Hubo un error. Volvé a intentarlo." };
-  }
+  if (error) return { error: "Hubo un error. Volvé a intentarlo." };
 
-  revalidatePath("/dashboard");
-  revalidatePath("/dashboard/insights");
+  await removeReceipts(supabase, (current ?? []).map((row) => row.receipt_url));
+
+  revalidateMovements();
   return { error: null };
 }
 
-export async function categorizeUncategorized() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/");
+/**
+ * URL firmada para ver un comprobante. El bucket es privado, así que no hay
+ * link permanente: cada vez que alguien abre el visor se pide una URL que
+ * sirve 10 minutos y después deja de funcionar. Que la ruta sea del usuario
+ * ya lo garantiza la política de storage; se revisa igual para no mandarle
+ * al servicio una ruta que no corresponde.
+ */
+export async function getReceiptUrl(path: string) {
+  const { supabase, user } = await requireUser();
 
-  const admin = createAdminClient();
+  if (!ownsReceiptPath(path, user.id)) return { url: null, error: UNKNOWN_RECEIPT };
 
-  const rateLimit = await checkRateLimit(admin, user.id, "categorize_ai", {
-    maxCalls: 1,
-    windowSeconds: 60,
-  });
-  if (!rateLimit.allowed) {
-    return {
-      error: `Espera ${rateLimit.retryAfterSeconds}s antes de volver a categorizar.`,
-      updated: 0,
-    };
-  }
+  const { data, error } = await supabase.storage
+    .from(RECEIPTS_BUCKET)
+    .createSignedUrl(path, 60 * 10);
 
-  const [{ data: pending }, { data: customCategories }] = await Promise.all([
-    admin
-      .from("transactions")
-      .select("id, bank_name, description, amount, currency, type")
-      .eq("user_id", user.id)
-      .eq("is_automated", true)
-      .is("category", null),
-    admin.from("user_categories").select("name, type").eq("user_id", user.id),
-  ]);
-
-  const rows = pending ?? [];
-  if (rows.length === 0) {
-    return { error: null, updated: 0 };
-  }
-
-  const expenseCategories = [
-    ...DEFAULT_EXPENSE_CATEGORIES,
-    ...(customCategories ?? []).filter((c) => c.type === "EXPENSE").map((c) => c.name),
-  ];
-  const incomeCategories = [
-    ...DEFAULT_INCOME_CATEGORIES,
-    ...(customCategories ?? []).filter((c) => c.type === "INCOME").map((c) => c.name),
-  ];
-
-  const expenseRows = rows.filter((r) => r.type === "EXPENSE");
-  const incomeRows = rows.filter((r) => r.type === "INCOME");
-
-  let assignments = new Map<string, string>();
-  try {
-    const [expenseResults, incomeResults] = await Promise.all([
-      categorizeTransactions(expenseRows, expenseCategories),
-      categorizeTransactions(incomeRows, incomeCategories),
-    ]);
-    assignments = new Map([...expenseResults, ...incomeResults]);
-  } catch (err) {
-    console.error("[categorizeUncategorized]", err);
-    return { error: AI_ERROR_MESSAGE, updated: 0 };
-  }
-
-  if (assignments.size === 0) {
-    return { error: null, updated: 0 };
-  }
-
-  let updated = 0;
-  await Promise.all(
-    Array.from(assignments.entries()).map(async ([id, category]) => {
-      // El cliente admin ignora RLS, así que el .eq("user_id", ...) de acá
-      // es la única barrera contra escribirle la categoría a la transacción
-      // de otro usuario. Hoy `assignments` solo puede traer ids que ya
-      // venían filtrados por user_id más arriba (categorizeTransactions
-      // valida cada id contra el lote que se le mandó), pero esa garantía
-      // vive en otro archivo — no depender de que se mantenga así.
-      const { error } = await admin
-        .from("transactions")
-        .update({ category })
-        .eq("id", id)
-        .eq("user_id", user.id);
-      if (!error) updated++;
-    })
-  );
-
-  revalidatePath("/dashboard");
-  revalidatePath("/dashboard/insights");
-  return { error: null, updated };
+  if (error || !data) return { url: null, error: "No se pudo abrir el comprobante." };
+  return { url: data.signedUrl, error: null };
 }
 
-export async function generateInsightsSummary(snapshot: FinanceSnapshot) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/");
+// ---------------------------------------------------------------------------
+// Cuentas
+// ---------------------------------------------------------------------------
 
-  const admin = createAdminClient();
-  const rateLimit = await checkRateLimit(admin, user.id, "ai_insights_summary", {
-    maxCalls: 8,
-    windowSeconds: 60,
-  });
-  if (!rateLimit.allowed) {
-    return {
-      summary: null,
-      error: `Espera ${rateLimit.retryAfterSeconds}s antes de volver a generar el resumen.`,
-    };
-  }
-
-  const summary = await summarizeFinances(snapshot);
-  return { summary, error: summary ? null : AI_ERROR_MESSAGE };
-}
-
-export async function subscribeToPush(subscription: {
-  endpoint: string;
-  keys: { p256dh: string; auth: string };
-}) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/");
-
-  const { error } = await supabase.from("push_subscriptions").upsert(
-    {
-      user_id: user.id,
-      endpoint: subscription.endpoint,
-      p256dh: subscription.keys.p256dh,
-      auth: subscription.keys.auth,
-    },
-    { onConflict: "endpoint" }
-  );
-
-  return { error: error ? "No se pudieron activar las notificaciones." : null };
-}
-
-export async function createSavingsGoal(input: {
+export interface AccountInput {
   name: string;
-  targetAmount: number;
-  targetDate: string | null;
-}) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/");
+  type: AccountType;
+  initialBalance: number;
+}
 
-  const name = input.name.trim();
-  if (!name) return { error: "Ponele un nombre a la meta." };
-  if (!Number.isFinite(input.targetAmount) || input.targetAmount <= 0) {
-    return { error: "El monto debe ser mayor a cero." };
-  }
+function validateAccount(input: AccountInput): string | null {
+  if (!input.name.trim()) return "Ponele un nombre a la cuenta.";
+  // El saldo inicial puede ser negativo: una tarjeta de crédito arranca
+  // debiendo.
+  if (!Number.isFinite(input.initialBalance)) return "El saldo inicial no es válido.";
+  return null;
+}
 
-  const { error } = await supabase.from("savings_goals").insert({
+export async function createAccount(input: AccountInput) {
+  const { supabase, user } = await requireUser();
+
+  const invalid = validateAccount(input);
+  if (invalid) return { error: invalid };
+
+  const { error } = await supabase.from("accounts").insert({
     user_id: user.id,
-    name,
-    target_amount: input.targetAmount,
+    name: input.name.trim(),
+    type: input.type,
+    initial_balance: input.initialBalance,
     currency: "CRC",
-    target_date: input.targetDate || null,
   });
 
-  if (error) return { error: "No se pudo crear la meta. Intentá de nuevo." };
-  revalidatePath("/dashboard/insights");
+  if (error) return { error: "No se pudo crear la cuenta. Intentá de nuevo." };
+
+  revalidateMovements();
   return { error: null };
 }
 
-export async function updateSavingsGoal(
-  id: string,
-  input: { name: string; targetAmount: number; targetDate: string | null }
-) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/");
+export async function updateAccount(id: string, input: AccountInput) {
+  const { supabase, user } = await requireUser();
 
-  const name = input.name.trim();
-  if (!name) return { error: "Ponele un nombre a la meta." };
-  if (!Number.isFinite(input.targetAmount) || input.targetAmount <= 0) {
-    return { error: "El monto debe ser mayor a cero." };
-  }
+  const invalid = validateAccount(input);
+  if (invalid) return { error: invalid };
 
+  // `current_balance` no se toca: lo recalcula la base cuando cambia el
+  // saldo inicial (ver los triggers de la migración 0020).
   const { error } = await supabase
-    .from("savings_goals")
+    .from("accounts")
     .update({
-      name,
-      target_amount: input.targetAmount,
-      target_date: input.targetDate || null,
+      name: input.name.trim(),
+      type: input.type,
+      initial_balance: input.initialBalance,
     })
     .eq("id", id)
     .eq("user_id", user.id);
 
   if (error) return { error: "No se pudo guardar el cambio. Intentá de nuevo." };
-  revalidatePath("/dashboard/insights");
+
+  revalidateMovements();
   return { error: null };
 }
 
-export async function deleteSavingsGoal(id: string) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/");
+/**
+ * Borra la cuenta, no su historial: los movimientos quedan sin cuenta
+ * asignada (`on delete set null`). Las transferencias desde o hacia ella sí
+ * se van con la cuenta, porque sin los dos lados no significan nada.
+ */
+export async function deleteAccount(id: string) {
+  const { supabase, user } = await requireUser();
 
-  const { error } = await supabase
-    .from("savings_goals")
-    .delete()
-    .eq("id", id)
-    .eq("user_id", user.id);
+  const { error } = await supabase.from("accounts").delete().eq("id", id).eq("user_id", user.id);
 
-  if (error) return { error: "No se pudo eliminar la meta." };
-  revalidatePath("/dashboard/insights");
+  if (error) return { error: "No se pudo eliminar la cuenta." };
+
+  revalidateMovements();
   return { error: null };
 }
+
+// ---------------------------------------------------------------------------
+// Transferencias internas
+// ---------------------------------------------------------------------------
+
+export interface TransferInput {
+  fromAccountId: string;
+  toAccountId: string;
+  amount: number;
+  description: string;
+  transferDate: string;
+}
+
+export async function createTransfer(input: TransferInput) {
+  const { supabase, user } = await requireUser();
+
+  if (!Number.isFinite(input.amount) || input.amount <= 0) {
+    return { error: "El monto debe ser mayor a cero." };
+  }
+  if (!input.fromAccountId || !input.toAccountId) {
+    return { error: "Elegí la cuenta de origen y la de destino." };
+  }
+  if (input.fromAccountId === input.toAccountId) {
+    return { error: "El origen y el destino tienen que ser cuentas distintas." };
+  }
+  if (Number.isNaN(new Date(input.transferDate).getTime())) {
+    return { error: "La fecha no es válida." };
+  }
+
+  const [ownsFrom, ownsTo] = await Promise.all([
+    ownsRow(supabase, "accounts", input.fromAccountId),
+    ownsRow(supabase, "accounts", input.toAccountId),
+  ]);
+  if (!ownsFrom || !ownsTo) return { error: UNKNOWN_ACCOUNT };
+
+  const { error } = await supabase.from("transfers").insert({
+    user_id: user.id,
+    from_account_id: input.fromAccountId,
+    to_account_id: input.toAccountId,
+    amount: input.amount,
+    description: input.description.trim() || null,
+    transfer_date: new Date(input.transferDate).toISOString(),
+  });
+
+  if (error) return { error: "No se pudo guardar la transferencia. Intentá de nuevo." };
+
+  revalidateMovements();
+  return { error: null };
+}
+
+export async function deleteTransfer(id: string) {
+  const { supabase, user } = await requireUser();
+
+  const { error } = await supabase.from("transfers").delete().eq("id", id).eq("user_id", user.id);
+
+  if (error) return { error: "Hubo un error. Volvé a intentarlo." };
+
+  revalidateMovements();
+  return { error: null };
+}
+
+// ---------------------------------------------------------------------------
+// Sesión
+// ---------------------------------------------------------------------------
 
 export async function signOut() {
-  const supabase = await createClient();
-  await supabase.auth.signOut();
-  redirect("/");
+  let revocationFailed = false;
+  try {
+    const supabase = await createClient();
+    // Alcance global: cierra la sesión en todos los dispositivos.
+    const { error } = await supabase.auth.signOut({ scope: "global" });
+    revocationFailed = Boolean(error);
+  } catch {
+    revocationFailed = true;
+  }
+  const store = await cookies();
+  for (const { name } of store.getAll()) {
+    if (isProjectAuthCookie(name)) store.delete(name);
+  }
+  return { destination: revocationFailed ? "/entrar?salida=pendiente" : "/entrar" };
 }

@@ -6,39 +6,47 @@ import { Plus } from "@phosphor-icons/react";
 import { Reveal, SectionHeading } from "./Reveal";
 
 /**
- * Las preguntas que alguien se hace de verdad antes de conectar su correo
- * bancario, contestadas de frente — incluidas las incómodas (la advertencia de
- * Google y lo que la app NO puede ver). Esconderlas es lo que hace que una app
- * de plata dé desconfianza; contestarlas es lo que la hace creíble.
+ * Las preguntas que alguien se hace de verdad antes de crearse una cuenta de
+ * plata, contestadas de frente — incluidas las incómodas (que hay que anotar
+ * a mano, y que no se conecta al banco). Esconderlas es lo que hace que una
+ * app así dé desconfianza; contestarlas es lo que la hace creíble.
  */
 const faqs = [
   {
-    q: "¿Necesitan la clave de mi banca en línea?",
-    a: "No, y nunca te la vamos a pedir. TicoFinanza no entra a tu banco: lee los correos de notificación que tu banco ya te manda a tu Gmail. Es el mismo tipo de acceso que le darías a cualquier app de correo, y es de solo lectura.",
+    q: "¿TicoFinanza se conecta a mi banco?",
+    a: "No. No hay sincronización bancaria ni lectura de correos: vos anotás tus ingresos, tus gastos y tus pagos fijos, y la app lleva las cuentas. Por eso nunca te pedimos usuario ni clave de la banca en línea.",
   },
   {
-    q: "¿Entonces leen todos mis correos?",
-    a: "No. La búsqueda se arma con los remitentes de los bancos que soportamos (bancobcr.com, baccredomatic.com, bncr.fi.cr, y los demás de la lista). Los correos de tu trabajo, tu familia o cualquier otra cosa nunca se tocan.",
+    q: "¿Entonces tengo que anotar todo a mano?",
+    a: "Sí, y conviene decirlo claro. Los gastos fijos se cargan una sola vez —quedan agendados todos los meses con su día de cobro— y los movimientos del día a día se anotan en dos toques. Si querías algo que se llene solo, esta app no es eso.",
   },
   {
-    q: "Google me muestra una advertencia de “app no verificada”. ¿Está bien?",
-    a: "Sí, y te lo explicamos de frente: leer Gmail es un permiso restringido de Google, y las apps que lo usan tienen que pasar una revisión de seguridad que toma varias semanas. TicoFinanza ya está en ese proceso. Mientras tanto Google muestra esa advertencia a las cuentas nuevas. Podés entrar igual, y revocarle el acceso cuando querás desde tu cuenta de Google.",
+    q: "¿Para qué usan mi cuenta de Google?",
+    a: "Solo para identificarte al entrar, con los permisos básicos de perfil: nombre, correo y foto. La app no pide acceso a tu Gmail, a tu Drive ni a ningún otro dato de tu cuenta.",
   },
   {
-    q: "¿Y si mi banco no manda correo de una compra?",
-    a: "Ahí no hay nada que hacer del lado nuestro, y preferimos decirlo: si el banco no te manda el correo, esa compra no le llega a TicoFinanza. Por eso podés registrar cualquier movimiento a mano en dos toques, y revisar en los ajustes de tu banco que las notificaciones por correo estén prendidas.",
+    q: "¿Puedo tener varias cuentas?",
+    a: "Sí: efectivo, débito, crédito y ahorro, las que necesités. Cada movimiento se asigna a una y cada cuenta lleva su propio saldo. Mover plata entre ellas —sacar del cajero, pagar la tarjeta— es una transferencia, y no cuenta como ingreso ni como gasto.",
   },
   {
-    q: "Mi banco no está en la lista. ¿Me sirve igual?",
-    a: "Sí, aunque a medias: la lectura automática solo funciona con los bancos soportados, pero podés anotar tus movimientos a mano y usar presupuestos, metas y estadísticas igual. Si querés que sumemos el tuyo, escribinos y contanos cuál es.",
+    q: "¿Qué pasa cuando marco un gasto fijo como pagado?",
+    a: "Queda pagado para ese mes y sale de los próximos pagos. Al empezar el mes siguiente vuelve solo a pendiente, sin que tengás que resetear nada.",
+  },
+  {
+    q: "¿Qué pasa si un mes no llega al día de cobro?",
+    a: "Un cobro agendado el 31 cae el 28 (o el 29) en febrero, y el 30 en abril: la app lo mueve al último día del mes en vez de pasarlo al siguiente.",
+  },
+  {
+    q: "¿Maneja dólares?",
+    a: "No. Todo se registra y se suma en colones. Es una decisión a propósito: mezclar monedas con tipos de cambio que cambian todos los días hacía que los totales dejaran de ser comparables.",
   },
   {
     q: "¿Puedo borrar todo si me arrepiento?",
-    a: "Sí, desde los ajustes, vos mismo y sin escribirle a nadie. Se borran tus movimientos, tus categorías, tus presupuestos y la conexión con Gmail. También podés exportar todo a CSV antes, para quedarte con tus datos.",
+    a: "Sí, desde los ajustes, vos mismo y sin escribirle a nadie. Podés borrar solo tus movimientos, o eliminar la cuenta entera: ahí se van tus movimientos, tus gastos fijos, tus categorías y tu perfil.",
   },
   {
-    q: "¿Funciona con SINPE Móvil?",
-    a: "Sí. Los SINPE Móvil que te llegan por correo se leen igual que las compras con tarjeta, tanto los que enviás como los que recibís.",
+    q: "¿Se instala en el teléfono?",
+    a: "Sí. Se agrega a la pantalla de inicio desde el mismo navegador y se abre como cualquier otra app, a pantalla completa. No hay que pasar por ninguna tienda.",
   },
 ];
 

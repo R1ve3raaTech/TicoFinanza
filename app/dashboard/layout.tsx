@@ -1,21 +1,21 @@
 import type { ReactNode } from "react";
+import { redirect } from "next/navigation";
 import { AppShell } from "@/components/shell/AppShell";
 import { ThemeSync } from "@/components/ThemeSync";
 import { resolveAvatarUrl, resolveFirstName } from "@/lib/profile";
 import { createClient } from "@/lib/supabase/server";
 
 /**
- * Shell compartido por /dashboard, /dashboard/insights y /dashboard/settings:
- * rail en tablet/escritorio y pestañas abajo en teléfono (ver AppShell). Si no
- * hay sesión, cada página sigue haciendo su propio `redirect("/")` — acá solo
- * se intenta traer nombre/foto para la navegación, sin bloquear el render si
- * falla.
+ * Shell compartido por /dashboard y sus secciones (fijos, movimientos, ajustes):
+ * rail en tablet/escritorio y pestañas abajo en teléfono (ver AppShell).
+ * Comprueba el usuario en servidor antes de mostrar el área protegida.
  */
 export default async function DashboardLayout({ children }: { children: ReactNode }) {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
+  if (!user) redirect("/entrar");
 
   let firstName: string | undefined;
   let avatarUrl: string | undefined;

@@ -2,7 +2,7 @@
 
 import { useId, useState, useTransition } from "react";
 import { Trash } from "@phosphor-icons/react";
-import { deleteAllTransactions } from "@/app/dashboard/settings/actions";
+import { deleteAllTransactions } from "@/app/dashboard/ajustes/actions";
 import { useToast } from "@/components/Toast";
 import { Button } from "@/components/ui/Button";
 import { Dialog } from "@/components/ui/Dialog";
@@ -48,7 +48,7 @@ export function DangerZone({ transactionCount }: { transactionCount: number }) {
       <SettingsRow
         inline
         label="Eliminar movimientos"
-        description="Borra todos tus movimientos, automáticos y manuales. No se puede deshacer."
+        description="Borra todos tus ingresos y gastos registrados. Los gastos fijos no se tocan."
       >
         <Button
           variant="danger-ghost"
@@ -69,7 +69,7 @@ export function DangerZone({ transactionCount }: { transactionCount: number }) {
         size="sm"
         dismissible={!pending}
         title={`¿Eliminar ${transactionCount} ${noun}?`}
-        description="Es permanente. Se borran todos tus gastos e ingresos, incluidos los leídos de tus correos."
+        description="Es permanente. Se borran todos los ingresos y gastos que registraste; tus gastos fijos quedan como están."
         footer={
           <>
             <Button variant="secondary" onClick={close} disabled={pending}>

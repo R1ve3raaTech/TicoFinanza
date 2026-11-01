@@ -2,7 +2,7 @@
 
 import { useId, useRef, useState, useTransition } from "react";
 import { Camera } from "@phosphor-icons/react";
-import { updateProfile } from "@/app/dashboard/settings/actions";
+import { updateProfile } from "@/app/dashboard/ajustes/actions";
 import { useToast } from "@/components/Toast";
 import { Avatar } from "@/components/shell/Avatar";
 import { Button } from "@/components/ui/Button";

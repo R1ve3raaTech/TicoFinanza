@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { X } from "@phosphor-icons/react";
-import { addCategory, deleteCategory } from "@/app/dashboard/settings/actions";
+import { addCategory, deleteCategory } from "@/app/dashboard/ajustes/actions";
 import { useToast } from "@/components/Toast";
 import { Button } from "@/components/ui/Button";
 import { FormError, inputClass } from "@/components/ui/Field";

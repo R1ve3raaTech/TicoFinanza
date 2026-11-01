@@ -115,7 +115,7 @@ export function UserMenu({
               {email && <p className="truncate text-micro text-ink-3">{email}</p>}
             </div>
             <Link
-              href="/dashboard/settings"
+              href="/dashboard/ajustes"
               role="menuitem"
               onClick={() => setOpen(false)}
               className={ITEM}

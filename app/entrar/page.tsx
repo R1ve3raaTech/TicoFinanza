@@ -1,32 +1,31 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { redirect } from "next/navigation";
-import { AuthForm } from "@/components/auth/AuthForm";
-import { AuthShowcase } from "@/components/auth/AuthShowcase";
-import { Logo } from "@/components/Logo";
+import { AuthPage } from "@/components/auth/AuthPage";
 import { createClient } from "@/lib/supabase/server";
+import { getSupabaseConfig } from "@/lib/supabase/config";
 
-export const metadata: Metadata = { title: "Iniciar sesión" };
+export const metadata: Metadata = { title: "Entrar", robots: { index: false } };
 
-export default async function EntrarPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (user) redirect("/dashboard");
+export default async function EntrarPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string; salida?: string }>;
+}) {
+  const params = await searchParams;
+  if (getSupabaseConfig()) {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (user) redirect("/dashboard");
+  }
 
   return (
-    <main className="grid min-h-[100dvh] bg-ground lg:grid-cols-2">
-      <div className="flex flex-col items-center justify-center px-6 py-12 sm:px-10">
-        {/* Marca y formulario centrados como una sola unidad. */}
-        <div className="flex w-full max-w-sm flex-col items-center">
-          <Link href="/" aria-label="TicoFinanza, ir al inicio" className="mb-10 rounded-control">
-            <Logo subtitle="finanzas personales" size="lg" accent />
-          </Link>
-          <AuthForm />
-        </div>
-      </div>
-      <AuthShowcase />
-    </main>
+    <AuthPage
+      initialError={
+        params.error === "auth" ? "No se pudo entrar con Google. Intentá de nuevo." : undefined
+      }
+      signOutWarning={params.salida === "pendiente"}
+    />
   );
 }

@@ -1,13 +1,17 @@
 import {
-  ArrowsClockwise,
-  BellRinging,
-  ChartPieSlice,
-  Coins,
+  ArrowsLeftRight,
+  CalendarCheck,
+  ChartDonut,
+  ChartLineUp,
   DeviceMobile,
-  DownloadSimple,
-  EnvelopeSimple,
-  Sparkle,
+  ListChecks,
+  Moon,
+  PencilSimple,
+  Receipt,
+  Tag,
   Target,
+  Wallet,
+  Trash,
 } from "@phosphor-icons/react/dist/ssr";
 import type { Icon } from "@phosphor-icons/react";
 import { Reveal, SectionHeading } from "./Reveal";
@@ -27,37 +31,67 @@ interface FeatureItem {
  */
 const groups: { label: string; items: FeatureItem[] }[] = [
   {
-    label: "Automatización",
+    label: "Gastos fijos",
     items: [
       {
-        icon: Sparkle,
-        title: "Categorización con IA",
-        body: "Cada movimiento llega con su categoría puesta. Si no le achuntó, la cambiás de un toque.",
+        icon: Receipt,
+        title: "Membresías y recurrentes",
+        body: "Nombre, monto, categoría y día de cobro del mes. Marcás pagado y el mes siguiente vuelve a arrancar en pendiente.",
       },
       {
-        icon: ArrowsClockwise,
-        title: "Suscripciones detectadas",
-        body: "Encuentra los cobros que se repiten todos los meses, aunque nunca los anotaras.",
+        icon: ListChecks,
+        title: "Próximos pagos",
+        body: "Ordenados por fecha, con lo que vence en menos de cinco días resaltado. Y lo vencido, marcado como vencido.",
       },
       {
-        icon: EnvelopeSimple,
-        title: "Varios correos a la vez",
-        body: "¿Tenés el banco en un Gmail y las compras en otro? Conectá los que necesités.",
+        icon: CalendarCheck,
+        title: "Calendario del mes",
+        body: "Los días con cobros agendados marcados con un punto. Tocás el día y ves qué se cobra.",
       },
     ],
   },
   {
-    label: "Control",
+    label: "Cuentas",
     items: [
       {
-        icon: Target,
-        title: "Presupuestos y metas",
-        body: "Poné un tope por categoría y una meta de ahorro. El avance se calcula solo.",
+        icon: Wallet,
+        title: "Una billetera por lugar",
+        body: "Efectivo, débito, crédito, ahorro. Cada movimiento sabe de dónde salió y cada cuenta lleva su saldo.",
       },
       {
-        icon: BellRinging,
-        title: "Avisos al pasarte",
-        body: "Notificación en el teléfono cuando un gasto te saca del presupuesto del mes.",
+        icon: ArrowsLeftRight,
+        title: "Transferencias internas",
+        body: "Sacar del cajero o pagar la tarjeta mueve plata entre tus cuentas, sin contarse como gasto.",
+      },
+    ],
+  },
+  {
+    label: "Movimientos",
+    items: [
+      {
+        icon: PencilSimple,
+        title: "Ingresos y gastos",
+        body: "Salario, freelance, otros; y los gastos del día a día. Con fecha, monto y descripción.",
+      },
+      {
+        icon: Tag,
+        title: "Categorías propias",
+        body: "Salud, ocio, vivienda, servicios, trabajo, educación, transporte — y las que vos agregués.",
+      },
+    ],
+  },
+  {
+    label: "Plan",
+    items: [
+      {
+        icon: ChartDonut,
+        title: "Topes por categoría",
+        body: "Un límite mensual por categoría, con la barra en verde, ámbar o rojo según cómo venís.",
+      },
+      {
+        icon: Target,
+        title: "Metas de ahorro",
+        body: "El fondo de emergencia, el marchamo, un viaje. Abonás desde una cuenta y ves cuánto falta.",
       },
     ],
   },
@@ -65,9 +99,14 @@ const groups: { label: string; items: FeatureItem[] }[] = [
     label: "Análisis",
     items: [
       {
-        icon: ChartPieSlice,
-        title: "Estadísticas del mes",
-        body: "En qué se te va la plata, por categoría y por comercio, mes contra mes.",
+        icon: ChartDonut,
+        title: "En qué se te va",
+        body: "El gasto del mes por categoría, juntando lo fijo y lo variable, en un gráfico de dona.",
+      },
+      {
+        icon: ChartLineUp,
+        title: "Mes contra mes",
+        body: "Ingresos y egresos de los últimos seis meses, para ver si venís cerrando para arriba o para abajo.",
       },
     ],
   },
@@ -75,14 +114,14 @@ const groups: { label: string; items: FeatureItem[] }[] = [
     label: "Tus datos",
     items: [
       {
-        icon: Coins,
-        title: "Todo en colones",
-        body: "Un gasto en dólares, euros o córdobas se convierte solo, con el tipo de cambio del día.",
+        icon: Trash,
+        title: "Tus datos son tuyos",
+        body: "Exportás todo a CSV cuando querás, y borrás tus movimientos o la cuenta entera sin escribirle a nadie.",
       },
       {
-        icon: DownloadSimple,
-        title: "Tus datos son tuyos",
-        body: "Exportá todo a CSV cuando querás, o borrá la cuenta entera sin escribirle a nadie.",
+        icon: Moon,
+        title: "Claro y oscuro",
+        body: "El tema sigue al sistema, o lo fijás a mano. Se ve bien en los dos.",
       },
     ],
   },
@@ -127,8 +166,8 @@ export function Features() {
     <>
       <SectionHeading
         label="Qué obtenés"
-        title="Todo lo que hace TicoFinanza por vos"
-        body="No es solo una lista de gastos: es lo que harías vos en una hoja de cálculo, pero hecho solo y todos los días."
+        title="Una hoja de cálculo que sí vas a usar"
+        body="Lo mismo que anotarías vos en Excel, pero con las cuentas hechas, los vencimientos al frente y en el teléfono."
       />
 
       <div className="mt-8">

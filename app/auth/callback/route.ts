@@ -2,7 +2,6 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { exchangeGoogleAuthCode } from "@/lib/google/oauth";
-import { encryptToken } from "@/lib/tokenCrypto";
 import { sendWelcomeEmailIfFirstTime } from "@/lib/email/welcomeEmail";
 import { resolveFirstName } from "@/lib/profile";
 
@@ -11,8 +10,8 @@ const NONCE_COOKIE = "login_nonce";
 
 function redirectAndClearState(url: string) {
   const response = NextResponse.redirect(url);
-  response.cookies.delete(STATE_COOKIE);
-  response.cookies.delete(NONCE_COOKIE);
+  response.cookies.set(STATE_COOKIE, "", { path: "/auth", maxAge: 0 });
+  response.cookies.set(NONCE_COOKIE, "", { path: "/auth", maxAge: 0 });
   return response;
 }
 
@@ -23,8 +22,8 @@ export async function GET(request: NextRequest) {
   const expectedState = request.cookies.get(STATE_COOKIE)?.value;
   const nonce = request.cookies.get(NONCE_COOKIE)?.value;
 
-  if (!code || !state || !expectedState || state !== expectedState) {
-    return redirectAndClearState(`${origin}/?error=auth`);
+  if (!code || !state || !expectedState || state !== expectedState || !nonce) {
+    return redirectAndClearState(`${origin}/entrar?error=auth`);
   }
 
   try {
@@ -33,7 +32,7 @@ export async function GET(request: NextRequest) {
 
     if (!tokens.id_token) {
       console.error("[auth/callback] Google no devolvió id_token.");
-      return redirectAndClearState(`${origin}/?error=auth`);
+      return redirectAndClearState(`${origin}/entrar?error=auth`);
     }
 
     const supabase = await createClient();
@@ -45,46 +44,31 @@ export async function GET(request: NextRequest) {
     });
 
     if (error || !data.user) {
-      console.error("[auth/callback] signInWithIdToken falló:", error);
-      return redirectAndClearState(`${origin}/?error=auth`);
+      console.error("[auth/callback] signInWithIdToken falló");
+      return redirectAndClearState(`${origin}/entrar?error=auth`);
     }
 
-    const admin = createAdminClient();
-
-    // Google solo manda refresh_token la primera vez (o con prompt=consent,
-    // que forzamos siempre). Si no viene, dejamos el que ya teníamos.
-    if (tokens.refresh_token) {
-      const { error: tokenError } = await admin.from("gmail_tokens").upsert(
-        {
-          user_id: data.user.id,
-          email: data.user.email,
-          refresh_token: encryptToken(tokens.refresh_token),
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "user_id,email" }
-      );
-      if (tokenError) {
-        console.error("[auth/callback] no se pudo guardar gmail_tokens:", tokenError);
-      }
-    } else {
-      console.warn("[auth/callback] Google no devolvió refresh_token en este login.");
-    }
-
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("full_name, onboarding_completed_at")
-      .eq("id", data.user.id)
-      .maybeSingle();
-
+    // El token de Google solo sirvió para identificar a la persona: no se
+    // guarda nada de Google del lado de la app (ningún refresh token, ningún
+    // permiso sobre sus datos).
     if (data.user.email) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("id", data.user.id)
+        .maybeSingle();
       const firstName = resolveFirstName(data.user, profile?.full_name);
-      await sendWelcomeEmailIfFirstTime(admin, data.user.id, data.user.email, firstName);
+      try {
+        const admin = createAdminClient();
+        await sendWelcomeEmailIfFirstTime(admin, data.user.id, data.user.email, firstName);
+      } catch {
+        console.error("[auth/callback] no se pudo enviar la bienvenida");
+      }
     }
 
-    const destination = profile?.onboarding_completed_at ? "/dashboard" : "/bienvenida";
-    return redirectAndClearState(`${origin}${destination}`);
-  } catch (err) {
-    console.error("[auth/callback]", err);
-    return redirectAndClearState(`${origin}/?error=auth`);
+    return redirectAndClearState(`${origin}/dashboard`);
+  } catch {
+    console.error("[auth/callback] no se pudo completar el login");
+    return redirectAndClearState(`${origin}/entrar?error=auth`);
   }
 }

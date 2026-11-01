@@ -4,7 +4,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "TicoFinanza",
     short_name: "TicoFinanza",
-    description: "Tus finanzas en Costa Rica, automáticas.",
+    description: "Tus ingresos, gastos fijos y gastos del día a día, en un solo lugar.",
     start_url: "/dashboard",
     display: "standalone",
     // Mismo valor que --ground (modo oscuro) en globals.css: si no coinciden,

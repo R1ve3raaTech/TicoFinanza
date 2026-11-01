@@ -73,6 +73,28 @@
   --chart-neutral: #71717a;
   /* Riel sin llenar de barras y medidores */
   --chart-track: #e4e4e7;
+  /* Rampa del desglose por categoría (la dona): un solo tono de celeste, de
+     más oscuro (la categoría que más pesa) a más claro. Una rampa y no seis
+     colores distintos porque el orden ES el dato, y porque seis hues no se
+     distinguen con daltonismo. Pasos validados con el script de la skill
+     dataviz (checks ordinales: L monótona, ΔL >= 0.06 entre pasos, extremo
+     claro >= 2:1 contra la superficie). En claro va de oscuro a claro; en
+     oscuro se invierte el ancla. */
+  --chart-ramp-1: #082f49;
+  --chart-ramp-2: #094769;
+  --chart-ramp-3: #0a5e89;
+  --chart-ramp-4: #0c76a9;
+  --chart-ramp-5: #0d8dc9;
+  --chart-ramp-6: #0ea5e9;
+
+  /* Color de cada meta de ahorro. Celeste, índigo, violeta y neutro: ni
+     verde ni rosa ni ámbar, que significan ingreso, gasto y alerta. Es
+     personalización, no un dato — por eso alcanza con que se distingan
+     entre tarjetas con nombre, no entre series de un gráfico. */
+  --goal-celeste: #0284c7;
+  --goal-indigo: #4f46e5;
+  --goal-violeta: #9333ea;
+  --goal-neutro: #52525b;
 
   /* Fondo detrás de un diálogo abierto */
   --scrim: rgb(0 0 0 / 0.45);
@@ -111,6 +133,16 @@
     --on-danger: #ffffff;
     --chart-neutral: #8b8b94;
     --chart-track: #232327;
+    --chart-ramp-1: #bae6fd;
+    --chart-ramp-2: #7dd3fc;
+    --chart-ramp-3: #38bdf8;
+    --chart-ramp-4: #0ea5e9;
+    --chart-ramp-5: #0284c7;
+    --chart-ramp-6: #075985;
+    --goal-celeste: #38bdf8;
+    --goal-indigo: #818cf8;
+    --goal-violeta: #c084fc;
+    --goal-neutro: #a1a1aa;
     --scrim: rgb(0 0 0 / 0.62);
   }
 }
@@ -140,6 +172,16 @@
   --on-danger: #ffffff;
   --chart-neutral: #8b8b94;
   --chart-track: #232327;
+  --chart-ramp-1: #bae6fd;
+  --chart-ramp-2: #7dd3fc;
+  --chart-ramp-3: #38bdf8;
+  --chart-ramp-4: #0ea5e9;
+  --chart-ramp-5: #0284c7;
+  --chart-ramp-6: #075985;
+  --goal-celeste: #38bdf8;
+  --goal-indigo: #818cf8;
+  --goal-violeta: #c084fc;
+  --goal-neutro: #a1a1aa;
   --scrim: rgb(0 0 0 / 0.62);
 }
 
@@ -173,6 +215,16 @@
   --color-chart-expense: var(--chart-expense);
   --color-chart-neutral: var(--chart-neutral);
   --color-chart-track: var(--chart-track);
+  --color-chart-ramp-1: var(--chart-ramp-1);
+  --color-chart-ramp-2: var(--chart-ramp-2);
+  --color-chart-ramp-3: var(--chart-ramp-3);
+  --color-chart-ramp-4: var(--chart-ramp-4);
+  --color-chart-ramp-5: var(--chart-ramp-5);
+  --color-chart-ramp-6: var(--chart-ramp-6);
+  --color-goal-celeste: var(--goal-celeste);
+  --color-goal-indigo: var(--goal-indigo);
+  --color-goal-violeta: var(--goal-violeta);
+  --color-goal-neutro: var(--goal-neutro);
   --color-scrim: var(--scrim);
 
   --color-background: var(--ground);

@@ -31,19 +31,19 @@ export async function sendWelcomeEmailIfFirstTime(
     await getResend().emails.send({
       from: WELCOME_EMAIL_FROM,
       to: email,
-      subject: "Bienvenido a TicoFinanza — así cuidamos tu información",
+      subject: "Bienvenido a TicoFinanza — así se empieza",
       html: welcomeEmailHtml(firstName),
       text: welcomeEmailText(firstName),
     });
-  } catch (err) {
+  } catch {
     // No revertimos welcome_email_sent_at: preferible perder un correo de
     // bienvenida a mandarlo duplicado si Resend falla de forma intermitente.
-    console.error("[sendWelcomeEmailIfFirstTime]", err);
+    console.error("[sendWelcomeEmailIfFirstTime] no se pudo enviar el correo");
   }
 }
 
 function welcomeEmailHtml(firstName: string | undefined): string {
-  const greeting = firstName ? `Hola, ${firstName}` : "Hola";
+  const greeting = firstName ? `Hola, ${firstName.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!)}` : "Hola";
 
   return `<!doctype html>
 <html>
@@ -73,49 +73,42 @@ function welcomeEmailHtml(firstName: string | undefined): string {
             </tr>
             <tr>
               <td style="padding:14px 32px 0 32px;color:#a2aab8;font-size:15px;line-height:1.6;">
-                Antes de que sigas, queremos ser directos sobre algo que seguramente viste al
-                entrar: Google te mostró un aviso de <strong style="color:#f4f6f8;">"app no verificada"</strong>.
-                Ese aviso no significa que algo esté mal — cualquier app que lee notificaciones
-                de Gmail, como la nuestra, tiene que pasar una revisión de seguridad de Google
-                antes de que desaparezca. Ya está en trámite. Mientras tanto tu cuenta está
-                igual de protegida y la app funciona exactamente igual.
+                TicoFinanza no se conecta a tu banco ni lee tus correos: vos anotás lo que entra
+                y lo que sale, y la app lleva la cuenta. Todo en colones.
               </td>
             </tr>
             <tr>
               <td style="padding:22px 32px 0 32px;color:#f4f6f8;font-size:14px;font-weight:600;">
-                Qué hacemos con tu Gmail, sin vueltas:
+                Para arrancar:
               </td>
             </tr>
             <tr>
               <td style="padding:10px 32px 0 32px;">
                 <table cellpadding="0" cellspacing="0" width="100%" style="border-collapse:separate;border-spacing:0 10px;">
                   <tr>
-                    <td style="width:20px;color:#34d399;font-size:14px;vertical-align:top;">✓</td>
+                    <td style="width:20px;color:#38bdf8;font-size:14px;vertical-align:top;">1</td>
                     <td style="color:#a2aab8;font-size:14px;line-height:1.55;">
-                      Solo leemos las notificaciones que tu banco ya te manda a este mismo
-                      Gmail (BAC, BCR, Banco Nacional, Banco Popular, DaviBank, MUCAP, PayPal,
-                      SINPE Móvil).
+                      Cargá tus gastos fijos con su día de cobro del mes: alquiler, agua, luz,
+                      internet, gimnasio, suscripciones.
                     </td>
                   </tr>
                   <tr>
-                    <td style="width:20px;color:#fb7185;font-size:14px;vertical-align:top;">✗</td>
+                    <td style="width:20px;color:#38bdf8;font-size:14px;vertical-align:top;">2</td>
                     <td style="color:#a2aab8;font-size:14px;line-height:1.55;">
-                      Nunca vemos el resto de tu correo: nada personal, nada de contactos, nada
-                      que no sea esas notificaciones bancarias puntuales.
+                      Anotá tus ingresos y los gastos del día a día, cada uno con su categoría.
                     </td>
                   </tr>
                   <tr>
-                    <td style="width:20px;color:#fb7185;font-size:14px;vertical-align:top;">✗</td>
+                    <td style="width:20px;color:#38bdf8;font-size:14px;vertical-align:top;">3</td>
                     <td style="color:#a2aab8;font-size:14px;line-height:1.55;">
-                      Nunca pedimos ni guardamos la clave de tu banca en línea. No la tenemos,
-                      ni la necesitamos.
+                      Mirá el resumen: qué vence primero, en qué se te va la plata y cuánto queda.
                     </td>
                   </tr>
                   <tr>
-                    <td style="width:20px;color:#38bdf8;font-size:14px;vertical-align:top;">→</td>
+                    <td style="width:20px;color:#34d399;font-size:14px;vertical-align:top;">&#10003;</td>
                     <td style="color:#a2aab8;font-size:14px;line-height:1.55;">
-                      Podés quitarle el acceso a TicoFinanza cuando quieras desde tu propia
-                      cuenta de Google, sin escribirnos ni pedir permiso.
+                      De tu cuenta de Google solo recibimos tu nombre, tu correo y tu foto de
+                      perfil, para identificarte. Nada más.
                     </td>
                   </tr>
                 </table>
@@ -151,13 +144,14 @@ function welcomeEmailText(firstName: string | undefined): string {
   const greeting = firstName ? `Hola, ${firstName}` : "Hola";
   return `${greeting}, ya tenés tu cuenta de TicoFinanza lista.
 
-Seguramente viste al entrar que Google muestra un aviso de "app no verificada". Ese aviso no significa que algo esté mal: cualquier app que lee notificaciones de Gmail, como la nuestra, tiene que pasar una revisión de seguridad de Google antes de que desaparezca. Ya está en trámite. Mientras tanto tu cuenta está igual de protegida y la app funciona exactamente igual.
+TicoFinanza no se conecta a tu banco ni lee tus correos: vos anotás lo que entra y lo que sale, y la app lleva la cuenta. Todo en colones.
 
-Qué hacemos con tu Gmail, sin vueltas:
-- Solo leemos las notificaciones que tu banco ya te manda a este mismo Gmail (BAC, BCR, Banco Nacional, Banco Popular, DaviBank, MUCAP, PayPal, SINPE Móvil).
-- Nunca vemos el resto de tu correo: nada personal, nada de contactos, nada que no sea esas notificaciones bancarias puntuales.
-- Nunca pedimos ni guardamos la clave de tu banca en línea. No la tenemos, ni la necesitamos.
-- Podés quitarle el acceso a TicoFinanza cuando quieras desde tu propia cuenta de Google.
+Para arrancar:
+1. Cargá tus gastos fijos con su día de cobro del mes: alquiler, agua, luz, internet, gimnasio, suscripciones.
+2. Anotá tus ingresos y los gastos del día a día, cada uno con su categoría.
+3. Mirá el resumen: qué vence primero, en qué se te va la plata y cuánto queda.
+
+De tu cuenta de Google solo recibimos tu nombre, tu correo y tu foto de perfil, para identificarte. Nada más.
 
 Entrá a tu cuenta: https://www.ticofinanza.com/dashboard
 

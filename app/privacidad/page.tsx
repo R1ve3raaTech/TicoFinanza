@@ -8,7 +8,7 @@ export default function PrivacyPolicyPage() {
   return (
     <LegalDocument
       title="Política de privacidad"
-      updatedAt="30 de julio de 2026"
+      updatedAt="31 de octubre de 2026"
       intro={
         <p>
           Esta política se rige por la Ley N.º 8968, Ley de Protección de la Persona frente al
@@ -19,10 +19,11 @@ export default function PrivacyPolicyPage() {
       summary={{
         label: "Resumen, por si no leés todo esto",
         items: [
-          "Solo leemos correos de bancos. Nada más de tu Gmail.",
+          "Entrás con Google y solo recibimos tu nombre, correo y foto de perfil.",
+          "La app no accede a tu Gmail, a tu banco ni a ninguna otra cuenta tuya.",
+          "Los datos financieros son los que vos anotás a mano; nada se importa solo.",
           "No vendemos ni alquilamos tus datos, a nadie, nunca.",
           "Podés borrar tu cuenta y todo tu historial cuando quieras.",
-          "Tus tokens de acceso a Gmail se guardan cifrados.",
           "Tenés derechos ARCO y podés reclamar ante PRODHAB si algo no cuadra.",
         ],
       }}
@@ -42,53 +43,49 @@ export default function PrivacyPolicyPage() {
       </LegalSection>
 
       <LegalSection number={2} title="Qué datos personales recolectamos">
-        <p>Recolectamos exactamente estos datos, y ningún otro:</p>
+        <p>Estos son todos los datos que maneja la aplicación:</p>
         <ul className="ml-4 list-disc space-y-1.5">
           <li>
-            <span>Datos de identidad y autenticación de Google</span>: tu nombre, dirección de
-            correo y foto de perfil de Google, y un identificador único de tu cuenta, al iniciar
-            sesión con Google.
+            <span>Datos de identidad de Google</span>: tu nombre, dirección de correo y foto de
+            perfil, más un identificador único de tu cuenta de Google. Es lo único que recibimos
+            al iniciar sesión, y es el único método de acceso de la app.
           </li>
           <li>
-            <span>Token de acceso a Gmail</span>: un token de autorización (cifrado) que nos
-            permite leer, en tu nombre, únicamente los correos de notificación bancaria que vos
-            autorizaste.
+            <span>Datos financieros que vos ingresás</span>: los ingresos y gastos que registrás
+            (monto, fecha, descripción y categoría) y tus gastos fijos o membresías (nombre,
+            monto, categoría, día de cobro del mes y si está pagado o pendiente), junto con las
+            categorías que creés.
           </li>
           <li>
-            <span>Datos financieros derivados de tus correos</span>: monto, moneda, fecha,
-            descripción y banco de origen de cada movimiento detectado en tus notificaciones
-            bancarias.
+            <span>Datos de perfil opcionales</span>: fecha de nacimiento y foto de perfil propia,
+            si decidís cargarlas en Ajustes. Podés no hacerlo y la app funciona igual.
           </li>
           <li>
-            <span>Datos financieros ingresados manualmente</span>: transacciones en efectivo,
-            categorías y presupuestos que vos creás a mano.
-          </li>
-          <li>
-            <span>Datos de perfil opcionales</span>: fecha de nacimiento y foto de perfil, si
-            decidís cargarlos en la pantalla de bienvenida al registrarte o después en Ajustes.
-            Podés saltarte ese paso sin problema.
+            <span>Preferencias</span>: el tema (claro, oscuro o el del sistema).
           </li>
           <li>
             <span>Datos técnicos de sesión</span>: cookies necesarias para mantener tu sesión
-            iniciada y prevenir ataques (ver sección de cookies más abajo).
+            iniciada y proteger el inicio de sesión (ver la sección de cookies más abajo).
           </li>
         </ul>
+        <p>
+          La aplicación <span>no</span> accede a tu correo electrónico, no se conecta a ninguna
+          entidad bancaria y no te pide usuario ni contraseña de tu banca en línea. Ningún
+          movimiento se importa automáticamente: todos los registra la persona usuaria.
+        </p>
       </LegalSection>
 
       <LegalSection number={3} title="Para qué usamos cada dato">
         <ul className="ml-4 list-disc space-y-1.5">
           <li>
-            <span>Nombre, correo y foto de Google</span>: identificarte y mostrarte tu propia
-            información en la app.
+            <span>Nombre, correo y foto de Google</span>: identificarte, mostrarte tu propia
+            información y enviarte el correo de bienvenida y el código de confirmación cuando
+            pedís eliminar tu cuenta.
           </li>
           <li>
-            <span>Token de Gmail</span>: buscar y leer, de forma automática, únicamente los
-            correos de bancos que vos autorizaste, para registrar tus movimientos sin que tengas
-            que anotarlos a mano.
-          </li>
-          <li>
-            <span>Datos financieros (automáticos y manuales)</span>: mostrarte tu saldo, tus
-            gráficos de gasto, y avisarte cuando te acercás a un límite de presupuesto.
+            <span>Datos financieros</span>: calcular tus totales del mes, ordenar tus próximos
+            pagos, armar el calendario de cobros y los gráficos de gasto por categoría e ingresos
+            contra egresos.
           </li>
           <li>
             <span>Fecha de nacimiento y foto de perfil</span>: personalizar tu cuenta; son
@@ -100,49 +97,37 @@ export default function PrivacyPolicyPage() {
           </li>
         </ul>
         <p>
-          No usamos ninguno de estos datos para publicidad, ni los combinamos con datos de
-          terceros para crear perfiles de consumo.
+          No usamos ninguno de estos datos para publicidad, no los combinamos con datos de
+          terceros para crear perfiles de consumo y no los enviamos a ningún modelo de
+          inteligencia artificial.
         </p>
       </LegalSection>
 
-      <LegalSection number={4} title="Consentimiento">
+      <LegalSection number={4} title="Consentimiento y permisos de Google">
         <p>
-          El tratamiento de tus datos se basa en tu consentimiento informado y expreso: al iniciar
-          sesión con Google, la propia pantalla de consentimiento de Google te muestra exactamente
-          qué permisos pedimos (identidad y lectura de Gmail) antes de que autorices nada. Podés
-          retirar ese consentimiento en cualquier momento, sin que eso afecte la licitud del
-          tratamiento hecho antes del retiro.
+          El único acceso que la app solicita a tu cuenta de Google son los permisos básicos de
+          perfil (<span>openid</span>, <span>email</span> y <span>profile</span>): nombre, correo
+          y foto. No se solicita ningún permiso sobre Gmail, Drive, Calendar ni ninguna otra API
+          de Google, por lo que la app no puede leer ni modificar nada de tu cuenta.
+        </p>
+        <p>
+          Podés revisar y revocar el acceso de TicoFinanza en cualquier momento desde{" "}
+          <span>myaccount.google.com/permissions</span>, sin pasar por la app.
         </p>
       </LegalSection>
 
-      <LegalSection number={5} title="Categorización con inteligencia artificial">
+      <LegalSection number={5} title="Cómo protegemos tus datos">
         <p>
-          Si usás la función de categorizar transacciones automáticamente, el banco, el monto y la
-          descripción de esas transacciones (sin ningún otro dato tuyo) se envían al modelo de IA
-          de Anthropic (Claude) para que sugiera una categoría. Anthropic procesa esos datos
-          únicamente para devolver la respuesta y no los usa para entrenar sus modelos.
-        </p>
-        <p>Esta función es opcional: solo se activa cuando vos tocás el botón de categorizar.</p>
-        <p>
-          <span>Declaración de cumplimiento de uso limitado</span>: el uso de datos de usuario,
-          crudos o derivados, recibidos a través de las APIs de Google Workspace (Gmail) cumple
-          con la Política de datos de usuario de los Servicios de API de Google, incluyendo los
-          requisitos de Uso Limitado. Esos datos nunca se usan para entrenar modelos de
-          inteligencia artificial, propios ni de terceros.
+          Cada consulta a la base de datos se hace con la sesión de la persona usuaria y está
+          limitada por políticas de seguridad a nivel de fila (RLS): una cuenta solo puede leer y
+          escribir sus propios movimientos, gastos fijos y categorías. La autenticación la
+          gestiona Supabase Auth, y la app no almacena contraseñas ni tokens de acceso a servicios
+          de terceros. La información viaja cifrada en tránsito (HTTPS) y se guarda cifrada en
+          reposo por el proveedor de base de datos.
         </p>
       </LegalSection>
 
-      <LegalSection number={6} title="Cómo protegemos tus datos">
-        <p>
-          El token de acceso a tu Gmail se guarda cifrado en la base de datos (no en texto plano),
-          con una llave separada de las credenciales de la base. Todo el tráfico va por HTTPS.
-          Cada usuario solo puede ver y modificar sus propios datos: la base de datos tiene reglas
-          de acceso (Row Level Security) que lo garantizan a nivel de base, no solo en el código de
-          la app.
-        </p>
-      </LegalSection>
-
-      <LegalSection number={7} title="Con quién compartimos tus datos">
+      <LegalSection number={6} title="Con quién compartimos tus datos">
         <p>No vendemos ni alquilamos tus datos a nadie, bajo ninguna circunstancia.</p>
         <p>
           Los únicos terceros que procesan información en tu nombre, como encargados del
@@ -150,20 +135,20 @@ export default function PrivacyPolicyPage() {
         </p>
         <ul className="ml-4 list-disc space-y-1">
           <li>
-            <span>Google</span>, para autenticarte y para leer los correos bancarios que vos
-            autorizaste (Google LLC, Estados Unidos).
+            <span>Google</span>, para identificarte al iniciar sesión (Google LLC, Estados
+            Unidos).
           </li>
           <li>
             <span>Supabase</span>, donde vive la base de datos y el sistema de autenticación
             (Supabase Inc., con infraestructura alojada en Estados Unidos).
           </li>
           <li>
-            <span>Anthropic</span>, solo si usás la categorización automática con IA, y solo con
-            los datos de esa transacción puntual (Anthropic, PBC, Estados Unidos).
-          </li>
-          <li>
             <span>Vercel</span>, donde corre la aplicación, es decir el hosting (Vercel Inc.,
             Estados Unidos).
+          </li>
+          <li>
+            <span>Resend</span>, para el correo de bienvenida y el código de eliminación de cuenta
+            (Resend Inc., Estados Unidos).
           </li>
         </ul>
         <p>
@@ -175,20 +160,20 @@ export default function PrivacyPolicyPage() {
         </p>
       </LegalSection>
 
-      <LegalSection number={8} title="Cuánto tiempo guardamos tus datos">
+      <LegalSection number={7} title="Cuánto tiempo guardamos tus datos">
         <p>
           Guardamos tus datos mientras tu cuenta esté activa. Si borrás tu cuenta (o nos escribís
-          pidiéndolo), eliminamos tus transacciones, presupuestos, categorías, conexiones de Gmail
-          y datos de perfil de forma permanente, dentro de los siguientes 30 días.
+          pidiéndolo), eliminamos tus movimientos, gastos fijos, categorías, preferencias y datos
+          de perfil de forma permanente, dentro de los siguientes 30 días.
         </p>
       </LegalSection>
 
-      <LegalSection number={9} title="Cookies y tecnologías similares">
+      <LegalSection number={8} title="Cookies y tecnologías similares">
         <p>
           Usamos únicamente cookies estrictamente necesarias para el funcionamiento del sitio: una
-          cookie de sesión (para mantenerte con la sesión iniciada) y cookies temporales de
-          seguridad usadas solo durante el proceso de inicio de sesión con Google, que expiran a
-          los pocos minutos.
+          cookie de sesión, para mantenerte con la sesión iniciada, y dos cookies temporales de
+          seguridad durante el inicio de sesión con Google, que vencen a los diez minutos y
+          protegen ese intercambio contra falsificación de solicitudes.
         </p>
         <p>
           No usamos cookies de publicidad, de rastreo entre sitios, ni herramientas de analítica
@@ -197,7 +182,7 @@ export default function PrivacyPolicyPage() {
         </p>
       </LegalSection>
 
-      <LegalSection number={10} title="Tus derechos ARCO">
+      <LegalSection number={9} title="Tus derechos ARCO">
         <p>
           Como titular de tus datos, la Ley 8968 te reconoce el derecho a Acceder, Rectificar,
           Cancelar y Oponerte al tratamiento de tu información (derechos ARCO):
@@ -214,30 +199,24 @@ export default function PrivacyPolicyPage() {
             <span>Cancelación</span>: pedir que borremos tus datos.
           </li>
           <li>
-            <span>Oposición</span>: oponerte a que usemos tus datos para un fin específico (por
-            ejemplo, la categorización automática con IA).
+            <span>Oposición</span>: oponerte a que usemos tus datos para un fin específico.
           </li>
         </ul>
         <p>
           Desde Ajustes podés ejercer varios de estos derechos vos mismo, sin pedirle nada a
-          nadie: desconectar cualquier cuenta de Gmail vinculada, borrar transacciones
-          individuales o todo tu historial, exportar tus transacciones a CSV, y editar o borrar tu
-          información de perfil.
+          nadie: editar o borrar tu información de perfil, borrar movimientos individuales o todo
+          tu historial, y eliminar tu cuenta por completo con un código de confirmación que
+          llega a tu correo.
         </p>
         <p>
-          Para cualquier otra solicitud (incluyendo el acceso completo a tus datos o la
-          cancelación total de tu cuenta), escribinos a{" "}
-          <a href="mailto:info@ticofinanza.com">info@ticofinanza.com</a>. Respondemos dentro de
-          un plazo máximo de 5 días hábiles, y ejercer estos derechos nunca tiene costo alguno
-          para vos.
-        </p>
-        <p>
-          También podés revocar el acceso a Gmail directamente desde{" "}
-          <span>myaccount.google.com/permissions</span>, sin pasar por la app.
+          Para cualquier otra solicitud, escribinos a{" "}
+          <a href="mailto:info@ticofinanza.com">info@ticofinanza.com</a>. Respondemos dentro de un
+          plazo máximo de 5 días hábiles, y ejercer estos derechos nunca tiene costo alguno para
+          vos.
         </p>
       </LegalSection>
 
-      <LegalSection number={11} title="Autoridad de control: PRODHAB">
+      <LegalSection number={10} title="Autoridad de control: PRODHAB">
         <p>
           Si considerás que no atendimos correctamente tu solicitud, o que tus datos personales
           fueron tratados de forma indebida, podés presentar un reclamo ante la Agencia de
@@ -247,15 +226,14 @@ export default function PrivacyPolicyPage() {
         </p>
       </LegalSection>
 
-      <LegalSection number={12} title="Actualizaciones a esta política">
+      <LegalSection number={11} title="Actualizaciones a esta política">
         <p>
           Si cambiamos algo importante de cómo manejamos tus datos, lo vamos a reflejar acá y
-          actualizamos la fecha de arriba. Si el cambio es significativo, te avisamos por
-          notificación push o correo, si tenés alguno activado.
+          actualizamos la fecha de arriba. Si el cambio es significativo, te avisamos por correo.
         </p>
       </LegalSection>
 
-      <LegalSection number={13} title="Menores de edad">
+      <LegalSection number={12} title="Menores de edad">
         <p>
           TicoFinanza no está dirigido a menores de 13 años, y no recolectamos a sabiendas
           información de niños. Si sos padre/madre y creés que tu hijo/a nos dio información,
@@ -263,10 +241,11 @@ export default function PrivacyPolicyPage() {
         </p>
       </LegalSection>
 
-      <LegalSection number={14} title="Contacto">
+      <LegalSection number={13} title="Contacto">
         <p>
           Si tenés dudas sobre esta política, sobre cómo usamos tus datos, o querés ejercer tus
-          derechos ARCO, escribinos a <a href="mailto:info@ticofinanza.com">info@ticofinanza.com</a>.
+          derechos ARCO, escribinos a{" "}
+          <a href="mailto:info@ticofinanza.com">info@ticofinanza.com</a>.
         </p>
       </LegalSection>
     </LegalDocument>

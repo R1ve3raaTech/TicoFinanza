@@ -1,6 +1,6 @@
 import { LockKey, ShieldCheck } from "@phosphor-icons/react/dist/ssr";
+import { HeroMockup } from "./HeroMockup";
 import { LoginButton } from "./LoginButton";
-import { MockupPreview } from "./MockupPreview";
 
 export function Hero({ loggedIn = false }: { loggedIn?: boolean }) {
   return (
@@ -11,12 +11,13 @@ export function Hero({ loggedIn = false }: { loggedIn?: boolean }) {
               escrita a mano acá para no arrastrar el peso/tracking del token
               (pensado para cifras tabulares, no para un título). */}
           <h1 className="animate-fade-up text-balance text-[2.5rem] font-semibold leading-[1.05] tracking-[-0.035em] text-ink sm:text-[3rem] md:text-[3.75rem] lg:text-[4.25rem] [animation-delay:80ms]">
-            Controlá tus finanzas sin mover un solo dedo
+            Sabé qué se te viene este mes
           </h1>
 
           <p className="animate-fade-up max-w-[46ch] text-base leading-relaxed text-ink-2 md:text-lg [animation-delay:160ms]">
-            TicoFinanza se conecta a tu Gmail y lee las notificaciones que tu banco ya te manda por
-            correo, para registrar tus ingresos y gastos automáticamente — sin anotar nada a mano.
+            Anotá tus gastos fijos con su día de cobro y tus ingresos y gastos del día a día.
+            TicoFinanza te dice qué vence primero, en qué se te va la plata y cuánto queda. Todo en
+            colones.
           </p>
 
           <div className="animate-fade-up flex flex-col items-center gap-4 md:items-start [animation-delay:240ms]">
@@ -31,14 +32,14 @@ export function Hero({ loggedIn = false }: { loggedIn?: boolean }) {
               </span>
               <span className="inline-flex items-center gap-1.5">
                 <LockKey size={14} weight="bold" className="text-accent" />
-                Nunca pedimos la clave de tu banco
+                No conectamos tu banco ni tu correo
               </span>
             </div>
           </div>
         </div>
 
         <div className="animate-fade-up relative flex justify-center [animation-delay:320ms] md:justify-end">
-          <MockupPreview />
+          <HeroMockup />
         </div>
       </div>
     </section>

@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { Desktop, Moon, Sun } from "@phosphor-icons/react";
 import { useTheme } from "next-themes";
-import { updateTheme } from "@/app/dashboard/settings/actions";
+import { updateTheme } from "@/app/dashboard/ajustes/actions";
 import { useToast } from "@/components/Toast";
 import { Segmented } from "@/components/ui/Segmented";
 import type { Theme } from "@/lib/types";

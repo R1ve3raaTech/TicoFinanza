@@ -289,3 +289,268 @@ pendiente de autorización aparte.
   de detalle por sección. Sin overflow horizontal en ningún caso. `tsc`,
   `eslint` y `npm run build` (con placeholders de env — mismo caso conocido
   del `.env.local`, ver arriba) pasan limpios.
+
+## Dónde quedamos (2026-10-31)
+
+Reescritura completa: TicoFinanza dejó de leer correos y pasó a ser un
+tracker de **registro manual**. Se eliminó el scope `gmail.readonly` y todo
+el análisis de correos, junto con los módulos que dependían de ese flujo.
+Esto deja sin efecto buena parte de las notas de 2026-07-29, 2026-07-30 y
+2026-08-15 (tercera parte): ya no hay revisión de Google pendiente, ni CASA,
+ni parsers de bancos.
+
+**Decisiones que tomó Camil antes de empezar** (las cuatro cambian el
+alcance, por eso quedan acá):
+
+1. **Solo Google OAuth** con scopes básicos (`openid email profile`). Se
+   borró el sistema de correo+contraseña que estaba sin commitear
+   (`/registrarse`, `/recuperar`, `/nueva-clave`, `lib/auth/`, `docs/auth/`,
+   `test/auth-*.mjs`, `scripts/check-auth-*.mjs`). Lo único que se rescató de
+   `lib/auth/` fue `isProjectAuthCookie()` → `lib/supabase/cookies.ts`.
+2. **Solo colones.** El pedido original pedía CRC/USD en las membresías; se
+   mantuvo la decisión del 2026-08-18 de una sola moneda.
+3. **Empezar limpio**: se eliminaron presupuestos, metas de ahorro, resumen
+   con IA, notificaciones push, export CSV y suscripciones detectadas. Se
+   conservó lo que no es un módulo de producto sino higiene de cuenta:
+   perfil, tema, cerrar sesión, eliminar cuenta (con su código por correo) y
+   PWA. También se eliminó el onboarding `/bienvenida`: el estado vacío del
+   resumen cumple esa función.
+4. **Migración agresiva**: `supabase/migrations/0019_manual_tracker.sql`
+   **borra los movimientos importados de Gmail** además de las tablas. Ya la
+   corrió Camil a mano en Supabase Studio (confirmado 2026-11-01); sigue sin
+   haber acceso automatizado a la base — ver nota del 2026-08-15.
+
+**Modelo de datos nuevo.** `transactions` queda solo con lo que anota la
+persona (se le quitaron `gmail_message_id`, `is_automated` y `bank_name`) y
+aparece `fixed_expenses`. El par `status` + `status_month` es la pieza a
+entender: el estado "pagado" vale solo para el mes que dice `status_month`,
+así que `effectiveStatus()` (`lib/fixedExpenses.ts`) lo devuelve como
+pendiente en cuanto cambia el mes — el ciclo se reinicia solo, sin ningún
+job de fondo.
+
+**Gastos fijos vs. movimientos**: los fijos NO son transacciones. El resumen
+hace ingresos − fijos − variables, así nada se cuenta dos veces; marcar
+"pagado" no crea ningún movimiento. Por eso el gráfico de 6 meses (que sale
+de `transactions`) no incluye los fijos, y lo dice en una línea debajo.
+
+**Rutas**: `/dashboard` (resumen), `/dashboard/fijos`,
+`/dashboard/movimientos`, `/dashboard/ajustes` (antes `/settings`;
+`/insights` se eliminó).
+
+**Fechas**: todo el calendario se resuelve en el servidor en hora de Costa
+Rica y baja como claves `"YYYY-MM-DD"` (`dayKey()`); si el navegador
+recalcula "hoy" por su cuenta, el día cae distinto y se rompe la
+hidratación. Un cobro agendado el 31 se recorta al último día del mes
+(febrero → 28/29). Cubierto en `lib/fixedExpenses.test.ts`.
+
+**Gráficos** (reglas de la skill `dataviz`, ver también la nota del
+2026-09-13):
+- La dona de categorías usa **una sola rampa de celeste**, de más oscuro a
+  más claro según cuánto pesa la categoría — no seis colores. Los pasos
+  (`--chart-ramp-1..6` en `app/globals.css`) pasan los checks ordinales del
+  validador (L monótona, ΔL ≥ 0.06, extremo claro ≥ 2:1) en claro y en
+  oscuro, con el ancla invertida en dark. No reemplazar por un arcoíris.
+- El de 6 meses sigue siendo el divergente de siempre
+  (`components/charts/IncomeExpenseChart.tsx`, antes `MonthlyBarChart`).
+- Rojo (`--expense`) para lo que vence en menos de 5 días, siempre con ícono
+  y con el plazo escrito: nunca solo color.
+
+**Assets regenerados** desde la preview temporal con Playwright:
+`public/screenshots/dashboard.png` (1440×1232) y `public/og-image.png`
+(el anterior decía "lee tus correos bancarios"). Si cambia el resumen, hay
+que volver a generarlos — ocultando `nextjs-portal` con CSS, que si no el
+indicador de dev sale en la foto.
+
+**Dependencias que se fueron**: `@anthropic-ai/sdk`, `web-push`,
+`@types/web-push`, `pdf-parse` y `@napi-rs/canvas` (y `serverExternalPackages`
+en `next.config.ts`). También se vació `vercel.json` (el cron de sync) y se
+borró el handler de push de `public/sw.js`.
+
+**Estado**: `npm test` (8), `eslint`, `tsc` y `npm run build` pasan. QA con
+Playwright en 1440 oscuro y 390 claro sobre las cuatro pantallas con sesión
+(con datos y vacías), landing, entrar y privacidad: sin overflow horizontal
+ni errores de consola, y los diálogos de alta/edición probados de verdad.
+**No commiteado ni deployado** al cierre de esa sesión: quedaba pendiente que
+Camil lo revise y corra la migración 0019 (ya corrida, ver 2026-11-01).
+
+## Dónde quedamos (2026-10-31, segunda parte)
+
+Sobre el tracker manual de la nota de arriba se agregaron cuatro módulos:
+cuentas (billeteras) con transferencias internas, presupuestos por
+categoría, metas de ahorro y exportación a CSV. La migración
+`0020_multicount_budgets_goals.sql` (va después de la 0019) ya la corrió
+Camil a mano en Supabase Studio, confirmado 2026-11-01.
+
+**Lo que hay que entender antes de tocar esto:**
+
+- **Los saldos los calcula la base, no la app.** `accounts.current_balance`
+  y `savings_goals.current_amount` los mantienen triggers que *recalculan
+  desde cero* (`refresh_account_balance` / `refresh_goal_amount`), no que
+  suman deltas. Es más lento y es a propósito: con una edición, un borrado o
+  un cambio de cuenta de un movimiento viejo, el saldo sigue dando bien. La
+  app nunca escribe esas dos columnas.
+- **Las transferencias viven en su propia tabla** (`transfers`), no como un
+  tercer `type` en `transactions`. Mover plata de débito a efectivo no es ni
+  ingreso ni gasto, y mezclarlo ahí obligaría a cada total, al superávit y a
+  cada gráfico a acordarse de excluirlo. Separado, es imposible que se
+  cuele. Lo mismo con los abonos a metas (`goal_contributions`).
+  `lib/ledger.ts` las junta con los movimientos solo para mostrarlas en una
+  lista, y `ledgerNet()` les da valor cero.
+- **RLS protege lo que se escribe, no lo que se referencia**: la política de
+  `transactions` solo exige que `user_id` sea el de la sesión, así que un
+  `account_id` ajeno pasaría igual. Por eso toda acción que recibe un id de
+  cuenta o de meta lo valida con `ownsRow()` (`lib/supabase/ownership.ts`)
+  antes de escribir. Si se agrega otra tabla referenciada, va la misma
+  comprobación.
+- **Los presupuestos son por mes** (`month_year` "YYYY-MM"), no un tope
+  eterno: un mes con vacaciones no tiene el mismo límite. El mes se navega
+  por URL (`/dashboard/plan?mes=`) y hay un botón para copiar los del mes
+  anterior. El gasto se mide contra movimientos **y** gastos fijos de la
+  misma categoría (`expenseByCategory`), porque el tope es de la categoría.
+- **Colores de los medidores**: verde <70 %, ámbar 70–100 % y rosa al
+  pasarse, como pidió Camil explícitamente. Ojo que esto se aparta de la
+  nota del 2026-09-13, que decía medidores "neutro/ámbar/rosa" para no usar
+  el verde de ingreso de adorno; acá el verde significa "vas bien", y el
+  estado igual lleva ícono y rótulo, nunca solo color.
+- **Colores de las metas**: celeste, índigo, violeta y neutro
+  (`--goal-*` en `app/globals.css`). Verde, rosa y ámbar quedan fuera porque
+  significan ingreso, gasto y alerta; el color de una meta es
+  personalización, no un dato.
+- **Navegación**: cinco secciones (Resumen · Fijos · Movimientos · Plan ·
+  Ajustes). "Plan" junta presupuestos y metas en dos pestañas que son links
+  (`?ver=metas`), no estado de cliente. No agregar una sexta: a 360px la
+  barra de teléfono ya usa `shortLabel` ("Movs.") para no truncar.
+- **Cuentas**: el CRUD vive en el panel "Tus cuentas" del resumen, no en
+  Ajustes. El campo editable es el saldo *inicial*; el actual se recalcula.
+  Borrar una cuenta deja sus movimientos sin cuenta (`on delete set null`),
+  pero sí borra sus transferencias (sin los dos lados no significan nada).
+- **CSV** (`/api/export-csv?from=&to=`): separador `;` y BOM al inicio
+  porque Excel en español, con coma, mete toda la fila en la primera
+  columna y sin BOM se come los acentos. Incluye transferencias con monto 0
+  y la cuenta como "origen → destino".
+- La migración 0020 le crea una cuenta "Efectivo" a cada usuario que ya
+  existía (y a los nuevos, desde `handle_new_user`) y le asigna los
+  movimientos que no tenían cuenta. Arranca con saldo inicial 0: si el real
+  no era 0, se corrige desde el resumen.
+
+**Estado**: `npm test` (20), `eslint`, `tsc` y `npm run build` pasan. QA con
+Playwright en 1440 oscuro y 360 claro sobre las cinco pantallas (con datos y
+vacías), más pruebas reales de los diálogos de cuenta, transferencia,
+movimiento con cuenta, tope y abono. Sin overflow horizontal ni errores de
+consola. Captura de la landing y OG regeneradas. **No commiteado ni
+deployado.**
+
+## Dónde quedamos (2026-11-01)
+
+Fase 3 sobre lo anterior: comprobantes adjuntos, deudas entre personas y
+recordatorios push. Migración `0021_phase3_debts_receipts_push.sql`, que va
+después de la 0019 y la 0020. **Camil corrió las tres a mano en Supabase
+Studio el 2026-11-01**, así que la base ya tiene el esquema completo de las
+tres fases y no queda ninguna migración pendiente.
+
+**Comprobantes (`transactions.receipt_url`)**
+
+- La columna guarda la **ruta** dentro del bucket privado `receipts`
+  (`"<user_id>/<uuid>.jpg"`), **no una URL**. El nombre de la columna es el
+  que pidió Camil; el contenido no es lo que el nombre sugiere, por eso está
+  comentado en la migración y en el tipo. El bucket es privado porque un
+  comprobante trae nombre, monto y a veces número de cuenta: con uno público
+  bastaría un link filtrado para dejarlo expuesto para siempre. Cada vista
+  pide una URL firmada de 10 minutos (`getReceiptUrl`).
+- **Toda la seguridad vive en el primer segmento de la ruta**: la política de
+  `storage.objects` solo compara `(storage.foldername(name))[1]` con
+  `auth.uid()`. Por eso la ruta se arma siempre con `receiptPath()` y nunca
+  con el nombre del archivo original (que puede traer barras o el nombre de
+  la persona), y las acciones validan con `ownsReceiptPath()`.
+- **El archivo sube desde el navegador, directo a Storage**
+  (`lib/receiptUpload.ts`), no por una Server Action: una action tiene un
+  tope de 1 MB de cuerpo y la foto de un recibo lo pasa sin esfuerzo. Antes
+  de subir, las imágenes se reducen a 1600px/JPEG 0.82 con canvas; si falla
+  (un HEIC que el navegador no decodifica) sube el original.
+- Sube al elegir el archivo, no al guardar el formulario, así el error
+  aparece cuando todavía se puede hacer algo. La contra es que un formulario
+  cerrado sin guardar deja un archivo colgado: lo borra `close()` en
+  `MovementDialog`. Reemplazar o quitar también borra el anterior, y borrar
+  un movimiento (uno, varios o todos desde Ajustes) borra sus comprobantes.
+- `<input>` **sin `capture`** a propósito: con `accept="image/*"` el teléfono
+  ofrece cámara *y* galería. Con `capture` solo abre la cámara, y la captura
+  del SINPE ya está guardada — quedaría inalcanzable.
+- El clip de la lista es un **botón hermano** de la fila, no uno anidado
+  (sería HTML inválido). La fila le reserva el espacio con `pr-*`, y el
+  espacio se reserva en todas las filas visibles o en ninguna, para que los
+  montos no queden desalineados.
+
+**Deudas (`debts`)**
+
+- Tabla aparte, misma razón que transferencias y abonos: prestar no es un
+  gasto y que te deban no es un ingreso hasta que te pagan. No tocan el
+  superávit hasta que se saldan.
+- "Saldar" ofrece registrar el movimiento, **pero es opcional**: si te
+  pagaron por SINPE al banco el ingreso tiene que existir; si te pagaron en
+  efectivo que ya gastaste, forzarlo le mentiría a la cuenta. Si se registra,
+  `settled_transaction_id` apunta al movimiento. **Reabrir borra ese
+  movimiento** (lo creó la app, deshacer el pago tiene que deshacerlo o la
+  plata se cuenta dos veces); **borrar la deuda no lo borra** (es plata que
+  de verdad se movió).
+- Viven en una **tercera pestaña de Plan** (`?ver=deudas`), no en una sexta
+  entrada de navegación. A 360px las tres pestañas solo caben porque
+  "Presupuestos" se acorta a "Topes".
+
+**Recordatorios push**
+
+- Vuelve `web-push`, que se había sacado en la reescritura del 2026-10-31.
+  **Las claves VAPID ahora se leen de forma perezosa** (`ensureConfigured()`
+  en `lib/push/send.ts`), no al cargar el módulo: así se arregla el problema
+  conocido de que `npm run build` fallaba sin claves reales. Sin claves la
+  app compila y funciona; lo único que no pasa es el envío.
+- `node scripts/generate-vapid-keys.mjs` genera el par. Si la privada se
+  cambia después, **todas las suscripciones existentes dejan de servir** y
+  cada dispositivo tiene que volver a activar los recordatorios.
+- **Dos cosas distintas en dos tablas**: `user_settings.reminders_enabled`
+  dice si la persona los quiere (es de la cuenta) y `push_subscriptions` dice
+  qué navegadores pueden recibirlos (es del dispositivo). El interruptor de
+  Ajustes refleja lo segundo, que es lo que la persona está mirando:
+  activarlo en la compu no hace que lleguen al teléfono.
+- El aviso sale **a 2 días y a 1 día** del cobro (`lib/reminders.ts`). El día
+  del cobro ya no se avisa: a esa hora el aviso no cambia nada y el resumen
+  ya lo muestra en rojo.
+- `push_reminders` evita el aviso repetido. **La clave es
+  (gasto, día de cobro, días antes)**: sin `days_before`, el aviso de "mañana"
+  se tomaría por repetido del de "pasado mañana" y nunca saldría. El registro
+  se escribe **antes** de mandar, para que una caída en el medio no duplique.
+- `/api/reminders` lo llama el cron de Vercel a las 13:00 UTC (7 a.m. de
+  Costa Rica), autenticado con `CRON_SECRET`. **Sin el secreto el endpoint
+  responde 503**, no queda abierto. Corre en el servidor y no en el navegador
+  porque el aviso tiene que salir con la app cerrada, que es justo cuando uno
+  se olvida del recibo. El botón "Mandar prueba" de Ajustes existe porque la
+  cadena tiene muchas partes (permiso, Service Worker, suscripción, VAPID,
+  servicio del fabricante) y la primera vez que falla no puede ser el día del
+  vencimiento.
+
+**Variables de entorno nuevas** (ver `.env.example`):
+`NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` y
+`CRON_SECRET`. Van en `.env.local` y en Vercel.
+
+**Un detalle de Tailwind v4 que costó un bug**: en las filas con un botón
+absoluto a la derecha, `md:px-2` le gana a `sm:pr-24` — v4 ordena primero por
+variante y después por propiedad, así que el `pr` hay que repetirlo en la
+misma variante (`md:pr-24`). Se vio en la lista de deudas, con el monto
+pintado debajo del botón "Saldar".
+
+**Estado**: `npm test` (32, 12 nuevas entre deudas, recordatorios y rutas de
+comprobantes), `eslint`, `tsc` y `npm run build` pasan. QA con Playwright en
+1440 oscuro y 360 claro sobre las pantallas tocadas (con datos y vacías), más
+21 comprobaciones reales de los diálogos de deuda, saldar, movimiento con
+comprobante y el visor. Sin overflow ni errores de consola.
+
+**Lo que NO se probó de punta a punta**: la subida real a Storage, el envío
+real de un push y la corrida del cron. La base ya está migrada, pero sigue
+sin poder probarse desde acá — el `.env.local` de este entorno trae
+marcadores en vez de las claves de Supabase (nota del 2026-09-13), así que no
+hay forma de abrir una sesión real en `next dev`. Son las tres cosas que hay
+que mirar en producción después del primer deploy, en este orden: adjuntar
+una foto a un movimiento, activar los recordatorios y darle "Mandar prueba",
+y al día siguiente revisar que el cron haya mandado el aviso de un gasto fijo
+que venza en uno o dos días.
+
+**No commiteado ni deployado.**

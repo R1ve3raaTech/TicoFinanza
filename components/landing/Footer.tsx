@@ -4,10 +4,8 @@ import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
 import { ArrowUpRight, ShieldCheck, SquaresFour } from "@phosphor-icons/react";
 import { BrandMark } from "@/components/brand/BrandMark";
-import { BankLogo } from "@/components/dashboard/BankLogo";
 import { GoogleMark } from "@/components/GoogleMark";
 import { AnchorLink } from "@/components/landing/AnchorLink";
-import type { BankName } from "@/lib/types";
 
 const links = [
   { label: "Cómo funciona", href: "#como-funciona" },
@@ -18,8 +16,6 @@ const links = [
   { label: "Términos de servicio", href: "/terminos" },
   { label: "Escribinos", href: "mailto:info@ticofinanza.com" },
 ];
-
-const supportedBanks: BankName[] = ["BAC", "BCR", "BNCR", "BP", "Davivienda", "MUCAP", "PayPal"];
 
 const MotionLink = motion.create(Link);
 
@@ -44,8 +40,8 @@ export function Footer({ loggedIn = false }: { loggedIn?: boolean }) {
             </span>
           </p>
           <p className="mt-4 max-w-[36ch] text-sm leading-relaxed text-ink-3">
-            Tus movimientos bancarios, categorizados solos. Sin hojas de cálculo, sin
-            anotar nada a mano.
+            Tus gastos fijos, tus ingresos y tus gastos del día a día, en un solo lugar.
+            Hecho en Costa Rica.
           </p>
           <MotionLink
             href={loggedIn ? "/dashboard" : "/entrar"}
@@ -87,23 +83,14 @@ export function Footer({ loggedIn = false }: { loggedIn?: boolean }) {
         </nav>
       </div>
 
-      {/* Fila estática de bancos compatibles (antes un marquee infinito —
-          movimiento decorativo constante que la nueva guía visual no
-          permite). */}
-      <div className="border-y border-line py-4">
-        <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-center gap-x-8 gap-y-3 px-4 opacity-70 sm:px-6">
-          {supportedBanks.map((bank) => (
-            <BankLogo key={bank} bank={bank} size={22} />
-          ))}
+      <div className="border-t border-line">
+        <div className="mx-auto flex w-full max-w-6xl flex-col items-center justify-between gap-3 px-4 py-5 text-xs text-ink-3 sm:flex-row sm:px-6">
+          <span>© {year} TicoFinanza</span>
+          <span className="flex items-center gap-1.5">
+            <ShieldCheck size={14} weight="bold" className="text-accent" />
+            Sin acceso a tu banco ni a tu correo. Nunca vendemos tus datos.
+          </span>
         </div>
-      </div>
-
-      <div className="mx-auto flex w-full max-w-6xl flex-col items-center justify-between gap-3 px-4 py-5 text-xs text-ink-3 sm:flex-row sm:px-6">
-        <span>© {year} TicoFinanza</span>
-        <span className="flex items-center gap-1.5">
-          <ShieldCheck size={14} weight="bold" className="text-accent" />
-          Solo lectura de correos bancarios. Nunca vendemos tus datos.
-        </span>
       </div>
     </motion.footer>
   );

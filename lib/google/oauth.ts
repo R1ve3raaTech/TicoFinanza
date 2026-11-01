@@ -1,42 +1,42 @@
 import "server-only";
 
+export function googleOAuthConfigured(): boolean {
+  const id = process.env.GOOGLE_CLIENT_ID?.trim();
+  const secret = process.env.GOOGLE_CLIENT_SECRET?.trim();
+  return Boolean(id?.endsWith(".apps.googleusercontent.com") && secret &&
+    !/\[SENSITIVE\]|your[-_]/i.test(secret));
+}
+
 /**
- * Flujo de OAuth directo contra Google (no vía Supabase Auth) — tanto para
- * el login principal como para conectar cuentas de Gmail adicionales sin
- * cerrar la sesión actual. No pasar por Supabase Auth para esto es lo que
- * evita que la pantalla de Google muestre "...continuar a tu-proyecto.
- * supabase.co" en vez del dominio real de la app.
+ * Único permiso que pide la app: identificar a quien entra. Nada de leer
+ * correos ni de tocar ninguna otra API de Google — por eso no hay
+ * `access_type=offline` ni refresh tokens que guardar en la base.
  */
-export function buildGoogleAuthUrl(
-  redirectUri: string,
-  state: string,
-  scope: string,
-  nonce?: string
-): string {
+export const LOGIN_SCOPE = "openid email profile";
+
+/**
+ * Flujo de OAuth directo contra Google (no vía Supabase Auth). No pasar por
+ * Supabase Auth es lo que evita que la pantalla de consentimiento de Google
+ * muestre "...continuar a tu-proyecto.supabase.co" en vez del dominio real
+ * de la app.
+ */
+export function buildGoogleAuthUrl(redirectUri: string, state: string, nonce: string): string {
   const url = new URL("https://accounts.google.com/o/oauth2/v2/auth");
   url.searchParams.set("client_id", process.env.GOOGLE_CLIENT_ID!);
   url.searchParams.set("redirect_uri", redirectUri);
   url.searchParams.set("response_type", "code");
-  url.searchParams.set("scope", scope);
-  url.searchParams.set("access_type", "offline");
-  url.searchParams.set("prompt", "consent");
-  url.searchParams.set("include_granted_scopes", "true");
+  url.searchParams.set("scope", LOGIN_SCOPE);
+  url.searchParams.set("prompt", "select_account");
   url.searchParams.set("state", state);
-  if (nonce) url.searchParams.set("nonce", nonce);
+  url.searchParams.set("nonce", nonce);
   return url.toString();
 }
 
-export const GMAIL_CONNECT_SCOPE =
-  "https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/userinfo.email";
-
-export const LOGIN_SCOPE =
-  "openid email profile https://www.googleapis.com/auth/gmail.readonly";
-
 interface GoogleTokenResponse {
   access_token: string;
-  refresh_token?: string;
   id_token?: string;
   expires_in: number;
+  scope?: string;
 }
 
 export async function exchangeGoogleAuthCode(
@@ -58,15 +58,4 @@ export async function exchangeGoogleAuthCode(
     throw new Error(`No se pudo canjear el código de Google: ${response.status}`);
   }
   return response.json();
-}
-
-export async function getGoogleAccountEmail(accessToken: string): Promise<string> {
-  const response = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
-  if (!response.ok) {
-    throw new Error(`No se pudo obtener el correo de la cuenta: ${response.status}`);
-  }
-  const data = await response.json();
-  return data.email as string;
 }
