@@ -14,7 +14,6 @@ import {
   Trash,
 } from "@phosphor-icons/react/dist/ssr";
 import type { Icon } from "@phosphor-icons/react";
-import { Reveal, SectionHeading } from "./Reveal";
 
 interface FeatureItem {
   icon: Icon;
@@ -127,20 +126,9 @@ const groups: { label: string; items: FeatureItem[] }[] = [
   },
 ];
 
-function FeatureGroup({
-  label,
-  items,
-  delay,
-}: {
-  label: string;
-  items: FeatureItem[];
-  delay: number;
-}) {
+function FeatureGroup({ label, items }: { label: string; items: FeatureItem[] }) {
   return (
-    <Reveal
-      delay={delay}
-      className="grid gap-4 border-t border-line py-7 first:border-t-0 first:pt-0 md:grid-cols-[160px_minmax(0,1fr)] md:gap-8"
-    >
+    <div className="grid gap-4 border-t border-line py-7 first:border-t-0 first:pt-0 md:grid-cols-[130px_minmax(0,1fr)] md:gap-8">
       <h3 className="text-sm font-medium text-ink-2">{label}</h3>
       <div
         className={`grid gap-x-6 gap-y-5 ${items.length >= 2 ? "sm:grid-cols-2" : ""} ${
@@ -157,31 +145,23 @@ function FeatureGroup({
           </div>
         ))}
       </div>
-    </Reveal>
+    </div>
   );
 }
 
 export function Features() {
   return (
     <>
-      <SectionHeading
-        label="Qué obtenés"
-        title="Una hoja de cálculo que sí vas a usar"
-        body="Lo mismo que anotarías vos en Excel, pero con las cuentas hechas, los vencimientos al frente y en el teléfono."
-      />
-
-      <div className="mt-8">
-        {groups.map((group, i) => (
-          <FeatureGroup key={group.label} label={group.label} items={group.items} delay={Math.min(i, 3) * 0.05} />
+      <div>
+        {groups.map((group) => (
+          <FeatureGroup key={group.label} label={group.label} items={group.items} />
         ))}
       </div>
 
-      <Reveal delay={0.1}>
-        <p className="mt-8 flex items-center justify-center gap-2 text-xs text-ink-3">
-          <DeviceMobile size={14} weight="bold" className="text-ink-3" />
-          Se instala en el teléfono como una app, desde el mismo navegador.
-        </p>
-      </Reveal>
+      <p className="mt-7 flex items-center gap-2 border-t border-line pt-7 text-xs text-ink-3">
+        <DeviceMobile size={14} weight="bold" className="text-ink-3" />
+        Se instala en el teléfono como una app, desde el mismo navegador.
+      </p>
     </>
   );
 }

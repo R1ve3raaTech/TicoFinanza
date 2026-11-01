@@ -635,3 +635,65 @@ aviso, bajar un momento `IDLE_TIMEOUT_MS` y usar tiempo real.
 `tsc` y `npm run build` pasan. QA con Playwright en 1440 oscuro y 360 claro
 sobre las cinco pantallas, más 13 comprobaciones de conducta. Sin overflow ni
 errores de consola.
+
+## Dónde quedamos (2026-11-02)
+
+Dos cosas: un bug de datos que reportó Camil y el rediseño del layout de la
+landing.
+
+**Bug: los movimientos con fecha pasada "no se guardaban"**
+
+Sí se guardaban. La lista los escondía. `app/dashboard/movimientos/page.tsx`
+hacía `fromKey = hasRange ? from : primerDíaDelMes`, o sea que **sin filtro
+puesto recortaba al mes en curso** — mientras el filtro de arriba mostraba
+"Todo" marcado como activo. Anotabas algo del mes pasado, la lista no lo
+mostraba y las cifras del resumen (que sí son del mes en curso, a propósito)
+tampoco se movían: parecía que no se había guardado.
+
+- La regla vive ahora en `movementsRange()` (`lib/dateRange.ts`), con
+  pruebas: **sin rango en la URL no se filtra nada**. "Todo" dice la verdad.
+- Además, el formulario avisa al elegir una fecha de otro mes: "Queda
+  registrado en octubre, así que no entra en las cifras del resumen de este
+  mes". El resumen es mensual a propósito; lo que faltaba era decirlo donde
+  se toma la decisión.
+- **Lección para el futuro**: si un filtro tiene una opción "Todo", la
+  consulta por defecto tiene que coincidir con ella. Un default que no
+  coincide con lo que el control dice es indistinguible de perder datos, y
+  es lo que hace desconfiar de la app entera.
+
+**Rediseño del layout de la landing** (pedido con la skill `frontend-design`;
+colores y tipografías intactos, solo estructura)
+
+El problema: siete bandas idénticas (todas `max-w-6xl`, todas `py-16`, todas
+separadas por la misma línea, todas abriendo con el mismo trío "rótulo en
+mayúsculas / título / bajada"). Se leía como una sola columna sin jerarquía.
+
+- **Espina** (`components/landing/LandingSpine.tsx`): columna pegajosa a la
+  izquierda con la sección activa marcada. Es el rail de la app, en la
+  landing — que la página que vende el producto tenga otra gramática visual
+  que el producto es una pequeña mentira sobre él. Reemplaza la navegación
+  del encabezado, que solo existía de 1024px para arriba. En teléfono se
+  esconde y el nombre de la sección va con el contenido (`SectionLabel`).
+- El scroll spy es **una regla, no un IntersectionObserver**: la última
+  sección cuyo borde superior pasó la línea de los 140px. Con alturas tan
+  distintas (tres pasos contra una captura a pantalla completa) cualquier
+  criterio de desempate entre secciones que cruzan una franja fallaba en
+  algún punto del scroll.
+- **Cada sección mide lo que necesita** (`measure` en el `Section` de
+  `app/page.tsx`): las preguntas y el precio a ancho de lectura, las
+  funciones y la captura a todo lo ancho. Esa diferencia es la que marca el
+  ritmo — **se quitaron las líneas divisorias entre secciones**, que eran
+  justo lo que hacía que todo se leyera igual.
+- **Se fue `SectionHeading`** y con él el rótulo en mayúsculas espaciadas
+  sobre cada título (el nombre de la sección ya está en la espina, donde
+  además sirve para navegar). `components/landing/Reveal.tsx` quedó sin uso
+  y se borró: con él se van los fade-up por sección, que eran movimiento
+  decorativo repetido. Queda un solo momento animado, el del hero, más el
+  acordeón de preguntas (que responde a una acción).
+- **Bug encontrado de paso**: `AnchorLink` no reenviaba props, así que
+  `aria-current` se perdía en silencio. Ahora hace spread del resto.
+
+**Estado**: `npm test` (48, 4 nuevas sobre el rango), `eslint`, `tsc` y
+`npm run build` pasan. QA con Playwright en 1440 oscuro y 1024/768/360 claro:
+sin overflow ni errores de consola, más 9 comprobaciones de la espina y la
+estructura.

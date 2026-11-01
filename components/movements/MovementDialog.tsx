@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/Button";
 import { Dialog } from "@/components/ui/Dialog";
 import { Field, FormError, inputClass } from "@/components/ui/Field";
 import { expenseCategories, incomeCategories } from "@/lib/categories";
+import { monthKey } from "@/lib/fixedExpenses";
 import { deleteReceiptFile } from "@/lib/receiptUpload";
 import type { Account, Transaction, TransactionType, UserCategory } from "@/lib/types";
 import {
@@ -26,6 +27,18 @@ function forInput(date: Date): string {
   const pad = (n: number) => String(n).padStart(2, "0");
   const time = `${pad(date.getHours())}:${pad(date.getMinutes())}`;
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${time}`;
+}
+
+const monthFormat = new Intl.DateTimeFormat("es-CR", {
+  month: "long",
+  year: "numeric",
+  timeZone: "UTC",
+});
+
+/** "2026-10" a "octubre de 2026". */
+function monthName(monthYear: string): string {
+  const [year, month] = monthYear.split("-").map(Number);
+  return monthFormat.format(new Date(Date.UTC(year, month - 1, 1)));
 }
 
 /**
@@ -80,6 +93,13 @@ export function MovementDialog({
   const savedRef = useRef(false);
 
   const categories = type === "EXPENSE" ? expense : income;
+
+  // El mes de hoy se calcula una sola vez al montar: leer el reloj durante
+  // el render es impuro y React lo prohíbe.
+  const [currentMonth] = useState(() => monthKey());
+  const pickedMonth = date.slice(0, 7);
+  const otherMonth =
+    pickedMonth && pickedMonth !== currentMonth ? monthName(pickedMonth) : null;
 
   function close() {
     if (!savedRef.current && receiptPath && receiptPath !== originalReceipt) {
@@ -211,7 +231,17 @@ export function MovementDialog({
             label={type === "INCOME" ? "¿A qué cuenta entró?" : "¿De qué cuenta salió?"}
           />
 
-          <Field label="Fecha y hora">
+          <Field
+            label="Fecha y hora"
+            // El resumen cuenta solo el mes en curso. Sin este aviso, quien
+            // anota algo de un mes pasado ve que las cifras de arriba no se
+            // mueven y concluye que no se guardó.
+            hint={
+              otherMonth
+                ? `Queda registrado en ${otherMonth}, así que no entra en las cifras del resumen de este mes. Lo vas a ver acá, en Movimientos.`
+                : undefined
+            }
+          >
             <input
               type="datetime-local"
               value={date}

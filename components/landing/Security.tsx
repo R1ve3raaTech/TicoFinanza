@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { ArrowRight, Check, X } from "@phosphor-icons/react/dist/ssr";
-import { Reveal, SectionHeading } from "./Reveal";
 
 const CLAIMS = [
   {
@@ -27,14 +26,7 @@ const CLAIMS = [
  */
 export function Security() {
   return (
-    <>
-      <SectionHeading
-        label="Seguridad"
-        title="La app no toca tu banco ni tu correo"
-        body="TicoFinanza funciona con lo que vos anotás. No hay sincronización bancaria, no hay lectura de correos y no hay nada que revocar después."
-      />
-
-      <Reveal delay={0.1} className="mt-10 grid gap-8 md:grid-cols-2 md:gap-12">
+    <div className="flex flex-col gap-8">
         <div className="divide-y divide-line rounded-surface border border-line">
           {CLAIMS.map((claim) => (
             <div key={claim.text} className="flex items-start gap-3 p-4">
@@ -51,7 +43,7 @@ export function Security() {
           ))}
         </div>
 
-        <div className="flex flex-col justify-center gap-2">
+        <div className="flex flex-col gap-2">
           <h3 className="text-sm font-medium text-ink">Control sobre tu información</h3>
           <p className="text-sm leading-relaxed text-ink-2">
             Tus movimientos y tus gastos fijos son tuyos: podés borrarlos, o eliminar la cuenta
@@ -67,7 +59,6 @@ export function Security() {
             <ArrowRight size={14} weight="bold" />
           </Link>
         </div>
-      </Reveal>
-    </>
+    </div>
   );
 }

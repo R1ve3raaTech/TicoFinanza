@@ -1,4 +1,3 @@
-import { Reveal, SectionHeading } from "./Reveal";
 
 /**
  * Cómo funciona, en tres pasos. Numeración editorial "01/02/03" (mismo
@@ -22,22 +21,16 @@ const steps = [
 
 export function Steps() {
   return (
-    <>
-      <SectionHeading
-        label="Cómo funciona"
-        title="Tres pasos, sin conectar nada"
-        body="No hay sincronización que configurar ni permisos que autorizar: la app trabaja con lo que vos anotás."
-      />
-
-      <div className="mt-10 grid gap-8 md:grid-cols-3 md:gap-10">
-        {steps.map((step, i) => (
-          <Reveal key={step.title} delay={i * 0.05} className="border-t border-line pt-5">
-            <p className="money text-meta text-ink-3">0{i + 1}</p>
-            <h3 className="mt-2 text-base font-medium text-ink">{step.title}</h3>
-            <p className="mt-2 text-sm leading-relaxed text-ink-3">{step.body}</p>
-          </Reveal>
-        ))}
-      </div>
-    </>
+    // Es una secuencia de verdad (uno habilita al siguiente), así que acá la
+    // numeración sí informa en vez de decorar.
+    <ol className="grid gap-8 md:grid-cols-3 md:gap-10">
+      {steps.map((step, i) => (
+        <li key={step.title} className="border-t border-line-strong pt-5">
+          <p className="money text-meta text-ink-3">0{i + 1}</p>
+          <h3 className="mt-2 text-base font-medium text-ink">{step.title}</h3>
+          <p className="mt-2 text-sm leading-relaxed text-ink-3">{step.body}</p>
+        </li>
+      ))}
+    </ol>
   );
 }

@@ -3,7 +3,6 @@
 import { useId, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Plus } from "@phosphor-icons/react";
-import { Reveal, SectionHeading } from "./Reveal";
 
 /**
  * Las preguntas que alguien se hace de verdad antes de crearse una cuenta de
@@ -50,14 +49,13 @@ const faqs = [
   },
 ];
 
-function FaqItem({ q, a, index }: { q: string; a: string; index: number }) {
+function FaqItem({ q, a }: { q: string; a: string }) {
   const reduce = useReducedMotion();
   const [open, setOpen] = useState(false);
   const panelId = useId();
 
   return (
-    <Reveal delay={Math.min(index, 4) * 0.04}>
-      <div className="border-b border-line">
+    <div className="border-b border-line">
         <h3>
           <button
             type="button"
@@ -90,26 +88,17 @@ function FaqItem({ q, a, index }: { q: string; a: string; index: number }) {
               <p className="max-w-[68ch] pb-5 pr-8 text-sm leading-relaxed text-ink-2">{a}</p>
             </motion.div>
           )}
-        </AnimatePresence>
-      </div>
-    </Reveal>
+      </AnimatePresence>
+    </div>
   );
 }
 
 export function Faq() {
   return (
-    <div className="grid gap-12 lg:grid-cols-[0.8fr_1.2fr] lg:gap-20">
-      <SectionHeading
-        label="Preguntas"
-        title="Lo que todos preguntan antes de entrar"
-        body="Si algo no queda claro acá, escribinos a info@ticofinanza.com y te contestamos."
-      />
-
-      <div className="border-t border-line">
-        {faqs.map((faq, i) => (
-          <FaqItem key={faq.q} q={faq.q} a={faq.a} index={i} />
-        ))}
-      </div>
+    <div className="border-t border-line-strong">
+      {faqs.map((faq) => (
+        <FaqItem key={faq.q} q={faq.q} a={faq.a} />
+      ))}
     </div>
   );
 }

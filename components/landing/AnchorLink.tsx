@@ -1,6 +1,6 @@
 "use client";
 
-import type { MouseEvent, ReactNode } from "react";
+import type { AnchorHTMLAttributes, MouseEvent, ReactNode } from "react";
 
 /**
  * Ancla a una sección de la landing sin dejar el #hash en la URL — con
@@ -12,7 +12,11 @@ export function AnchorLink({
   href,
   className,
   children,
-}: {
+  // El resto se reenvía: sin esto, atributos como `aria-current` se perdían
+  // en silencio y el enlace quedaba sin decir que es el de la sección
+  // actual.
+  ...rest
+}: AnchorHTMLAttributes<HTMLAnchorElement> & {
   href: string;
   className?: string;
   children: ReactNode;
@@ -25,7 +29,7 @@ export function AnchorLink({
   }
 
   return (
-    <a href={href} className={className} onClick={handleClick}>
+    <a {...rest} href={href} className={className} onClick={handleClick}>
       {children}
     </a>
   );
