@@ -548,9 +548,24 @@ real de un push y la corrida del cron. La base ya está migrada, pero sigue
 sin poder probarse desde acá — el `.env.local` de este entorno trae
 marcadores en vez de las claves de Supabase (nota del 2026-09-13), así que no
 hay forma de abrir una sesión real en `next dev`. Son las tres cosas que hay
-que mirar en producción después del primer deploy, en este orden: adjuntar
-una foto a un movimiento, activar los recordatorios y darle "Mandar prueba",
-y al día siguiente revisar que el cron haya mandado el aviso de un gasto fijo
-que venza en uno o dos días.
+que mirar en producción, en este orden: adjuntar una foto a un movimiento,
+activar los recordatorios y darle "Mandar prueba", y al día siguiente revisar
+que el cron haya mandado el aviso de un gasto fijo que venza en uno o dos
+días. Ojo con el segundo: **en iPhone el push solo llega si la app está
+instalada en la pantalla de inicio**; en Safari a secas iOS no la entrega.
 
-**No commiteado ni deployado.**
+**Commiteado y deployado el 2026-11-01** (commit `3af1ef3`, las tres fases
+juntas; deploy `dpl_9p8UGB9h38XoYdBLw7Dz7qcJ5EQ8`). Humo verificado contra
+`www.ticofinanza.com`: landing 200, `/dashboard` 307 al login,
+`/api/reminders` sin secreto 401 (o sea que `CRON_SECRET` está puesto — si
+faltara daría 503) y `/sw.js` sirviendo el handler de push.
+
+Las claves VAPID y `CRON_SECRET` **ya estaban en Vercel** de cuando la app
+tenía push, antes de quitar Gmail: no hubo que generar nada. Reusar el par
+viejo no dejó a nadie colgado porque la 0019 borró la tabla de suscripciones
+y la 0021 la creó vacía.
+
+Quedan en Vercel dos variables muertas de las funciones eliminadas,
+`ANTHROPIC_API_KEY` y `GMAIL_TOKEN_ENCRYPTION_KEY`. No las usa nada; borrarlas
+es irreversible (son "Sensitive", no se pueden volver a leer), así que quedó
+pendiente de que Camil lo pida.
