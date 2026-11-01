@@ -3,6 +3,7 @@ import { InstallAppButton } from "@/components/InstallAppButton";
 import { PageHeader } from "@/components/shell/PageHeader";
 import { buttonClass } from "@/components/ui/Button";
 import { Money } from "@/components/ui/Money";
+import type { PeriodId } from "@/lib/dateRange";
 import type { LedgerEntry } from "@/lib/ledger";
 import type { Account, UserCategory } from "@/lib/types";
 import { DateRangeFilter } from "./DateRangeFilter";
@@ -46,6 +47,7 @@ export function MovementsView({
   customCategories,
   income,
   expense,
+  period,
   periodLabel,
   csvHref,
 }: {
@@ -54,6 +56,8 @@ export function MovementsView({
   customCategories: UserCategory[];
   income: number;
   expense: number;
+  /** El período activo, para marcar el chip correspondiente. */
+  period: PeriodId | "personalizado";
   /** "este mes" o el rango elegido, para la línea de contexto. */
   periodLabel: string;
   /** Exportación con el mismo rango que se está viendo. */
@@ -61,7 +65,7 @@ export function MovementsView({
 }) {
   return (
     <MovementEntryProvider customCategories={customCategories} accounts={accounts}>
-      <main id="contenido" className="mx-auto w-full max-w-[1000px] px-4 pb-12 md:px-8 xl:px-12">
+      <main id="contenido" className="mx-auto w-full max-w-[1180px] px-4 pb-12 md:px-8 xl:px-12">
         <PageHeader
           title="Movimientos"
           meta={`Lo que entró y lo que salió, anotado uno por uno · ${periodLabel}`}
@@ -88,7 +92,7 @@ export function MovementsView({
         />
 
         <div className="pt-3 md:pt-0">
-          <DateRangeFilter />
+          <DateRangeFilter active={period} />
         </div>
 
         <dl className="grid grid-cols-3 gap-6 border-b border-line pb-6 pt-5">

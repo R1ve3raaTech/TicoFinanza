@@ -55,7 +55,7 @@ export function PlanView({
   todayKey: string;
 }) {
   return (
-    <main id="contenido" className="mx-auto w-full max-w-[1000px] px-4 pb-12 md:px-8 xl:px-12">
+    <main id="contenido" className="mx-auto w-full max-w-[1180px] px-4 pb-12 md:px-8 xl:px-12">
       <PageHeader
         title="Plan"
         meta="Lo que te proponés: topes de gasto del mes, metas de ahorro y las deudas con otras personas."

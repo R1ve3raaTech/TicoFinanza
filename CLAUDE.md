@@ -697,3 +697,53 @@ mayúsculas / título / bajada"). Se leía como una sola columna sin jerarquía.
 `npm run build` pasan. QA con Playwright en 1440 oscuro y 1024/768/360 claro:
 sin overflow ni errores de consola, más 9 comprobaciones de la espina y la
 estructura.
+
+## Dónde quedamos (2026-11-02, segunda parte)
+
+Filtro de períodos, y una pasada de espacio sobre las pantallas con sesión.
+
+**El filtro de movimientos pasa a períodos de calendario**
+
+Eran ventanas móviles ("últimos 1/3/7/15/30 días"), que no es como nadie
+piensa su plata: uno pregunta "¿cuánto llevo este mes?". Ahora son
+**Todo · Hoy · Esta semana · Este mes · Mes pasado · Este año**, más el
+rango a mano.
+
+- **Las fechas las resuelve el servidor** (`resolvePeriod()` en
+  `lib/dateRange.ts`); el navegador solo manda `?periodo=hoy`. El chip no
+  hace ninguna cuenta de calendario.
+- **Bug que esto arregló**: `presetRange()` armaba las fechas en el
+  navegador con `toISOString()`, o sea UTC. Después de las 6 de la tarde
+  hora de Costa Rica, "hoy" se iba al día siguiente y la lista salía vacía.
+- **Segundo bug, más silencioso**: `startOfDayISO`/`endOfDayISO` parseaban
+  sin offset, así que los límites salían en la zona del servidor — UTC en
+  Vercel. "Este mes" arrancaba a las 6 p.m. del 31 del mes anterior y se
+  perdía las últimas seis horas del 30. Ahora el offset va explícito
+  (`-06:00`; Costa Rica no tiene horario de verano desde 1992).
+- Mes y año van **completos**, no hasta hoy: un movimiento con fecha futura
+  dentro del mes es válido y recortar en hoy lo escondería.
+
+**Menos espacio muerto en las pantallas con sesión**
+
+Medido antes y después con Playwright a 1440/1024/768/360. Ajustes a 1440:
+**2581px de alto → 1985px**, y el contenido pasó de usar el 69 % del ancho
+al 82 %.
+
+- Las cuatro pantallas comparten ahora el ancho del resumen
+  (`max-w-[1180px]`); estaban en 1000px y sobraban ~150px a la derecha en
+  escritorio.
+- `SettingsSection` y `SettingsRow` perdieron aire vertical (`pb-10/12` →
+  `pb-7/9`, filas `py-3.5` → `py-3`) y la columna de etiquetas creció a
+  200px, que es donde el texto dejaba de envolverse en dos líneas.
+- **La guía de Ajustes se rehízo compacta** (tres columnas, sin el bloque
+  citado por entrada): ocupaba los primeros 600px y empujaba el perfil fuera
+  de la pantalla. Nadie entra a Ajustes a leer, entra a cambiar algo. Las
+  tres aclaraciones que importan quedaron juntas al final de la guía.
+
+**Para QA**: la preview no puede probar el clic en los chips del filtro —
+`DateRangeFilter` navega a `/dashboard/movimientos`, que sin sesión redirige
+a `/entrar`. Se comprueban las dos mitades por separado: que el chip escribe
+`?periodo=` y que el servidor filtra por ese parámetro (navegando directo).
+
+**Estado**: `npm test` (53, 8 nuevas sobre períodos y husos), `eslint`, `tsc`
+y `npm run build` pasan.

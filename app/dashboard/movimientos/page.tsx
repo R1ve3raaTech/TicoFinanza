@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { MovementsView } from "@/components/movements/MovementsView";
-import { movementsRange } from "@/lib/dateRange";
+import { resolvePeriod } from "@/lib/dateRange";
+import { dayKey } from "@/lib/fixedExpenses";
 import { buildLedger } from "@/lib/ledger";
 import { createClient } from "@/lib/supabase/server";
 import type { Account, Transaction, Transfer, UserCategory } from "@/lib/types";
@@ -11,9 +12,9 @@ export const metadata: Metadata = { title: "Movimientos" };
 export default async function MovementsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ from?: string; to?: string }>;
+  searchParams: Promise<{ periodo?: string; from?: string; to?: string }>;
 }) {
-  const { from, to } = await searchParams;
+  const { periodo, from, to } = await searchParams;
 
   const supabase = await createClient();
   const {
@@ -21,10 +22,9 @@ export default async function MovementsPage({
   } = await supabase.auth.getUser();
   if (!user) redirect("/entrar");
 
-  // Sin rango elegido se ve todo el historial, no el mes en curso: el filtro
-  // de arriba viene marcado en "Todo" y tiene que decir la verdad. Ver
-  // movementsRange() para el bug que esto arregla.
-  const range = movementsRange({ from, to });
+  // "Hoy" es hoy en Costa Rica, resuelto acá: el navegador solo manda el
+  // nombre del período. Ver resolvePeriod().
+  const range = resolvePeriod({ periodo, from, to }, dayKey());
 
   let movementsQuery = supabase
     .from("transactions")
@@ -79,6 +79,7 @@ export default async function MovementsPage({
       customCategories={(categories ?? []) as UserCategory[]}
       income={income}
       expense={expense}
+      period={range.id}
       periodLabel={range.label}
       csvHref={range.csvQuery ? `/api/export-csv?${range.csvQuery}` : "/api/export-csv"}
     />

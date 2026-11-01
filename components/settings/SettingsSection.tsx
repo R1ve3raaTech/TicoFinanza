@@ -23,13 +23,13 @@ export function SettingsSection({
       aria-labelledby={`${id}-titulo`}
       // Deja lugar para lo que queda fijo arriba al saltar desde el índice:
       // encabezado + índice en teléfono, solo el índice en tablet.
-      className="scroll-mt-28 pb-10 md:scroll-mt-16 md:pb-12 lg:scroll-mt-10"
+      className="scroll-mt-28 pb-7 md:scroll-mt-16 md:pb-9 lg:scroll-mt-10"
     >
       <h2 id={`${id}-titulo`} className="text-heading text-ink">
         {title}
       </h2>
       {description && <p className="mt-0.5 max-w-[62ch] text-sm text-ink-3">{description}</p>}
-      <div className="mt-4 border-t border-line">{children}</div>
+      <div className="mt-3 border-t border-line">{children}</div>
     </section>
   );
 }
@@ -72,7 +72,7 @@ export function SettingsRow({
 
   if (inline) {
     return (
-      <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 border-b border-line py-3.5">
+      <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 border-b border-line py-3">
         <div className="min-w-[12rem] flex-1">{text}</div>
         <div className="flex shrink-0 items-center gap-2">{children}</div>
       </div>
@@ -81,7 +81,7 @@ export function SettingsRow({
 
   return (
     <div
-      className={`flex flex-col gap-2 border-b border-line py-3.5 sm:grid sm:grid-cols-[180px_minmax(0,1fr)] sm:gap-6 ${
+      className={`flex flex-col gap-2 border-b border-line py-3 sm:grid sm:grid-cols-[200px_minmax(0,1fr)] sm:gap-8 ${
         alignTop ? "sm:items-start" : "sm:items-center"
       }`}
     >

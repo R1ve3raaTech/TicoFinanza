@@ -37,13 +37,13 @@ export function SettingsView({
   transactionCount: number;
 }) {
   return (
-    <main id="contenido" className="mx-auto w-full max-w-[1000px] px-4 pb-16 md:px-8 xl:px-12">
+    <main id="contenido" className="mx-auto w-full max-w-[1180px] px-4 pb-12 md:px-8 xl:px-12">
       <PageHeader title="Ajustes" meta="Tu cuenta, tus categorías, los recordatorios y cómo se ve la app." />
 
-      <div className="lg:grid lg:grid-cols-[170px_minmax(0,1fr)] lg:gap-14">
+      <div className="lg:grid lg:grid-cols-[150px_minmax(0,1fr)] lg:gap-10 xl:gap-14">
         <SettingsIndex />
 
-        <div className="min-w-0 max-w-[720px]">
+        <div className="min-w-0 max-w-[880px]">
           <SettingsSection
             id="guia"
             title="Guía de la app"

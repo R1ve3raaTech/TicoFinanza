@@ -8,90 +8,85 @@ import {
   Target,
 } from "@phosphor-icons/react/dist/ssr";
 
-interface GuideEntry {
-  icon: Icon;
-  title: string;
-  href: string;
-  what: string;
-  /** Lo que la gente entiende mal de esa sección. */
-  note?: string;
-}
-
 /**
- * Qué hace cada sección de la app.
+ * Qué hace cada sección de la app, en dos columnas y corto.
  *
- * Vive en Ajustes y no en un recorrido guiado al entrar: un tour se cierra
- * una vez, a los diez segundos de llegar, y después no hay forma de
- * volverlo a ver. Esto se puede consultar el día que haga falta, que es
- * cuando uno de verdad se pregunta por qué los gastos fijos no aparecen en
- * la lista de movimientos.
+ * Antes cada entrada traía además su propia aclaración en un bloque citado y
+ * la guía se comía los primeros 600px de Ajustes, empujando el perfil fuera
+ * de la pantalla: nadie entra a Ajustes a leer, entra a cambiar algo. Las
+ * tres aclaraciones que de verdad hacen falta se juntaron abajo, donde se
+ * leen de corrido.
  */
-const ENTRIES: GuideEntry[] = [
+const SECTIONS: { icon: Icon; title: string; href: string; what: string }[] = [
   {
     icon: SquaresFour,
     title: "Resumen",
     href: "/dashboard",
-    what: "Cómo venís este mes: lo que entró, lo que se va en fijos, lo que gastaste a mano y lo que queda. Abajo, qué se vence primero, el calendario del mes y en qué se te va la plata.",
+    what: "Cómo venís este mes, qué se vence primero y en qué se te va la plata.",
   },
   {
     icon: Receipt,
     title: "Fijos",
     href: "/dashboard/fijos",
-    what: "Los pagos que se repiten todos los meses: alquiler, servicios, gimnasio, suscripciones. Cada uno con su día de cobro y su estado.",
-    note: "Un gasto fijo no es un movimiento: se anota una vez y vale todos los meses. Marcarlo como pagado no crea un movimiento ni cambia el saldo de la cuenta — el mes siguiente vuelve a estar pendiente solo.",
+    what: "Los pagos que se repiten todos los meses, con su día de cobro.",
   },
   {
     icon: ArrowsLeftRight,
     title: "Movimientos",
     href: "/dashboard/movimientos",
-    what: "Lo que entró y salió de verdad, anotado uno por uno, con su categoría, su cuenta y su comprobante si le sacaste foto. Acá también van las transferencias entre tus propias cuentas.",
-    note: "Una transferencia no es ingreso ni gasto: mover plata del banco al efectivo no cambia cuánto tenés, así que no toca el superávit del mes.",
+    what: "Lo que entró y salió, uno por uno, con su cuenta y su comprobante.",
   },
   {
     icon: Target,
     title: "Plan",
     href: "/dashboard/plan",
-    what: "Lo que te proponés, en tres pestañas. Presupuestos: un tope de gasto por categoría y por mes. Metas: plata apartada para algo concreto. Deudas: lo que te deben y lo que debés.",
-    note: "Prestar plata no es un gasto y que te deban no es un ingreso: una deuda recién toca tus cuentas el día que la marcás como saldada, y solo si pedís que se registre el movimiento.",
+    what: "Topes de gasto, metas de ahorro y deudas con otras personas.",
   },
   {
     icon: GearSix,
     title: "Ajustes",
     href: "/dashboard/ajustes",
-    what: "Tu perfil, tus categorías propias, el tema claro u oscuro, los recordatorios de vencimiento y la exportación a CSV.",
+    what: "Tu perfil, tus categorías, el tema y los recordatorios.",
   },
+];
+
+const CONFUSIONS = [
+  "Un gasto fijo no es un movimiento: se anota una vez y vale todos los meses. Marcarlo pagado no cambia el saldo de la cuenta.",
+  "Una transferencia no es ingreso ni gasto: mover plata del banco al efectivo no cambia cuánto tenés.",
+  "Una deuda recién toca tus cuentas el día que la marcás como saldada, y solo si pedís que se registre el movimiento.",
 ];
 
 export function AppGuide() {
   return (
-    <ul className="border-t border-line">
-      {ENTRIES.map(({ icon: Icon, title, href, what, note }) => (
-        <li
-          key={title}
-          className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 border-b border-line py-4 sm:gap-x-4"
-        >
-          <span
-            aria-hidden
-            className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-control bg-surface-raised text-ink-3"
-          >
-            <Icon size={16} />
-          </span>
-          <div className="min-w-0">
-            <Link
-              href={href}
-              className="text-label text-ink underline-offset-4 hover:text-accent hover:underline"
-            >
-              {title}
-            </Link>
-            <p className="mt-1 max-w-[62ch] text-meta leading-relaxed text-ink-3">{what}</p>
-            {note && (
-              <p className="mt-2 max-w-[62ch] border-l-2 border-line-strong pl-3 text-meta leading-relaxed text-ink-2">
-                {note}
-              </p>
-            )}
-          </div>
-        </li>
-      ))}
-    </ul>
+    <>
+      <ul className="grid gap-x-8 gap-y-4 border-t border-line pt-4 sm:grid-cols-2 lg:grid-cols-3">
+        {SECTIONS.map(({ icon: Icon, title, href, what }) => (
+          <li key={title} className="flex gap-2.5">
+            <Icon size={15} aria-hidden className="mt-0.5 shrink-0 text-ink-3" />
+            <div className="min-w-0">
+              <Link
+                href={href}
+                className="text-label text-ink underline-offset-4 hover:text-accent hover:underline"
+              >
+                {title}
+              </Link>
+              <p className="mt-0.5 text-meta leading-relaxed text-ink-3">{what}</p>
+            </div>
+          </li>
+        ))}
+      </ul>
+
+      <div className="mt-5 border-t border-line pt-4">
+        <h3 className="text-label text-ink-2">Lo que más se confunde</h3>
+        <ul className="mt-2 flex flex-col gap-1.5">
+          {CONFUSIONS.map((text) => (
+            <li key={text} className="flex gap-2.5 text-meta leading-relaxed text-ink-3">
+              <span aria-hidden className="mt-[0.45em] h-px w-2 shrink-0 bg-line-strong" />
+              {text}
+            </li>
+          ))}
+        </ul>
+      </div>
+    </>
   );
 }
