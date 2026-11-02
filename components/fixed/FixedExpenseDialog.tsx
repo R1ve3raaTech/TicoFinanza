@@ -110,6 +110,7 @@ export function FixedExpenseDialog({
         setConfirmingDelete(false);
         return;
       }
+      setConfirmingDelete(false);
       toast.success("Gasto fijo eliminado");
       onClose();
     });
@@ -212,8 +213,9 @@ export function FixedExpenseDialog({
         </form>
       </Dialog>
 
+      {/* `&& open`: la confirmación no sobrevive al diálogo que la abrió. */}
       <ConfirmDialog
-        open={confirmingDelete}
+        open={confirmingDelete && open}
         title="¿Eliminar este gasto fijo?"
         description="Deja de aparecer en próximos pagos y de contar en el resumen. No se puede deshacer."
         pending={pending}

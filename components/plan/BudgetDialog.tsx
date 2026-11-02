@@ -83,6 +83,7 @@ export function BudgetDialog({
         setConfirmingDelete(false);
         return;
       }
+      setConfirmingDelete(false);
       toast.success("Tope eliminado");
       onClose();
     });
@@ -169,8 +170,9 @@ export function BudgetDialog({
         )}
       </Dialog>
 
+      {/* `&& open`: la confirmación no sobrevive al diálogo que la abrió. */}
       <ConfirmDialog
-        open={confirmingDelete}
+        open={confirmingDelete && open}
         title="¿Eliminar este tope?"
         description="Los gastos de la categoría no se tocan; solo deja de medirse contra un límite."
         pending={pending}

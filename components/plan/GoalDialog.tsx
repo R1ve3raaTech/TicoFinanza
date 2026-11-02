@@ -84,6 +84,7 @@ export function GoalDialog({
         setConfirmingDelete(false);
         return;
       }
+      setConfirmingDelete(false);
       toast.success("Meta eliminada");
       onClose();
     });
@@ -230,8 +231,9 @@ export function GoalDialog({
         </form>
       </Dialog>
 
+      {/* `&& open`: la confirmación no sobrevive al diálogo que la abrió. */}
       <ConfirmDialog
-        open={confirmingDelete}
+        open={confirmingDelete && open}
         title="¿Eliminar esta meta?"
         description="Se borran también sus abonos, así que esa plata vuelve a contar en el saldo de tus cuentas."
         pending={pending}

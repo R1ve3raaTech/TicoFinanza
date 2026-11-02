@@ -81,6 +81,7 @@ export function AccountDialog({
         setConfirmingDelete(false);
         return;
       }
+      setConfirmingDelete(false);
       toast.success("Cuenta eliminada");
       onClose();
     });
@@ -172,8 +173,9 @@ export function AccountDialog({
         </form>
       </Dialog>
 
+      {/* `&& open`: la confirmación no sobrevive al diálogo que la abrió. */}
       <ConfirmDialog
-        open={confirmingDelete}
+        open={confirmingDelete && open}
         title="¿Eliminar esta cuenta?"
         description="Los movimientos que tenía quedan sin cuenta asignada, no se borran. Las transferencias desde o hacia ella sí se eliminan."
         pending={pending}

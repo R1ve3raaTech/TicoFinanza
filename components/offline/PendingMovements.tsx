@@ -45,9 +45,12 @@ export function PendingMovements() {
             <CloudSlash size={15} aria-hidden className="shrink-0 text-ink-3" />
             {pendingLabel(items.length)}
           </h2>
+          {/* Impersonal en singular a propósito: sirve con uno y con ocho, sin
+              armar la frase con condicionales. Y "dispositivo", no "teléfono":
+              la cola vive en el navegador, que igual puede ser una compu. */}
           <p className="mt-1 max-w-[58ch] text-meta leading-relaxed text-ink-3">
-            Quedaron guardados en este teléfono y se mandan solos en cuanto vuelva la señal.
-            Todavía no cuentan en el saldo ni en las cifras del mes.
+            Queda guardado en este dispositivo y se manda solo en cuanto vuelva la señal.
+            Todavía no cuenta en el saldo ni en las cifras del mes.
           </p>
         </div>
         <Button variant="secondary" size="sm" onClick={() => void flush()} disabled={flushing}>

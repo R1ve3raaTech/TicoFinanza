@@ -99,6 +99,7 @@ export function IncomeDialog({
         setConfirmingDelete(false);
         return;
       }
+      setConfirmingDelete(false);
       toast.success("Ingreso eliminado");
       onClose();
     });
@@ -210,8 +211,9 @@ export function IncomeDialog({
         </form>
       </Dialog>
 
+      {/* `&& open`: la confirmación no sobrevive al diálogo que la abrió. */}
       <ConfirmDialog
-        open={confirmingDelete}
+        open={confirmingDelete && open}
         title="¿Eliminar este ingreso fijo?"
         description="Los movimientos que ya confirmaste no se borran."
         pending={pending}

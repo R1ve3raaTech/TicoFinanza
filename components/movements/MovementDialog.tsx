@@ -247,6 +247,7 @@ export function MovementDialog({
       // El movimiento (y con él su comprobante) ya no existe: nada que
       // limpiar al cerrar.
       savedRef.current = true;
+      setConfirmingDelete(false);
       toast.success("Movimiento eliminado");
       onClose();
     });
@@ -417,8 +418,9 @@ export function MovementDialog({
         </form>
       </Dialog>
 
+      {/* `&& open`: la confirmación no sobrevive al diálogo que la abrió. */}
       <ConfirmDialog
-        open={confirmingDelete}
+        open={confirmingDelete && open}
         title="¿Eliminar este movimiento?"
         description="Esta acción no se puede deshacer."
         pending={pending}

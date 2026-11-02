@@ -81,6 +81,7 @@ export function DebtDialog({
         setConfirmingDelete(false);
         return;
       }
+      setConfirmingDelete(false);
       toast.success("Deuda eliminada");
       onClose();
     });
@@ -171,8 +172,9 @@ export function DebtDialog({
         </form>
       </Dialog>
 
+      {/* `&& open`: la confirmación no sobrevive al diálogo que la abrió. */}
       <ConfirmDialog
-        open={confirmingDelete}
+        open={confirmingDelete && open}
         title="¿Eliminar esta deuda?"
         description="Si ya la habías saldado registrando un movimiento, ese movimiento no se borra."
         pending={pending}
