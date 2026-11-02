@@ -70,3 +70,119 @@ export function goalsTotal(goals: SavingsGoal[]): { saved: number; target: numbe
     { saved: 0, target: 0 }
   );
 }
+
+// ---------------------------------------------------------------------------
+// Metas anuales (prorrateo)
+// ---------------------------------------------------------------------------
+
+/** Meses de un ciclo anual. */
+const CYCLE_MONTHS = 12;
+
+/**
+ * Gastos anuales típicos de Costa Rica. Son solo nombres sugeridos para no
+ * escribirlos a mano; la fecha y el monto los pone la persona, que es la
+ * única que sabe cuánto le toca pagar.
+ */
+export const ANNUAL_GOAL_PRESETS = [
+  "Marchamo",
+  "Seguro del carro",
+  "RTV",
+  "Impuestos municipales",
+  "Matrícula",
+] as const;
+
+export interface Proration {
+  /** Lo que toca apartar por mes para llegar sin apuros. */
+  perMonth: number;
+  /** Meses del ciclo que ya pasaron, 0 a 12. */
+  monthsElapsed: number;
+  /** Lo que deberías llevar apartado a estas alturas del ciclo. */
+  expected: number;
+  /** Cuánto te falta contra ese ritmo. 0 si vas al día o adelantado. */
+  behind: number;
+}
+
+/**
+ * Meses enteros que faltan entre dos días. Cuenta meses de calendario y no
+ * días partidos por 30: el prorrateo se piensa por mes ("me faltan cuatro
+ * meses"), y 30,4 días dejaba el cálculo corrido medio mes en los extremos.
+ */
+function monthsUntil(fromKey: string, toKey: string): number {
+  const [fy, fm, fd] = fromKey.split("-").map(Number);
+  const [ty, tm, td] = toKey.split("-").map(Number);
+  const months = (ty - fy) * 12 + (tm - fm);
+  // Si todavía no se llegó al día del mes, ese mes no está completo.
+  return td < fd ? months - 1 : months;
+}
+
+/**
+ * Cuánto habría que llevar apartado de una meta anual a día de hoy.
+ *
+ * El prorrateo es la respuesta a que el marchamo sorprenda cada diciembre:
+ * no es un gasto imprevisto, es uno conocido con un año de aviso. Dividido
+ * entre doce deja de ser un golpe.
+ *
+ * Devuelve null si la meta no es anual o no tiene fecha: sin fecha no hay
+ * ciclo contra el que medir el ritmo.
+ */
+export function proration(goal: SavingsGoal, todayKey: string): Proration | null {
+  if (goal.recurrence !== "anual" || !goal.target_date) return null;
+
+  const perMonth = Math.ceil(goal.target_amount / CYCLE_MONTHS);
+  const monthsLeft = monthsUntil(todayKey, goal.target_date);
+  const monthsElapsed = Math.min(Math.max(CYCLE_MONTHS - monthsLeft, 0), CYCLE_MONTHS);
+  // Se recorta al objetivo para que el último mes no pida más de lo que vale
+  // la meta por el redondeo hacia arriba de `perMonth`.
+  const expected = Math.min(perMonth * monthsElapsed, goal.target_amount);
+
+  return {
+    perMonth,
+    monthsElapsed,
+    expected,
+    behind: Math.max(expected - goal.current_amount, 0),
+  };
+}
+
+/**
+ * La fecha del ciclo siguiente: un año después, saltando los que ya pasaron.
+ *
+ * El salto en bucle es para quien paga tarde o completa el ciclo meses
+ * después: sumar un año a secas podría dejar la fecha otra vez en el pasado
+ * y la meta nueva arrancaría vencida.
+ *
+ * Un 29 de febrero cae al 28 en los años que no son bisiestos.
+ */
+export function nextCycleDate(targetDate: string, todayKey: string): string {
+  const [y, m, d] = targetDate.split("-").map(Number);
+  let year = y + 1;
+
+  for (let i = 0; i < 100; i += 1) {
+    const lastDay = new Date(Date.UTC(year, m, 0)).getUTCDate();
+    const candidate = `${year}-${String(m).padStart(2, "0")}-${String(
+      Math.min(d, lastDay)
+    ).padStart(2, "0")}`;
+    if (candidate > todayKey) return candidate;
+    year += 1;
+  }
+
+  return targetDate;
+}
+
+/** Metas anuales primero y por fecha: lo que vence antes se mira antes. */
+export function annualGoals(goals: SavingsGoal[]): SavingsGoal[] {
+  return goals
+    .filter((goal) => goal.recurrence === "anual")
+    .sort((a, b) => (a.target_date ?? "9999").localeCompare(b.target_date ?? "9999"));
+}
+
+/**
+ * Lo que las metas anuales piden por mes, juntas. Es plata comprometida que
+ * todavía no es un gasto fijo: sirve para que el prorrateo se pueda mirar de
+ * un golpe en vez de meta por meta.
+ */
+export function annualMonthly(goals: SavingsGoal[], todayKey: string): number {
+  return annualGoals(goals).reduce((total, goal) => {
+    const rate = proration(goal, todayKey);
+    return total + (rate?.perMonth ?? 0);
+  }, 0);
+}

@@ -141,6 +141,7 @@ export default async function PlanPage({
       nextMonth={shiftMonth(monthYear, 1)}
       progress={progress}
       availableCategories={availableCategories}
+      expenseCategoryOptions={allCategories}
       untracked={untracked}
       goals={(goals ?? []) as SavingsGoal[]}
       accounts={(accounts ?? []) as Account[]}

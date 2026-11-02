@@ -1,11 +1,12 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { CheckCircle, Plus } from "@phosphor-icons/react";
+import { ArrowsClockwise, CheckCircle, Plus } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/Button";
 import { Money } from "@/components/ui/Money";
-import { goalColorVar, goalProgress, goalsTotal } from "@/lib/goals";
+import { annualMonthly, goalColorVar, goalProgress, goalsTotal, proration } from "@/lib/goals";
 import type { Account, GoalContribution, SavingsGoal } from "@/lib/types";
+import { CompleteCycleDialog } from "./CompleteCycleDialog";
 import { ContributeDialog } from "./ContributeDialog";
 import { GoalDialog } from "./GoalDialog";
 
@@ -38,17 +39,21 @@ export function GoalsSection({
   goals,
   accounts,
   contributions,
+  categories,
   todayKey,
 }: {
   goals: SavingsGoal[];
   accounts: Account[];
   /** Últimos abonos de todas las metas, para deshacer desde el diálogo. */
   contributions: GoalContribution[];
+  /** Categorías de gasto, para el movimiento que genera pagar una meta anual. */
+  categories: string[];
   todayKey: string;
 }) {
   const [editing, setEditing] = useState<SavingsGoal | null>(null);
   const [goalOpen, setGoalOpen] = useState(false);
   const [contributing, setContributing] = useState<SavingsGoal | null>(null);
+  const [completing, setCompleting] = useState<SavingsGoal | null>(null);
   const [session, setSession] = useState(0);
 
   const byGoal = useMemo(() => {
@@ -72,7 +77,13 @@ export function GoalsSection({
     setSession((s) => s + 1);
   }
 
+  function openCompletion(goal: SavingsGoal) {
+    setCompleting(goal);
+    setSession((s) => s + 1);
+  }
+
   const totals = goalsTotal(goals);
+  const perMonth = annualMonthly(goals, todayKey);
 
   return (
     <section aria-labelledby="metas-titulo" className="min-w-0">
@@ -89,8 +100,9 @@ export function GoalsSection({
       {goals.length === 0 ? (
         <div className="border-t border-line py-8">
           <p className="max-w-[54ch] text-sm leading-relaxed text-ink-2">
-            Apartá plata para algo concreto: el fondo de emergencia, el marchamo de enero, un
-            viaje. Abonás desde una cuenta y la app lleva la cuenta de cuánto falta.
+            Apartá plata para algo concreto: el fondo de emergencia, un viaje. Si es algo que
+            se paga todos los años —el marchamo, el seguro— marcala como anual y la app lo
+            divide entre doce para que diciembre no sorprenda.
           </p>
           <Button variant="secondary" className="mt-4" onClick={() => openGoal(null)}>
             <Plus size={15} weight="bold" />
@@ -99,18 +111,38 @@ export function GoalsSection({
         </div>
       ) : (
         <>
-          <div className="flex items-baseline justify-between gap-4 border-y border-line py-3">
-            <span className="text-meta text-ink-3">Apartado en total</span>
-            <span className="money text-label text-ink">
-              <Money value={totals.saved} /> de <Money value={totals.target} />
-            </span>
+          <div className="border-y border-line py-3">
+            <div className="flex items-baseline justify-between gap-4">
+              <span className="text-meta text-ink-3">Apartado en total</span>
+              <span className="money text-label text-ink">
+                <Money value={totals.saved} /> de <Money value={totals.target} />
+              </span>
+            </div>
+            {perMonth > 0 && (
+              <div className="mt-1.5 flex items-baseline justify-between gap-4">
+                <span className="text-meta text-ink-3">Prorrateo de lo anual</span>
+                <span className="money text-meta text-ink-2">
+                  <Money value={perMonth} /> por mes
+                </span>
+              </div>
+            )}
           </div>
 
           <ul className="grid gap-3 pt-3 lg:grid-cols-2">
             {goals.map((goal) => {
               const progress = goalProgress(goal, todayKey);
               const percent = Math.round(progress.ratio * 100);
-              const pace = paceText(progress, goal.target_date);
+              const rate = proration(goal, todayKey);
+              // En una meta anual el ritmo es la doceava parte, fija; en una
+              // de una sola vez es lo que falta repartido en el plazo. Con la
+              // meta ya juntada no se pide seguir apartando: lo que toca es
+              // pagarla.
+              const pace =
+                rate && !progress.complete
+                  ? `Apartá ₡${rate.perMonth.toLocaleString("de-DE")} por mes`
+                  : rate
+                    ? "Juntada: ya podés pagarla"
+                    : paceText(progress, goal.target_date);
               return (
                 <li
                   key={goal.id}
@@ -128,6 +160,14 @@ export function GoalsSection({
                         className="h-2.5 w-2.5 shrink-0 rounded-[2px]"
                       />
                       <span className="truncate text-label text-ink">{goal.name}</span>
+                      {rate && (
+                        <span className="flex shrink-0 items-center gap-1 text-meta text-ink-3">
+                          <ArrowsClockwise size={11} aria-hidden />
+                          {goal.cycles_completed > 0
+                            ? `${goal.cycles_completed + 1}.º año`
+                            : "Anual"}
+                        </span>
+                      )}
                       {progress.complete && (
                         <CheckCircle
                           size={14}
@@ -167,10 +207,37 @@ export function GoalsSection({
                     <p className="min-w-0 text-meta text-ink-3">
                       <span className="money">{percent}%</span>
                       {pace && <span className="block truncate">{pace}</span>}
+                      {/* Ir atrasado en el prorrateo no es una alarma: es un
+                          dato para ponerse al día, así que va en tinta y no
+                          en rosa, que acá significa plata que sale. */}
+                      {rate && rate.behind > 0 && (
+                        <span className="block truncate text-ink-2">
+                          Te faltan <Money value={rate.behind} /> para ir al día
+                        </span>
+                      )}
                     </p>
-                    <Button variant="secondary" size="sm" onClick={() => openContribution(goal)}>
-                      Abonar
-                    </Button>
+                    <span className="flex shrink-0 flex-col items-end gap-1.5 sm:flex-row sm:items-center">
+                      {/* Con la meta juntada el paso que sigue es pagarla, no
+                          seguir abonando: los dos botones cambian de peso. */}
+                      {rate && (
+                        <Button
+                          variant={progress.complete ? "secondary" : "ghost"}
+                          size="sm"
+                          onClick={() => openCompletion(goal)}
+                          className={progress.complete ? "" : "-mr-2 sm:mr-0"}
+                        >
+                          Ya lo pagué
+                        </Button>
+                      )}
+                      <Button
+                        variant={rate && progress.complete ? "ghost" : "secondary"}
+                        size="sm"
+                        onClick={() => openContribution(goal)}
+                        className={rate && progress.complete ? "-mr-2 sm:mr-0" : ""}
+                      >
+                        Abonar
+                      </Button>
+                    </span>
                   </div>
                 </li>
               );
@@ -184,6 +251,14 @@ export function GoalsSection({
         open={goalOpen}
         onClose={() => setGoalOpen(false)}
         goal={editing}
+      />
+      <CompleteCycleDialog
+        key={`ciclo-${session}`}
+        open={Boolean(completing)}
+        onClose={() => setCompleting(null)}
+        goal={completing}
+        accounts={accounts}
+        categories={categories}
       />
       <ContributeDialog
         key={`abono-${session}`}

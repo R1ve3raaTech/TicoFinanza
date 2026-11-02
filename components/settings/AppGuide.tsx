@@ -40,7 +40,7 @@ const SECTIONS: { icon: Icon; title: string; href: string; what: string }[] = [
     icon: Target,
     title: "Plan",
     href: "/dashboard/plan",
-    what: "Topes de gasto, metas de ahorro y deudas con otras personas.",
+    what: "Topes de gasto, metas de ahorro (anuales incluidas) y deudas con otras personas.",
   },
   {
     icon: GearSix,
@@ -51,9 +51,11 @@ const SECTIONS: { icon: Icon; title: string; href: string; what: string }[] = [
 ];
 
 const CONFUSIONS = [
-  "Un gasto fijo no es un movimiento: se anota una vez y vale todos los meses. Marcarlo pagado no cambia el saldo de la cuenta.",
+  "Un gasto fijo no es un movimiento: se anota una vez y vale todos los meses. Al marcarlo pagado la app te ofrece descontarlo de la cuenta, y ese movimiento no se cuenta otra vez como gasto variable.",
+  "Un ingreso fijo no se registra solo el día de pago: te aparece en el resumen para confirmarlo, así un depósito atrasado o distinto no deja el saldo mintiendo.",
   "Una transferencia no es ingreso ni gasto: mover plata del banco al efectivo no cambia cuánto tenés.",
   "Una deuda recién toca tus cuentas el día que la marcás como saldada, y solo si pedís que se registre el movimiento.",
+  "Una meta anual (el marchamo, el seguro) divide el monto entre doce. Cuando la pagás, lo apartado vuelve a la cuenta y el gasto la saca: el saldo queda igual al del banco.",
 ];
 
 export function AppGuide() {

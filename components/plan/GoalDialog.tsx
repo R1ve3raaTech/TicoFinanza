@@ -9,8 +9,11 @@ import { AmountInput, formatAmountInput, parseAmount } from "@/components/moveme
 import { Button } from "@/components/ui/Button";
 import { Dialog } from "@/components/ui/Dialog";
 import { Field, FormError, inputClass, labelClass } from "@/components/ui/Field";
-import { GOAL_COLORS, goalColorVar } from "@/lib/goals";
-import type { GoalColor, SavingsGoal } from "@/lib/types";
+import { Switch } from "@/components/ui/Switch";
+import { ToggleChip } from "@/components/ui/ToggleChip";
+import { Money } from "@/components/ui/Money";
+import { ANNUAL_GOAL_PRESETS, GOAL_COLORS, goalColorVar } from "@/lib/goals";
+import type { GoalColor, GoalRecurrence, SavingsGoal } from "@/lib/types";
 
 /** Alta y edición de una meta. Lo abonado no se toca acá: sale de los abonos. */
 export function GoalDialog({
@@ -31,7 +34,14 @@ export function GoalDialog({
   const [target, setTarget] = useState(goal ? formatAmountInput(goal.target_amount) : "");
   const [date, setDate] = useState(goal?.target_date ?? "");
   const [color, setColor] = useState<GoalColor>(goal?.color ?? "celeste");
+  const [annual, setAnnual] = useState(goal?.recurrence === "anual");
   const [error, setError] = useState<string | null>(null);
+
+  // Derivado en el render y no en estado: el objetivo ya vive arriba, y una
+  // copia en estado se desincroniza en el primer teclazo.
+  const targetValue = parseAmount(target);
+  const perMonth =
+    Number.isFinite(targetValue) && targetValue > 0 ? Math.ceil(targetValue / 12) : null;
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [pending, startTransition] = useTransition();
 
@@ -46,9 +56,15 @@ export function GoalDialog({
       setError("El objetivo debe ser mayor a cero.");
       return;
     }
+    if (annual && !date) {
+      setError("Poné la fecha en que se paga: sin ella no hay ritmo mensual que calcular.");
+      return;
+    }
+
+    const recurrence: GoalRecurrence = annual ? "anual" : "una-vez";
 
     startTransition(async () => {
-      const input = { name, targetAmount: value, targetDate: date || null, color };
+      const input = { name, targetAmount: value, targetDate: date || null, color, recurrence };
       const result = goal ? await updateGoal(goal.id, input) : await createGoal(input);
       if (result?.error) {
         setError(result.error);
@@ -123,7 +139,53 @@ export function GoalDialog({
 
           <AmountInput value={target} onChange={setTarget} label="Objetivo" />
 
-          <Field label="Fecha objetivo" hint="Opcional. Con ella la app calcula cuánto apartar por mes.">
+          <div className="flex flex-col gap-2 rounded-surface border border-line bg-surface-raised/50 p-3">
+            <div className="flex items-start justify-between gap-3">
+              <span className="min-w-0">
+                <span className="block text-label text-ink">Se repite todos los años</span>
+                <span className="mt-0.5 block text-meta leading-relaxed text-ink-3">
+                  El marchamo, el seguro, los impuestos. Se divide entre doce y la meta vuelve a
+                  arrancar sola cuando la pagás.
+                </span>
+              </span>
+              <Switch
+                checked={annual}
+                onChange={() => setAnnual((v) => !v)}
+                label="Se repite todos los años"
+              />
+            </div>
+
+            {annual && (
+              <>
+                <div className="flex flex-wrap gap-2 pt-1">
+                  {ANNUAL_GOAL_PRESETS.map((preset) => (
+                    <ToggleChip
+                      key={preset}
+                      pressed={name.trim().toLowerCase() === preset.toLowerCase()}
+                      onClick={() => setName(preset)}
+                    >
+                      {preset}
+                    </ToggleChip>
+                  ))}
+                </div>
+                {perMonth !== null && (
+                  <p className="text-meta text-ink-2">
+                    Son <Money value={perMonth} className="font-medium text-ink" /> por mes
+                    durante doce meses.
+                  </p>
+                )}
+              </>
+            )}
+          </div>
+
+          <Field
+            label={annual ? "¿Qué día se paga?" : "Fecha objetivo"}
+            hint={
+              annual
+                ? "Se cobra todos los años en esta fecha. El marchamo vence el 31 de diciembre."
+                : "Opcional. Con ella la app calcula cuánto apartar por mes."
+            }
+          >
             <input
               type="date"
               value={date}

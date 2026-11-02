@@ -33,6 +33,7 @@ export function PlanView({
   nextMonth,
   progress,
   availableCategories,
+  expenseCategoryOptions,
   untracked,
   goals,
   accounts,
@@ -46,7 +47,10 @@ export function PlanView({
   previousMonth: string;
   nextMonth: string;
   progress: BudgetProgress[];
+  /** Categorías sin tope todavía: las que se pueden presupuestar. */
   availableCategories: string[];
+  /** Todas las de gasto, para el movimiento que genera una meta anual. */
+  expenseCategoryOptions: string[];
   untracked: { category: string; spent: number }[];
   goals: SavingsGoal[];
   accounts: Account[];
@@ -124,6 +128,7 @@ export function PlanView({
             goals={goals}
             accounts={accounts}
             contributions={contributions}
+            categories={expenseCategoryOptions}
             todayKey={todayKey}
           />
         </div>

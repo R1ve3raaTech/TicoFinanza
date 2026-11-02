@@ -3,9 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { settlementType } from "@/lib/debts";
+import { nextCycleDate } from "@/lib/goals";
 import { ownsRow } from "@/lib/supabase/ownership";
 import { createClient } from "@/lib/supabase/server";
-import type { DebtType, GoalColor } from "@/lib/types";
+import type { DebtType, GoalColor, GoalRecurrence, SavingsGoal } from "@/lib/types";
 
 function revalidatePlan() {
   revalidatePath("/dashboard/plan");
@@ -128,6 +129,7 @@ export interface GoalInput {
   targetAmount: number;
   targetDate: string | null;
   color: GoalColor;
+  recurrence: GoalRecurrence;
 }
 
 function validateGoal(input: GoalInput): string | null {
@@ -137,6 +139,11 @@ function validateGoal(input: GoalInput): string | null {
   }
   if (input.targetDate && Number.isNaN(new Date(input.targetDate).getTime())) {
     return "La fecha objetivo no es válida.";
+  }
+  // Sin fecha una meta anual no tiene ciclo: no se sabe cuándo se cobra ni
+  // contra qué medir el ritmo mensual, que es todo el punto del prorrateo.
+  if (input.recurrence === "anual" && !input.targetDate) {
+    return "Una meta anual necesita la fecha en que se paga.";
   }
   return null;
 }
@@ -153,6 +160,7 @@ export async function createGoal(input: GoalInput) {
     target_amount: input.targetAmount,
     target_date: input.targetDate || null,
     color: input.color,
+    recurrence: input.recurrence,
   });
 
   if (error) return { error: "No se pudo crear la meta. Intentá de nuevo." };
@@ -175,6 +183,7 @@ export async function updateGoal(id: string, input: GoalInput) {
       target_amount: input.targetAmount,
       target_date: input.targetDate || null,
       color: input.color,
+      recurrence: input.recurrence,
     })
     .eq("id", id)
     .eq("user_id", user.id);
@@ -198,6 +207,112 @@ export async function deleteGoal(id: string) {
   if (error) return { error: "No se pudo eliminar la meta." };
 
   revalidatePlan();
+  return { error: null };
+}
+
+/**
+ * Cierra el ciclo de una meta anual: se pagó el marchamo, arranca el del año
+ * que viene.
+ *
+ * Las tres cosas que pasan acá son una sola idea. Lo apartado se borra (sus
+ * abonos se van, así que esa plata vuelve a contar en el saldo de la cuenta)
+ * y a la vez se registra el gasto de verdad, que la saca. El neto en la
+ * cuenta es cero cuando pagaste justo lo que tenías apartado, y es la
+ * diferencia cuando el recibo vino más caro — que es exactamente lo que pasó
+ * en la vida real, sin que haya que cuadrar nada a mano.
+ *
+ * Por eso el monto se pide y no se asume: el marchamo de este año casi nunca
+ * es el del anterior.
+ *
+ * Los abonos del ciclo que cerró se pierden como historial; lo que queda es
+ * el movimiento del pago, que es el dato que de verdad sirve después, más
+ * `cycles_completed` para saber cuántos años llevás con esta meta.
+ */
+export async function completeGoalCycle(input: {
+  goalId: string;
+  /** Lo que de verdad costó, que puede no ser el objetivo. */
+  amount: number;
+  /** Cuenta de la que salió el pago; null deja el gasto sin cuenta. */
+  accountId: string | null;
+  category: string;
+}) {
+  const { supabase, user } = await requireUser();
+
+  if (!Number.isFinite(input.amount) || input.amount <= 0) {
+    return { error: "El monto del pago debe ser mayor a cero." };
+  }
+  if (!(await ownsRow(supabase, "accounts", input.accountId))) {
+    return { error: "Esa cuenta no existe o no es tuya." };
+  }
+
+  const { data: row } = await supabase
+    .from("savings_goals")
+    .select("*")
+    .eq("id", input.goalId)
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  const goal = row as SavingsGoal | null;
+  if (!goal) return { error: "Esa meta no existe o no es tuya." };
+  if (goal.recurrence !== "anual" || !goal.target_date) {
+    return { error: "Solo las metas anuales arrancan un ciclo nuevo." };
+  }
+
+  // El salto de ciclo va primero y condicionado al estado que se leyó: así
+  // dos toques seguidos no registran el pago dos veces. El segundo no
+  // encuentra la fila en ese estado y se va sin hacer nada.
+  const today = new Date().toISOString().slice(0, 10);
+  const { data: rolled, error: rollError } = await supabase
+    .from("savings_goals")
+    .update({
+      target_date: nextCycleDate(goal.target_date, today),
+      cycles_completed: goal.cycles_completed + 1,
+    })
+    .eq("id", goal.id)
+    .eq("user_id", user.id)
+    .eq("cycles_completed", goal.cycles_completed)
+    .eq("target_date", goal.target_date)
+    .select("id");
+
+  if (rollError) return { error: "No se pudo arrancar el ciclo nuevo. Intentá de nuevo." };
+  if (!rolled || rolled.length === 0) {
+    revalidatePlan();
+    return { error: null };
+  }
+
+  // Los abonos se van y el trigger devuelve esa plata al saldo de la cuenta;
+  // el gasto que entra abajo la vuelve a sacar.
+  const { error: clearError } = await supabase
+    .from("goal_contributions")
+    .delete()
+    .eq("user_id", user.id)
+    .eq("goal_id", goal.id);
+
+  if (clearError) {
+    return {
+      error: "El ciclo nuevo arrancó, pero lo apartado del anterior no se pudo limpiar.",
+    };
+  }
+
+  const { error: movementError } = await supabase.from("transactions").insert({
+    user_id: user.id,
+    amount: input.amount,
+    currency: "CRC",
+    description: goal.name,
+    category: input.category,
+    type: "EXPENSE",
+    account_id: input.accountId,
+    transaction_date: new Date().toISOString(),
+  });
+
+  if (movementError) {
+    return {
+      error: "El ciclo nuevo arrancó, pero el movimiento del pago no se guardó. Anotalo a mano.",
+    };
+  }
+
+  revalidatePlan();
+  revalidatePath("/dashboard/movimientos");
   return { error: null };
 }
 
