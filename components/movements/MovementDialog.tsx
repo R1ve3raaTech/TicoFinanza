@@ -5,6 +5,7 @@ import { CurrencyDollar, Trash, Users } from "@phosphor-icons/react";
 import { addTransaction, deleteTransaction, updateTransaction } from "@/app/dashboard/actions";
 import { AccountPicker } from "@/components/accounts/AccountPicker";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { queueMovement } from "@/components/offline/useOfflineQueue";
 import { useToast } from "@/components/Toast";
 import { Button } from "@/components/ui/Button";
 import { Dialog } from "@/components/ui/Dialog";
@@ -12,6 +13,7 @@ import { Field, FormError, inputClass } from "@/components/ui/Field";
 import { Money } from "@/components/ui/Money";
 import { expenseCategories, incomeCategories } from "@/lib/categories";
 import { monthKey } from "@/lib/fixedExpenses";
+import { isFrameworkNavigation, isNetworkFailure } from "@/lib/offline";
 import { deleteReceiptFile } from "@/lib/receiptUpload";
 import { suggestFor } from "@/lib/smartMatch";
 import { conversionLabel, DEFAULT_USD_RATE, isValidRate, usdToCrc } from "@/lib/usd";
@@ -174,9 +176,38 @@ export function MovementDialog({
         accountId: effectiveAccountId,
         receiptPath,
       };
-      const result = movement
-        ? await updateTransaction(movement.id, input)
-        : await addTransaction(input);
+      // Sin señal, un movimiento nuevo se guarda en el teléfono en vez de
+      // perderse. Editar y borrar no: esas tocan una fila que ya existe en
+      // la base, y resolverlas a ciegas desde una cola local es cómo se
+      // pierde la edición de otro dispositivo.
+      if (!movement && typeof navigator !== "undefined" && navigator.onLine === false) {
+        await queueMovement(input);
+        savedRef.current = true;
+        toast.success("Sin señal: se guardó acá y se manda solo");
+        onClose();
+        return;
+      }
+
+      let result: { error: string | null } | undefined;
+      try {
+        result = movement
+          ? await updateTransaction(movement.id, input)
+          : await addTransaction(input);
+      } catch (networkError) {
+        // Un redirect del servidor (sesión vencida) no es un fallo: se deja
+        // pasar para que la navegación ocurra en vez de mostrar un error
+        // de conexión que no tiene nada que ver.
+        if (isFrameworkNavigation(networkError)) throw networkError;
+        if (!movement && isNetworkFailure(networkError)) {
+          await queueMovement(input);
+          savedRef.current = true;
+          toast.success("Sin señal: se guardó acá y se manda solo");
+          onClose();
+          return;
+        }
+        setError("No se pudo guardar. Revisá la conexión e intentá de nuevo.");
+        return;
+      }
 
       if (result?.error) {
         setError(result.error);

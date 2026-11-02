@@ -6,6 +6,7 @@ import { Money } from "@/components/ui/Money";
 import type { PeriodId } from "@/lib/dateRange";
 import type { LedgerEntry } from "@/lib/ledger";
 import type { Account, UserCategory } from "@/lib/types";
+import { PendingMovements } from "@/components/offline/PendingMovements";
 import { DateRangeFilter } from "./DateRangeFilter";
 import { AddMovementButton, MovementEntryProvider } from "./MovementEntry";
 import { MovementList } from "./MovementList";
@@ -101,6 +102,11 @@ export function MovementsView({
         <div className="pt-3 md:pt-0">
           <DateRangeFilter active={period} />
         </div>
+
+        {/* Lo anotado sin señal, arriba de todo: se guardó en el teléfono y
+            todavía no cuenta en las cifras de abajo. Si no se viera, no
+            habría forma de distinguirlo de un dato perdido. */}
+        <PendingMovements />
 
         <dl className="grid grid-cols-3 gap-6 border-b border-line pb-6 pt-5">
           <Figure label="Ingresos" swatch="bg-chart-income" value={income} plus />
