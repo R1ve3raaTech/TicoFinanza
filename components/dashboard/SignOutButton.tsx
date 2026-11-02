@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { signOut } from "@/app/dashboard/actions";
 import { Button } from "@/components/ui/Button";
-import { clearPageCache } from "@/lib/pageCache";
+import { endSession } from "@/lib/pageCache";
 import { Dialog } from "@/components/ui/Dialog";
 
 export function SignOutDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -37,7 +37,7 @@ export function SignOutDialog({ open, onClose }: { open: boolean; onClose: () =>
                   // Antes de salir: las pantallas guardadas traen los
                   // montos de esta persona, y en una compu compartida
                   // quedarían al alcance de quien entre después.
-                  await clearPageCache();
+                  await endSession();
                   router.replace(result.destination);
                 } catch {
                   setError("No pudimos conectar para cerrar sesión. Intentá de nuevo.");

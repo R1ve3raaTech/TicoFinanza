@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { AuthPage } from "@/components/auth/AuthPage";
+import { EndSessionOnEntry } from "@/components/auth/EndSessionOnEntry";
 import { createClient } from "@/lib/supabase/server";
 import { getSupabaseConfig } from "@/lib/supabase/config";
 
@@ -21,12 +22,19 @@ export default async function EntrarPage({
   }
 
   return (
-    <AuthPage
-      initialError={
-        params.error === "auth" ? "No se pudo entrar con Google. Intentá de nuevo." : undefined
-      }
-      signOutWarning={params.salida === "pendiente"}
-      idleNotice={params.motivo === "inactividad"}
-    />
+    <>
+      {/* Si se está viendo esta pantalla es que no hay sesión: borra las
+          pantallas guardadas para usar sin señal. Es la red que atrapa
+          todas las formas de perder la sesión que no pasan por un botón
+          (la cookie que vence, el servidor que la invalida). */}
+      <EndSessionOnEntry />
+      <AuthPage
+        initialError={
+          params.error === "auth" ? "No se pudo entrar con Google. Intentá de nuevo." : undefined
+        }
+        signOutWarning={params.salida === "pendiente"}
+        idleNotice={params.motivo === "inactividad"}
+      />
+    </>
   );
 }

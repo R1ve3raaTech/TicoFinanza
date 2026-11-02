@@ -1,6 +1,7 @@
 "use client";
 
-import { createContext, useContext, type ReactNode } from "react";
+import { createContext, useContext, useEffect, type ReactNode } from "react";
+import { markSessionActive } from "@/lib/pageCache";
 
 /**
  * De quién es la cola de movimientos sin enviar.
@@ -24,6 +25,13 @@ export function QueueOwnerProvider({
   userId: string;
   children: ReactNode;
 }) {
+  // Mientras esta pantalla esté viva hay sesión de esta persona. El
+  // Service Worker lee esta marca para decidir si puede servir pantallas
+  // guardadas, y de quién (ver lib/pageCache.ts).
+  useEffect(() => {
+    void markSessionActive(userId);
+  }, [userId]);
+
   return <OwnerContext.Provider value={userId}>{children}</OwnerContext.Provider>;
 }
 

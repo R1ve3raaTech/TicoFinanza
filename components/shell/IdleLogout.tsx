@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { signOutIdle } from "@/app/dashboard/actions";
 import { Button } from "@/components/ui/Button";
+import { endSession } from "@/lib/pageCache";
 import { Dialog } from "@/components/ui/Dialog";
 import {
   IDLE_ACTIVITY_KEY,
@@ -62,6 +63,11 @@ export function IdleLogout() {
   const leave = useCallback(async () => {
     if (leaving.current) return;
     leaving.current = true;
+    // La sesión terminó, así que lo guardado deja de estar disponible:
+    // mostrar pantallas con saldos a un navegador deslogueado está mal sin
+    // importar quién esté enfrente. Va antes de la acción porque esta
+    // puede fallar sin red, y el borrado local igual tiene que pasar.
+    await endSession();
     try {
       const result = await signOutIdle();
       router.replace(result.destination);

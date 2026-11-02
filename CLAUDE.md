@@ -1132,12 +1132,35 @@ siempre.
   se avise, el banner hace un pedido de verdad (`/manifest.webmanifest`
   con `cache: "no-store"`) y decide con eso.
 
-**Privacidad**: cerrar sesión a propósito borra las pantallas guardadas
-(`lib/pageCache.ts` manda un mensaje al worker). El HTML guardado trae
-los montos de esa persona y en una compu compartida quedaría al alcance
-de quien entre después. **El cierre por inactividad NO borra**: ahí
-vuelve la misma persona, y perder el modo sin conexión cada quince
-minutos lo volvería inútil.
+**Privacidad: lo guardado no sobrevive a la sesión.** El servidor manda
+las pantallas con `Cache-Control: private, no-cache, no-store` —
+comprobado— y la Cache Storage API **no respeta esa cabecera**, así que
+guardar ahí es pasarle por encima a propósito. Eso solo es aceptable si
+lo guardado desaparece cuando la sesión termina:
+
+- **Cada caché lleva el id de su dueño en el nombre**
+  (`tf-pages-v2-<userId>`) y el worker solo sirve si la **marca de
+  sesión** dice que esa misma persona tiene sesión abierta. Sin marca no
+  sirve nada: falla cerrado. La marca vive en su propia base
+  (`ticofinanza-sesion`), la escribe `QueueOwnerProvider` y la borra
+  `endSession()` (`lib/pageCache.ts`).
+- **Se borra en TODAS las salidas**: botón de cerrar sesión, cierre por
+  inactividad y la pantalla `/entrar` sin sesión — esta última atrapa lo
+  que no pasa por un botón (cookie vencida, sesión invalidada en el
+  servidor). La corrección de la nota anterior: decir que el cierre por
+  inactividad no debía borrar confundía *el dispositivo* con *la sesión*.
+  Si la sesión terminó, mostrar saldos está mal sin importar quién esté
+  enfrente.
+- **El borrado va directo desde la página** con `caches.delete`, que se
+  puede esperar y funciona sin worker activo. Antes mandaba un mensaje al
+  worker sin esperar respuesta: si no estaba listo, el mensaje se perdía
+  en silencio y quedaba todo guardado creyendo que se había borrado.
+- **Vencimiento a los 7 días** (`MAX_AGE_MS`): lo guardado lleva la hora
+  en una cabecera propia y se descarta en vez de mostrar números de hace
+  semanas.
+- `/sin-conexion` vive en el caché de **estáticos**, no en el de
+  pantallas: no lleva datos de nadie y tiene que seguir ahí después de
+  cerrar sesión.
 
 **Lectura sin conexión: no hay un segundo almacén de datos.** Lo que se
 consulta sin señal sale del HTML guardado, que ya trae los números
@@ -1145,6 +1168,12 @@ renderizados; escribir va por la cola de IndexedDB que ya existía. Un
 espejo de los datos en IndexedDB sería una segunda fuente de verdad que
 puede discrepar con el servidor, y en una app de plata eso es peor que
 no tener modo sin conexión.
+
+**Las pantallas del dashboard SÍ se guardan** aunque salgan con
+`no-store`: la Cache Storage API ignora esa cabecera. Está comprobado con
+una pantalla dinámica de verdad, no solo con páginas públicas — la
+primera QA solo probó públicas y eso dejaba sin verificar justo el caso
+que importa.
 
 **Para probar el Service Worker hay que usar el build de producción**
 (`npm run build` + `next start`), no `next dev`. En desarrollo los chunks
