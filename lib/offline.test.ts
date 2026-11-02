@@ -4,6 +4,7 @@ import {
   isFrameworkNavigation,
   ownedBy,
   isNetworkFailure,
+  isWrongSession,
   localId,
   MAX_ATTEMPTS,
   pendingLabel,
@@ -11,6 +12,7 @@ import {
   sendOrder,
   sendable,
   stuck,
+  WRONG_SESSION,
   type PendingMovement,
 } from "./offline";
 
@@ -110,4 +112,13 @@ it("la cola de otra persona ni se lista ni se manda", () => {
 
 it("sin sesión no se lista ni se manda nada", () => {
   assert.deepEqual(ownedBy([item({ id: "a" })], null), []);
+});
+
+it("el rechazo por sesión distinta se reconoce y no se confunde con otro error", () => {
+  // Es lo que devuelve el servidor cuando la cookie ya es de otra cuenta.
+  // La cola tiene que dejar el pendiente intacto, no quemarle un intento.
+  assert.equal(isWrongSession(WRONG_SESSION), true);
+  assert.equal(isWrongSession("No se pudo guardar el movimiento. Intentá de nuevo."), false);
+  assert.equal(isWrongSession(null), false);
+  assert.equal(isWrongSession(undefined), false);
 });

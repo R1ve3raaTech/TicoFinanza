@@ -67,6 +67,26 @@ export function isFrameworkNavigation(error: unknown): boolean {
   return typeof digest === "string" && digest.startsWith("NEXT_");
 }
 
+/**
+ * Lo que responde el servidor cuando el movimiento es de otra cuenta.
+ *
+ * El filtro del navegador no alcanza: `owner` se fija cuando se dibuja la
+ * pantalla, y la acción escribe con la cookie del momento. Una pestaña
+ * que quedó abierta mientras en otra se cambió de cuenta mandaría los
+ * movimientos de la primera persona a la cuenta de la segunda. El único
+ * lugar donde eso se puede cortar de verdad es el servidor, que es el que
+ * sabe de quién es la sesión.
+ *
+ * Es un mensaje y no un código porque también se le muestra a la persona
+ * en el formulario, donde explica exactamente qué pasó.
+ */
+export const WRONG_SESSION =
+  "La sesión de este navegador cambió. Volvé a entrar con la cuenta que anotó este movimiento.";
+
+export function isWrongSession(error: string | null | undefined): boolean {
+  return error === WRONG_SESSION;
+}
+
 /** Solo los de esta sesión. Los de otra persona ni se listan ni se mandan. */
 export function ownedBy(items: PendingMovement[], userId: string | null): PendingMovement[] {
   if (!userId) return [];

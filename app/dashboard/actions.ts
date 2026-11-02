@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { ownsReceiptPath, RECEIPTS_BUCKET } from "@/lib/receipts";
 import { isProjectAuthCookie } from "@/lib/supabase/cookies";
+import { WRONG_SESSION } from "@/lib/offline";
 import { ownsRow } from "@/lib/supabase/ownership";
 import { createClient } from "@/lib/supabase/server";
 import type { AccountType, TransactionType } from "@/lib/types";
@@ -45,6 +46,12 @@ export interface MovementInput {
    */
   clientId?: string | null;
   /**
+   * De quién creía el navegador que era la sesión al anotar. Si no
+   * coincide con la de verdad, el movimiento no entra: ver WRONG_SESSION
+   * en lib/offline.ts.
+   */
+  expectedUserId?: string | null;
+  /**
    * Ruta del comprobante en el bucket `receipts`, o null si no tiene. El
    * archivo lo sube el navegador directo a Storage (ver ReceiptField): por
    * acá solo pasa la ruta, no los bytes — una Server Action tiene un tope de
@@ -84,6 +91,13 @@ export async function addTransaction(input: MovementInput) {
 
   const invalid = validate(input);
   if (invalid) return { error: invalid };
+  // El movimiento se anotó con otra cuenta abierta en este navegador. Pasa
+  // con una pestaña vieja: la pantalla se dibujó con una sesión y la
+  // cookie ya es de otra. Escribirlo acá lo metería en la cuenta
+  // equivocada, así que no entra.
+  if (input.expectedUserId && input.expectedUserId !== user.id) {
+    return { error: WRONG_SESSION };
+  }
   if (!(await ownsRow(supabase, "accounts", input.accountId))) {
     return { error: UNKNOWN_ACCOUNT };
   }

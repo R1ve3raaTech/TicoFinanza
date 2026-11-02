@@ -6,6 +6,7 @@ import { addTransaction, type MovementInput } from "@/app/dashboard/actions";
 import {
   isFrameworkNavigation,
   isNetworkFailure,
+  isWrongSession,
   localId,
   MAX_ATTEMPTS,
   ownedBy,
@@ -96,7 +97,21 @@ export function useOfflineQueue() {
         // Si otra pestaña o un vaciado anterior ya lo tomó, se salta.
         if (!(await claimPending(item.id))) continue;
         try {
-          const result = await addTransaction(item.input);
+          // El dueño sale de la fila y no de `owner`: así también quedan
+          // protegidas las que se encolaron antes de que esto existiera, y
+          // es el servidor —el único que sabe de quién es la cookie— el
+          // que decide si entra.
+          const result = await addTransaction({
+            ...item.input,
+            expectedUserId: item.userId,
+          });
+          if (isWrongSession(result?.error)) {
+            // La sesión de este navegador ya es de otra persona. El
+            // movimiento no tiene nada malo: vuelve intacto, sin gastar un
+            // intento, y se corta el vaciado.
+            await releasePending(item.id, { status: "pending", attempts: item.attempts });
+            break;
+          }
           if (result?.error) {
             // El servidor lo rechazó: reintentarlo no lo va a arreglar, se
             // quema el tope de una vez para que salga a la vista.

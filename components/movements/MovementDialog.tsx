@@ -182,6 +182,10 @@ export function MovementDialog({
         accountId: effectiveAccountId,
         receiptPath,
         clientId: localId(),
+        // Esta pantalla se dibujó con esta sesión. Si la cookie ya es de
+        // otra cuenta (pestaña vieja, cambio de usuario en la compu), el
+        // servidor lo rechaza en vez de anotarlo donde no va.
+        expectedUserId: owner,
       };
       // Sin señal, un movimiento nuevo se guarda en el teléfono en vez de
       // perderse. Editar y borrar no: esas tocan una fila que ya existe en

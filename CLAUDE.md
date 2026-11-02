@@ -968,13 +968,22 @@ de la 0023)
 - **El vaciado corre desde la página**, no desde el Service Worker.
   Background Sync mandaría con la app cerrada, pero un SW no puede llamar
   una Server Action.
-- **La cola está atada al usuario** (`userId` en cada pendiente,
-  `QueueOwnerProvider` en el layout de /dashboard). IndexedDB es del
-  origen y no de la sesión: en una compu compartida sobrevive al cierre de
-  sesión, y sin dueño lo que una persona anotó sin señal se le mostraría a
-  la siguiente **y se mandaría a su cuenta**. Lo de otra persona no se
-  borra —es un gasto sin registrar— pero queda invisible hasta que vuelva
-  a entrar. Al eliminar la cuenta sí se borra lo suyo.
+- **La cola está atada al usuario, en dos capas.** En el navegador, cada
+  pendiente guarda su `userId` y la app solo lista y manda los suyos
+  (`QueueOwnerProvider` en el layout de /dashboard): IndexedDB es del
+  origen y no de la sesión, así que en una compu compartida sobrevive al
+  cierre de sesión, y sin dueño lo que anotó una persona se le mostraría a
+  la siguiente **y se mandaría a su cuenta**. En el servidor,
+  `addTransaction` recibe `expectedUserId` y rechaza el movimiento si no
+  coincide con la sesión (`WRONG_SESSION`): el filtro del navegador no
+  alcanza porque `owner` se fija al dibujar la pantalla y la acción
+  escribe con la cookie del momento — una pestaña vieja tras un cambio de
+  cuenta escribiría donde no va. El rechazo deja el pendiente intacto, sin
+  gastar un intento. **El control real es el del servidor**; el del
+  navegador es para no mostrar datos ajenos.
+- Lo de otra persona no se borra —es un gasto sin registrar— pero queda
+  invisible hasta que vuelva a entrar. Al eliminar la cuenta sí se borra
+  lo suyo.
 - **Deduplicación real** (migración 0024): cada movimiento anotado lleva un
   `clientId` que genera el navegador, y el índice único
   `(user_id, client_id)` hace que un reintento no inserte dos veces. Es el
@@ -988,7 +997,7 @@ de la 0023)
   caché de páginas en una app de plata muestra saldos viejos, así que si se
   hace, tiene que decir "datos de la última vez" en pantalla.
 
-**Estado**: `npm test` (130), `eslint`, `tsc` y `npm run build` limpios. QA
+**Estado**: `npm test` (131), `eslint`, `tsc` y `npm run build` limpios. QA
 con Playwright a 1440 oscuro y 768/390/360 claro sobre metas, ingresos
 fijos, aguinaldo, reporte (incluida la vista de impresión emulada) y la
 cola offline con la red cortada de verdad. Sin overflow horizontal.
