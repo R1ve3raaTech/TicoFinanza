@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { FixedExpensesView } from "@/components/fixed/FixedExpensesView";
+import { AGUINALDO_CATEGORY, aguinaldoEstimate, aguinaldoWindow } from "@/lib/aguinaldo";
 import { CR_TZ, dayKey, fixedTotals, monthKeyOf, upcomingPayments } from "@/lib/fixedExpenses";
 import { createClient } from "@/lib/supabase/server";
 import type { Account, FixedExpense, FixedIncome, UserCategory } from "@/lib/types";
@@ -21,8 +22,18 @@ export default async function FixedExpensesPage({
   } = await supabase.auth.getUser();
   if (!user) redirect("/entrar");
 
-  const [{ data: expenses }, { data: categories }, { data: accounts }, { data: incomes }] =
-    await Promise.all([
+  // "Hoy" se resuelve acá, en hora de Costa Rica, y baja como dato: si cada
+  // lado lo calculara por su cuenta, servidor y navegador no coincidirían.
+  const todayKey = dayKey();
+  const salaryWindow = aguinaldoWindow(todayKey);
+
+  const [
+    { data: expenses },
+    { data: categories },
+    { data: accounts },
+    { data: incomes },
+    { data: salary },
+  ] = await Promise.all([
     supabase
       .from("fixed_expenses")
       .select("*")
@@ -43,12 +54,19 @@ export default async function FixedExpensesPage({
       .select("*")
       .eq("user_id", user.id)
       .order("pay_day", { ascending: true }),
+    // Solo el salario de la ventana del aguinaldo: lo de por fuera de
+    // planilla no lo genera, y traer el resto sería pedir de más.
+    supabase
+      .from("transactions")
+      .select("transaction_date, amount")
+      .eq("user_id", user.id)
+      .eq("type", "INCOME")
+      .eq("category", AGUINALDO_CATEGORY)
+      .gte("transaction_date", `${salaryWindow.from}T00:00:00-06:00`)
+      .lte("transaction_date", `${salaryWindow.to}T23:59:59.999-06:00`),
   ]);
 
   const fixed = (expenses ?? []) as FixedExpense[];
-  // "Hoy" se resuelve acá, en hora de Costa Rica, y baja como dato: si cada
-  // lado lo calculara por su cuenta, servidor y navegador no coincidirían.
-  const todayKey = dayKey();
 
   const monthLabel = new Intl.DateTimeFormat("es-CR", {
     month: "long",
@@ -67,6 +85,7 @@ export default async function FixedExpensesPage({
       tab={tab}
       incomes={(incomes ?? []) as FixedIncome[]}
       currentMonth={monthKeyOf(todayKey)}
+      aguinaldo={aguinaldoEstimate(salary ?? [], todayKey)}
     />
   );
 }

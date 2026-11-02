@@ -1,8 +1,10 @@
 import Link from "next/link";
+import { AguinaldoPanel } from "@/components/incomes/AguinaldoPanel";
 import { FixedIncomesList } from "@/components/incomes/FixedIncomesList";
 import { InstallAppButton } from "@/components/InstallAppButton";
 import { PageHeader } from "@/components/shell/PageHeader";
 import { Money } from "@/components/ui/Money";
+import type { Aguinaldo } from "@/lib/aguinaldo";
 import type { FixedTotals, UpcomingPayment } from "@/lib/fixedExpenses";
 import type { Account, FixedExpense, FixedIncome, UserCategory } from "@/lib/types";
 import { AddFixedExpenseButton, FixedExpenseEntryProvider } from "./FixedExpenseEntry";
@@ -35,6 +37,7 @@ export function FixedExpensesView({
   tab,
   incomes,
   currentMonth,
+  aguinaldo,
 }: {
   expenses: FixedExpense[];
   payments: UpcomingPayment[];
@@ -47,6 +50,7 @@ export function FixedExpensesView({
   tab: "gastos" | "ingresos";
   incomes: FixedIncome[];
   currentMonth: string;
+  aguinaldo: Aguinaldo;
 }) {
   const pendingCount = payments.filter((p) => p.status === "PENDING").length;
 
@@ -104,6 +108,7 @@ export function FixedExpensesView({
               todayKey={todayKey}
               currentMonth={currentMonth}
             />
+            <AguinaldoPanel data={aguinaldo} />
           </div>
         ) : (
         <>
