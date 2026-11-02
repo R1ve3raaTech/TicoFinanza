@@ -52,6 +52,26 @@ function statusFields(status: FixedExpenseStatus) {
   return { status, status_month: status === "PAID" ? monthKey() : null };
 }
 
+/**
+ * Borra el movimiento que la app generó para el ciclo en curso, si lo hay.
+ * Los de meses anteriores son historia y no se tocan.
+ */
+async function removeThisCycleMovement(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+  fixedExpenseId: string
+) {
+  const [year, month] = monthKey().split("-").map(Number);
+  const monthStart = new Date(Date.UTC(year, month - 1, 1)).toISOString();
+
+  await supabase
+    .from("transactions")
+    .delete()
+    .eq("user_id", userId)
+    .eq("fixed_expense_id", fixedExpenseId)
+    .gte("transaction_date", monthStart);
+}
+
 export async function createFixedExpense(input: FixedExpenseInput) {
   const { supabase, user } = await requireUser();
 
@@ -102,6 +122,14 @@ export async function updateFixedExpense(id: string, input: FixedExpenseInput) {
 
   if (error) return { error: "No se pudo guardar el cambio. Intentá de nuevo." };
 
+  // Editar el gasto y pasarlo a pendiente deja el movimiento generado
+  // colgado, descontando plata de un pago que ya no está marcado. Misma
+  // limpieza que al desmarcarlo desde la lista.
+  if (input.status === "PENDING") {
+    await removeThisCycleMovement(supabase, user.id, id);
+    revalidatePath("/dashboard/movimientos");
+  }
+
   revalidateFixed();
   return { error: null };
 }
@@ -136,13 +164,33 @@ export async function setFixedExpenseStatus(
 
   if (!expense) return { error: "Ese gasto fijo no existe o no es tuyo." };
 
-  const { error } = await supabase
+  const month = monthKey();
+
+  // La transición es la que habilita el movimiento, y se hace en una sola
+  // sentencia condicional: solo actualiza si NO estaba ya pagado en este
+  // mes. Dos llamadas simultáneas (doble clic, un reenvío de la acción)
+  // dejan que una actualice y la otra no toque ninguna fila, así que el
+  // gasto no se descuenta dos veces. Con una lectura previa en JS habría
+  // una ventana entre leer y escribir por la que se cuelan las dos.
+  const { data: transitioned, error } = await supabase
     .from("fixed_expenses")
     .update(statusFields(status))
     .eq("id", id)
-    .eq("user_id", user.id);
+    .eq("user_id", user.id)
+    .or(
+      status === "PAID"
+        ? `status.neq.PAID,status_month.is.null,status_month.neq.${month}`
+        : "status.neq.PENDING"
+    )
+    .select("id");
 
   if (error) return { error: "No se pudo cambiar el estado. Intentá de nuevo." };
+
+  // Ya estaba en ese estado: no hay nada que registrar ni que deshacer.
+  if (!transitioned || transitioned.length === 0) {
+    revalidateFixed();
+    return { error: null };
+  }
 
   if (status === "PAID" && options.registerMovement) {
     const accountId =
@@ -173,17 +221,7 @@ export async function setFixedExpenseStatus(
   }
 
   if (status === "PENDING") {
-    // Solo los de ESTE ciclo: los de meses anteriores son historia y se
-    // quedan donde están.
-    const [year, month] = monthKey().split("-").map(Number);
-    const monthStart = new Date(Date.UTC(year, month - 1, 1)).toISOString();
-
-    await supabase
-      .from("transactions")
-      .delete()
-      .eq("user_id", user.id)
-      .eq("fixed_expense_id", id)
-      .gte("transaction_date", monthStart);
+    await removeThisCycleMovement(supabase, user.id, id);
   }
 
   revalidateFixed();
