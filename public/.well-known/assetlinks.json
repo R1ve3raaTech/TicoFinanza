@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "com.ticofinanza.www.app",
+        "sha256_cert_fingerprints": ["F3:B8:19:40:58:50:19:71:33:EB:B2:A7:40:A6:B3:5F:B6:6D:49:C7:AF:DC:82:03:73:01:7D:F7:26:B8:F6:19"]
+      }
+    }]
