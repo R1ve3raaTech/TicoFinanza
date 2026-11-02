@@ -21,9 +21,18 @@ const STAMP = new Intl.DateTimeFormat("es-CR", {
   timeZone: "America/Costa_Rica",
 });
 
-/** Cuándo se generó esta pantalla, en hora de Costa Rica. */
-function renderedAt(): string {
-  return STAMP.format(new Date());
+/**
+ * Cuándo se generó esta pantalla: el texto para mostrar y el instante para
+ * comparar, de una sola lectura del reloj.
+ *
+ * Juntos a propósito. Si salieran de dos lecturas podrían referirse a
+ * momentos distintos, y los dos usos —avisar de qué hora son los datos y
+ * decidir si esta pantalla prueba que hay sesión viva— tienen que hablar
+ * del mismo instante.
+ */
+function renderedStamp(): { label: string; ms: number } {
+  const now = new Date();
+  return { label: STAMP.format(now), ms: now.getTime() };
 }
 
 export default async function DashboardLayout({ children }: { children: ReactNode }) {
@@ -47,6 +56,8 @@ export default async function DashboardLayout({ children }: { children: ReactNod
     dbTheme = settings?.theme ?? "system";
   }
 
+  const stamp = renderedStamp();
+
   return (
     <AppShell name={firstName} email={user?.email ?? undefined} avatarUrl={avatarUrl}>
       <ThemeSync dbTheme={dbTheme} />
@@ -55,11 +66,11 @@ export default async function DashboardLayout({ children }: { children: ReactNod
       {/* De quién es lo que quedó sin enviar. IndexedDB es del origen y
           sobrevive al cierre de sesión, así que la cola se filtra por el
           usuario de la sesión (ver components/offline/QueueOwner.tsx). */}
-      <QueueOwnerProvider userId={user.id}>
+      <QueueOwnerProvider userId={user.id} renderedAtMs={stamp.ms}>
         {/* La hora se arma acá, al generar la pantalla, y queda escrita en
             el HTML: cuando ese HTML sale del caché sin señal, el aviso
             dice de cuándo son los datos de verdad. */}
-        <OfflineBanner renderedAt={renderedAt()} />
+        <OfflineBanner renderedAt={stamp.label} />
         {children}
       </QueueOwnerProvider>
     </AppShell>

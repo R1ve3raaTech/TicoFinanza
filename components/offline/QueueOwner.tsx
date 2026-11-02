@@ -20,17 +20,21 @@ const OwnerContext = createContext<string | null>(null);
 
 export function QueueOwnerProvider({
   userId,
+  renderedAtMs,
   children,
 }: {
   userId: string;
+  /** Cuándo generó el servidor esta pantalla. Ver markSessionActive(). */
+  renderedAtMs: number;
   children: ReactNode;
 }) {
-  // Mientras esta pantalla esté viva hay sesión de esta persona. El
-  // Service Worker lee esta marca para decidir si puede servir pantallas
-  // guardadas, y de quién (ver lib/pageCache.ts).
+  // Refresca la marca que el Service Worker usa para decidir si puede
+  // servir pantallas guardadas — pero solo si esta pantalla la acaba de
+  // hacer el servidor. Si una guardada pudiera refrescarla, abrir la app
+  // sin señal renovaría el permiso de leer el caché para siempre.
   useEffect(() => {
-    void markSessionActive(userId);
-  }, [userId]);
+    void markSessionActive(userId, renderedAtMs);
+  }, [userId, renderedAtMs]);
 
   return <OwnerContext.Provider value={userId}>{children}</OwnerContext.Provider>;
 }

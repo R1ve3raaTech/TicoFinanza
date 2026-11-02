@@ -52,6 +52,33 @@ interface SessionMark {
   at: number;
 }
 
+/**
+ * Cuánto puede tardar una pantalla recién hecha en llegar e hidratarse.
+ *
+ * Generosa a propósito: una conexión lenta no debería contar como "esto
+ * salió del caché". Una pantalla guardada tiene minutos u horas, así que
+ * dos minutos separa los dos casos de sobra.
+ */
+const FRESH_RENDER_MS = 2 * 60 * 1000;
+
+/**
+ * ¿Esta pantalla la acaba de hacer el servidor, o salió del caché?
+ *
+ * De esto depende que la marca de sesión se pueda refrescar. Si se
+ * refrescara desde una pantalla guardada, abrir la app sin señal
+ * renovaría el permiso para seguir leyendo el caché, y el vencimiento de
+ * doce horas no vencería nunca: el permiso se renovaría leyendo aquello
+ * mismo que autoriza. La prueba de que hay sesión viva tiene que venir
+ * del servidor, no del caché.
+ *
+ * Se compara en valor absoluto porque un reloj adelantado da diferencia
+ * negativa, y eso tampoco es prueba de nada.
+ */
+export function isFreshRender(renderedAtMs: number, now = Date.now()): boolean {
+  if (!Number.isFinite(renderedAtMs)) return false;
+  return Math.abs(now - renderedAtMs) <= FRESH_RENDER_MS;
+}
+
 export function markIsFresh(mark: SessionMark | null, now = Date.now()): boolean {
   if (!mark || !mark.userId || typeof mark.userId !== "string") return false;
   if (!Number.isFinite(mark.at)) return false;
@@ -77,11 +104,12 @@ function write(value: SessionMark | null): Promise<void> {
 }
 
 /** Hay sesión de esta persona: sus pantallas se pueden servir sin señal. */
-export async function markSessionActive(userId: string): Promise<void> {
+export async function markSessionActive(userId: string, renderedAtMs: number): Promise<void> {
   if (typeof indexedDB === "undefined") return;
+  // Solo desde una pantalla que acaba de hacer el servidor: ver
+  // isFreshRender(). Una guardada no prueba que la sesión siga viva.
+  if (!isFreshRender(renderedAtMs)) return;
   try {
-    // Se reescribe en cada pantalla, así que mientras se use la app la
-    // marca se mantiene fresca sola.
     await write({ userId, at: Date.now() });
   } catch {
     // Sin la marca, el worker no sirve nada del caché. Falla cerrado.

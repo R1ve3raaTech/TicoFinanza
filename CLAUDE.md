@@ -1166,6 +1166,14 @@ lo guardado desaparece cuando la sesión termina:
   Al vencer, el worker además **borra** lo guardado.
   *Detalle*: tras revalidar, la primera visita no se guarda — el worker
   decide antes de que la pantalla refresque la marca. La segunda sí.
+- **La marca solo se refresca desde una pantalla recién hecha por el
+  servidor** (`isFreshRender`, 2 minutos de tolerancia). Si una pantalla
+  guardada pudiera refrescarla, abrir la app sin señal renovaría el
+  permiso de leer el caché y el vencimiento no vencería nunca: el permiso
+  se renovaría leyendo aquello mismo que autoriza. La prueba de sesión
+  viva tiene que venir del servidor. Si el reloj del dispositivo está muy
+  corrido respecto al del servidor, la marca deja de refrescarse y el
+  modo sin conexión se apaga a las 12 horas — falla cerrado, a propósito.
 - **Vencimiento de lo guardado a los 7 días** (`MAX_AGE_MS`), como tope
   de afuera: lleva la hora en una cabecera propia y se descarta en vez de
   mostrar números de hace semanas.
