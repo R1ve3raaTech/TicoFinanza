@@ -1033,3 +1033,39 @@ de la 0023)
 con Playwright a 1440 oscuro y 768/390/360 claro sobre metas, ingresos
 fijos, aguinaldo, reporte (incluida la vista de impresión emulada) y la
 cola offline con la red cortada de verdad. Sin overflow horizontal.
+
+
+## Dónde quedamos (2026-11-02, descarga)
+
+Nueva ruta pública `/descargar` para ofrecer el APK de Android, pedida por
+Camil. **El APK todavía no existe**: no hay carpeta `android/` ni
+Bubblewrap/Capacitor en el proyecto.
+
+- **El botón solo aparece si el archivo está de verdad.** La página
+  comprueba `public/downloads/TicoFinanza.apk` con `statSync` en el
+  servidor (`app/descargar/page.tsx`). Sin archivo no se dibuja ningún
+  botón: una descarga que responde 404 deja a la persona creyendo que la
+  app está rota, y es un error que nadie reporta porque parece culpa del
+  teléfono. Para publicarlo: poner el archivo ahí y volver a deployar; la
+  ruta es estática, así que se resuelve al construir.
+- **NO se quitó la instalación como PWA**, aunque el pedido decía
+  "remover los componentes antiguos de agregar a pantalla de inicio". Un
+  APK es solo Android: quitarla dejaría a iPhone y a escritorio sin
+  ninguna forma de instalar. Quedan las dos vías, separadas y rotuladas.
+- `components/download/PwaInstall.tsx` **siempre muestra algo**, al revés
+  que `InstallAppButton`, que se esconde cuando el navegador no ofrece el
+  aviso nativo (iOS siempre). En una página titulada "Descargar", un
+  espacio vacío se lee como que no hay forma de instalar.
+- Misma razón en Ajustes → Sesión: la fila "Instalar la app" ya no
+  desaparece cuando no hay aviso nativo; en ese caso enlaza a
+  `/descargar`.
+- Enlazada desde el pie de la landing y agregada al sitemap: una página
+  que nadie enlaza es una página que nadie encuentra.
+
+**Para generar el APK** (cuando se haga): es un TWA con Bubblewrap sobre
+`https://www.ticofinanza.com/manifest.webmanifest`. Dos cosas que hay que
+saber antes: (1) sin `public/.well-known/assetlinks.json` con la huella
+SHA-256 de la llave de firma, el TWA abre con barra de direcciones
+visible y no se ve como app; (2) **un TWA no da offline** — es Chrome en
+una caja, así que sigue necesitando el caché de pantallas que está
+pendiente desde la nota anterior.

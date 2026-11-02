@@ -12,6 +12,9 @@ const links = [
   { label: "Funciones", href: "#funciones" },
   { label: "Precio", href: "#precio" },
   { label: "Preguntas frecuentes", href: "#preguntas" },
+  // Primero la descarga: una página que nadie enlaza es una página que
+  // nadie encuentra, y es la única puerta hacia el archivo de Android.
+  { label: "Descargar la app", href: "/descargar" },
   { label: "Política de privacidad", href: "/privacidad" },
   { label: "Términos de servicio", href: "/terminos" },
   { label: "Escribinos", href: "mailto:info@ticofinanza.com" },
