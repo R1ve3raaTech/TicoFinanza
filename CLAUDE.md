@@ -890,6 +890,25 @@ igual (307) — no sirve para distinguir si algo se deployó. Humo público
 verificado: landing, `/entrar`, `/privacidad`, `/terminos` y `/sw.js` en
 200, y `/api/reminders` sin secreto en 401.
 
+**Confirmado por Camil en producción** (capturas, 2026-11-02):
+
+- Se guarda un movimiento → la migración 0024 está aplicada y el camino
+  de escritura funciona.
+- **La subida de comprobantes a Storage sirve** (el clip aparece en la
+  fila). Era uno de los tres pendientes desde la Fase 3 del 2026-11-01.
+- El reporte mensual cuadra con los números revisados a mano: fijos
+  15.100, pendientes 6.000, neto ejecutado −9.101, proyectado −15.101,
+  porcentajes 60/23/17.
+- **El filtro `fixed_expense_id` funciona en producción**: Claude Code
+  Pro está marcado como pagado (o sea que generó su movimiento) y aun
+  así pesa ₡9.100 una sola vez en el desglose; los variables dan ₡1.
+- El estado vacío de "Ingresos por categoría" se omite entero, como debe.
+
+**Todavía sin confirmar en producción**: el prorrateo anual (la meta que
+se creó para probarlo quedó como meta normal, sin recurrencia), el panel
+de aguinaldo, la salida real de impresión del reporte, la cola sin señal,
+el envío de un push y la corrida del cron.
+
 **Ingresos fijos con confirmación de un toque** (migración 0023)
 
 - Tabla `fixed_incomes` aparte de `fixed_expenses`: se parecen en la forma
