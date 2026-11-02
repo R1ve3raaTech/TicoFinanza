@@ -19,6 +19,22 @@ const KEY = "duenio-activo";
 /** Prefijo de los cachés de pantallas. Tiene que coincidir con sw.js. */
 const PAGES_PREFIX = "tf-pages-";
 
+/**
+ * Cuánto vale la marca sin refrescarse. Tiene que coincidir con sw.js.
+ *
+ * La marca dice "hubo sesión viva en este navegador hace poco", no "hay
+ * sesión ahora": quien cierra el navegador sin salir no pasa por ningún
+ * borrado. Sin vencimiento, esa marca quedaría viva para siempre y
+ * autorizaría a leer el caché mucho después de que la sesión murió.
+ *
+ * Doce horas es el compromiso: cubre el caso real de abrir la app en la
+ * casa y leerla sin señal más tarde en el bus, y acota la ventana en la
+ * que alguien más, con el dispositivo en la mano y sin red, podría leer
+ * pantallas de una sesión que ya no existe. El vencimiento de lo guardado
+ * (siete días, en sw.js) queda como tope de afuera.
+ */
+const MARK_MAX_AGE_MS = 12 * 60 * 60 * 1000;
+
 function open(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, 1);
@@ -30,7 +46,22 @@ function open(): Promise<IDBDatabase> {
   });
 }
 
-function write(value: string | null): Promise<void> {
+interface SessionMark {
+  userId: string;
+  /** Cuándo se refrescó por última vez, en milisegundos. */
+  at: number;
+}
+
+export function markIsFresh(mark: SessionMark | null, now = Date.now()): boolean {
+  if (!mark || !mark.userId || typeof mark.userId !== "string") return false;
+  if (!Number.isFinite(mark.at)) return false;
+  const age = now - mark.at;
+  // Una marca con fecha futura es un reloj desajustado, no una sesión
+  // fresca: se descarta, igual que en lib/idle.ts.
+  return age >= 0 && age <= MARK_MAX_AGE_MS;
+}
+
+function write(value: SessionMark | null): Promise<void> {
   return open().then(
     (db) =>
       new Promise<void>((resolve, reject) => {
@@ -49,7 +80,9 @@ function write(value: string | null): Promise<void> {
 export async function markSessionActive(userId: string): Promise<void> {
   if (typeof indexedDB === "undefined") return;
   try {
-    await write(userId);
+    // Se reescribe en cada pantalla, así que mientras se use la app la
+    // marca se mantiene fresca sola.
+    await write({ userId, at: Date.now() });
   } catch {
     // Sin la marca, el worker no sirve nada del caché. Falla cerrado.
   }

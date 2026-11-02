@@ -32,12 +32,14 @@ export function SignOutDialog({ open, onClose }: { open: boolean; onClose: () =>
             onClick={() =>
               startTransition(async () => {
                 setError("");
+                // Primero lo local, igual que en IdleLogout: la acción
+                // puede no llegar si no hay red, y las pantallas
+                // guardadas tienen que irse igual. Estaba después del
+                // `await signOut()`, o sea que un fallo de red dejaba
+                // todo guardado.
+                await endSession();
                 try {
                   const result = await signOut();
-                  // Antes de salir: las pantallas guardadas traen los
-                  // montos de esta persona, y en una compu compartida
-                  // quedarían al alcance de quien entre después.
-                  await endSession();
                   router.replace(result.destination);
                 } catch {
                   setError("No pudimos conectar para cerrar sesión. Intentá de nuevo.");

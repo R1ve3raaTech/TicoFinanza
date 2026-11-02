@@ -1144,8 +1144,10 @@ lo guardado desaparece cuando la sesión termina:
   sirve nada: falla cerrado. La marca vive en su propia base
   (`ticofinanza-sesion`), la escribe `QueueOwnerProvider` y la borra
   `endSession()` (`lib/pageCache.ts`).
-- **Se borra en TODAS las salidas**: botón de cerrar sesión, cierre por
-  inactividad y la pantalla `/entrar` sin sesión — esta última atrapa lo
+- **Se borra en TODAS las salidas**, y **siempre antes** de llamar a la
+  acción del servidor: esa puede no llegar sin red, y lo local tiene que
+  irse igual. Botón de cerrar sesión, cierre por inactividad y la
+  pantalla `/entrar` sin sesión — esta última atrapa lo
   que no pasa por un botón (cookie vencida, sesión invalidada en el
   servidor). La corrección de la nota anterior: decir que el cierre por
   inactividad no debía borrar confundía *el dispositivo* con *la sesión*.
@@ -1155,9 +1157,18 @@ lo guardado desaparece cuando la sesión termina:
   puede esperar y funciona sin worker activo. Antes mandaba un mensaje al
   worker sin esperar respuesta: si no estaba listo, el mensaje se perdía
   en silencio y quedaba todo guardado creyendo que se había borrado.
-- **Vencimiento a los 7 días** (`MAX_AGE_MS`): lo guardado lleva la hora
-  en una cabecera propia y se descarta en vez de mostrar números de hace
-  semanas.
+- **La marca vence a las 12 horas** (`MARK_MAX_AGE_MS`, en los dos
+  archivos). La marca dice "hubo sesión viva hace poco", no "hay sesión
+  ahora": quien cierra el navegador sin salir no pasa por ningún borrado,
+  y sin vencimiento su marca autorizaría a leer el caché para siempre.
+  Doce horas cubre el caso real (abrir la app en la casa, leerla sin
+  señal en el bus) y acota la ventana. Se refresca sola en cada pantalla.
+  Al vencer, el worker además **borra** lo guardado.
+  *Detalle*: tras revalidar, la primera visita no se guarda — el worker
+  decide antes de que la pantalla refresque la marca. La segunda sí.
+- **Vencimiento de lo guardado a los 7 días** (`MAX_AGE_MS`), como tope
+  de afuera: lleva la hora en una cabecera propia y se descarta en vez de
+  mostrar números de hace semanas.
 - `/sin-conexion` vive en el caché de **estáticos**, no en el de
   pantallas: no lleva datos de nadie y tiene que seguir ahí después de
   cerrar sesión.

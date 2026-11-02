@@ -19,6 +19,16 @@ const OFFLINE_URL = "/sin-conexion";
 /** Lo guardado deja de servirse a los siete días: ver pagesCacheFor(). */
 const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 const STAMP_HEADER = "x-tf-cached-at";
+/**
+ * Cuánto vale la marca de sesión sin refrescarse. Igual que en
+ * lib/pageCache.ts, que es quien la escribe.
+ *
+ * La marca dice "hubo sesión viva hace poco", no "hay sesión ahora":
+ * quien cierra el navegador sin salir no pasa por ningún borrado. Sin
+ * esto quedaría viva para siempre, autorizando a leer el caché mucho
+ * después de que la sesión murió.
+ */
+const MARK_MAX_AGE_MS = 12 * 60 * 60 * 1000;
 
 // ---------------------------------------------------------------------------
 // Quién puede ver lo guardado
@@ -52,7 +62,18 @@ function readActiveOwner() {
         return;
       }
       const get = db.transaction("marca", "readonly").objectStore("marca").get("duenio-activo");
-      get.onsuccess = () => resolve(typeof get.result === "string" ? get.result : null);
+      get.onsuccess = () => {
+        const mark = get.result;
+        // Cualquier forma inesperada (una marca vieja, guardada como
+        // texto suelto) cuenta como que no hay sesión: falla cerrado.
+        if (!mark || !mark.userId || typeof mark.userId !== "string" || !Number.isFinite(mark.at)) {
+          resolve(null);
+          return;
+        }
+        const age = Date.now() - mark.at;
+        // Con fecha futura es un reloj desajustado, no una sesión fresca.
+        resolve(age >= 0 && age <= MARK_MAX_AGE_MS ? mark.userId : null);
+      };
       get.onerror = () => resolve(null);
     };
   });
@@ -60,6 +81,13 @@ function readActiveOwner() {
 
 function pagesCacheFor(owner) {
   return `${PAGES_PREFIX}${VERSION}-${owner}`;
+}
+
+async function dropAllPages() {
+  const names = await caches.keys();
+  await Promise.all(
+    names.filter((name) => name.startsWith(PAGES_PREFIX)).map((name) => caches.delete(name))
+  );
 }
 
 /** Guarda la respuesta con la hora, para poder vencerla después. */
@@ -171,6 +199,9 @@ self.addEventListener("fetch", (event) => {
         })
         .catch(async () => {
           const owner = await readActiveOwner();
+          // Sin dueño vigente no se sirve nada, y además se borra: si la
+          // marca venció, lo guardado ya no tiene a quién pertenecer.
+          if (!owner) await dropAllPages();
           if (owner) {
             const cache = await caches.open(pagesCacheFor(owner));
             const hit = await cache.match(request, { ignoreSearch: true });
