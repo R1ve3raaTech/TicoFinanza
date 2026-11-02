@@ -8,11 +8,13 @@ import { InstallAppButton } from "@/components/InstallAppButton";
 import { AddMovementButton, MovementEntryProvider } from "@/components/movements/MovementEntry";
 import { PageHeader } from "@/components/shell/PageHeader";
 import type { Comparison } from "@/lib/comparison";
+import type { ExpectedIncome } from "@/lib/fixedIncomes";
 import type { UpcomingPayment } from "@/lib/fixedExpenses";
 import type { MonthHeadline } from "@/lib/greeting";
 import type { CategorySlice, MonthSummary, MonthTotal } from "@/lib/insights";
 import type { Account, Transaction, UserCategory } from "@/lib/types";
 import { FirstSteps } from "./FirstSteps";
+import { ExpectedIncomes } from "./ExpectedIncomes";
 import { SummaryCards } from "./SummaryCards";
 import { UpcomingPayments } from "./UpcomingPayments";
 
@@ -37,6 +39,8 @@ export function DashboardView({
   months,
   customCategories,
   recent = [],
+  toConfirm = [],
+  pendingIncome = 0,
   todayKey,
   todayLabel,
   monthLabel,
@@ -56,6 +60,10 @@ export function DashboardView({
   customCategories: UserCategory[];
   /** Movimientos recientes, para sugerir categoría y cuenta al escribir. */
   recent?: Pick<Transaction, "description" | "category" | "account_id" | "transaction_date">[];
+  /** Ingresos fijos cuya fecha ya pasó y siguen sin confirmar. */
+  toConfirm?: ExpectedIncome[];
+  /** Ingresos fijos del mes que todavía no entraron. */
+  pendingIncome?: number;
   todayKey: string;
   todayLabel: string;
   monthLabel: string;
@@ -131,12 +139,18 @@ export function DashboardView({
             hasMovement={hasMovement}
           />
 
+          <ExpectedIncomes incomes={toConfirm} accounts={accounts} />
+
           {/* Sin ninguna cuenta el panel no aparece: su estado vacío decía
               lo mismo que el primer paso de arriba, con otro botón al lado.
               Dos invitaciones a lo mismo, una debajo de la otra. */}
           {accounts.length > 0 && (
             <div className="pt-8">
-              <AccountsPanel accounts={accounts} pendingFixed={summary.fixedPending} />
+              <AccountsPanel
+              accounts={accounts}
+              pendingFixed={summary.fixedPending}
+              pendingIncome={pendingIncome}
+            />
             </div>
           )}
 

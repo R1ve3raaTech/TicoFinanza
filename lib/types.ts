@@ -41,6 +41,8 @@ export interface Transaction {
   type: TransactionType;
   /** null cuando el movimiento no está asignado a ninguna cuenta. */
   account_id: string | null;
+  /** Ingreso fijo que lo originó, al confirmarlo. No cuenta dos veces. */
+  fixed_income_id: string | null;
   /**
    * Gasto fijo que originó este movimiento, si se registró al marcarlo
    * pagado. Un movimiento con esto puesto **no** cuenta como gasto variable
@@ -126,7 +128,36 @@ export interface Budget {
   created_at: string;
 }
 
+export type FixedIncomeStatus = "PENDING" | "CONFIRMED";
+
+/**
+ * Ingreso que se repite todos los meses: salario, quincena, pensión, renta.
+ *
+ * Igual que `FixedExpense`, el par `status` + `status_month` hace que el
+ * estado valga solo para el mes en curso. **No se registra solo**: el día
+ * del pago aparece para confirmarlo de un toque, porque un depósito que la
+ * app da por hecho y no entró deja el saldo mintiendo.
+ */
+export interface FixedIncome {
+  id: string;
+  user_id: string;
+  name: string;
+  amount: number;
+  currency: Currency;
+  category: string | null;
+  pay_day: number;
+  /** Para quincenas: el segundo día de pago del mes. */
+  second_pay_day: number | null;
+  account_id: string | null;
+  status: FixedIncomeStatus;
+  status_month: string | null;
+  created_at: string;
+}
+
 export type GoalColor = "celeste" | "indigo" | "violeta" | "neutro";
+
+/** Una meta puede repetirse todos los años (marchamo, seguros, impuestos). */
+export type GoalRecurrence = "una-vez" | "anual";
 
 /**
  * Meta de ahorro. `current_amount` lo mantiene al día la base a partir de
@@ -140,6 +171,9 @@ export interface SavingsGoal {
   current_amount: number;
   target_date: string | null;
   color: GoalColor;
+  recurrence: GoalRecurrence;
+  /** Cuántas veces ya se cumplió el ciclo, en las metas anuales. */
+  cycles_completed: number;
   created_at: string;
 }
 

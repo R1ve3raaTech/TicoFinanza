@@ -10,6 +10,15 @@ import { formatMoney } from "@/lib/format";
 import type { Account } from "@/lib/types";
 import { AccountDialog } from "./AccountDialog";
 
+/** Qué dice la línea de proyección según lo que falte por moverse. */
+function projectionLabel(pendingIncome: number, pendingFixed: number): string {
+  if (pendingIncome > 0 && pendingFixed > 0) {
+    return `Si entran ${formatMoney(pendingIncome)} y pagás ${formatMoney(pendingFixed)} de fijos`;
+  }
+  if (pendingIncome > 0) return `Cuando entren los ${formatMoney(pendingIncome)} que faltan`;
+  return `Si pagás los ${formatMoney(pendingFixed)} de fijos que faltan`;
+}
+
 /**
  * Las billeteras y lo que hay en cada una, arriba del resumen.
  *
@@ -20,10 +29,13 @@ import { AccountDialog } from "./AccountDialog";
 export function AccountsPanel({
   accounts,
   pendingFixed = 0,
+  pendingIncome = 0,
 }: {
   accounts: Account[];
   /** Gastos fijos del mes que todavía no se pagaron. */
   pendingFixed?: number;
+  /** Ingresos fijos del mes que todavía no entraron. */
+  pendingIncome?: number;
 }) {
   const [editing, setEditing] = useState<Account | null>(null);
   const [accountOpen, setAccountOpen] = useState(false);
@@ -80,18 +92,18 @@ export function AccountsPanel({
               />
             </div>
 
-            {/* Lo que va a quedar cuando salgan los fijos que faltan. No
-                suma ingresos futuros: la app no sabe cuándo entra tu
-                salario, y proyectar con un número inventado sería peor que
-                no proyectar. */}
-            {pendingFixed > 0 && (
+            {/* Cómo cerrás el mes: lo que hay hoy, más los ingresos fijos
+                que faltan por entrar, menos los gastos fijos que faltan por
+                salir. Solo cuenta ingresos que vos declaraste como fijos —
+                nunca inventa plata que la app no sabe que viene. */}
+            {(pendingFixed > 0 || pendingIncome > 0) && (
               <div className="mt-2 flex items-baseline justify-between gap-4 text-meta">
-                <span className="min-w-0 text-ink-3">
-                  Si pagás los {formatMoney(pendingFixed)} de fijos que faltan
-                </span>
+                <span className="min-w-0 text-ink-3">{projectionLabel(pendingIncome, pendingFixed)}</span>
                 <Money
-                  value={total - pendingFixed}
-                  className={total - pendingFixed < 0 ? "text-expense" : "text-ink-2"}
+                  value={total + pendingIncome - pendingFixed}
+                  className={
+                    total + pendingIncome - pendingFixed < 0 ? "text-expense" : "text-ink-2"
+                  }
                 />
               </div>
             )}

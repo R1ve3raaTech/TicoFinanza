@@ -22,6 +22,7 @@ function transaction(
     account_id: "a1",
     receipt_url: null,
     fixed_expense_id: null,
+    fixed_income_id: null,
     transaction_date: date,
     created_at: date,
   };
@@ -97,6 +98,8 @@ function goal(partial: Partial<SavingsGoal>): SavingsGoal {
     current_amount: 0,
     target_date: null,
     color: "celeste",
+    recurrence: "una-vez",
+    cycles_completed: 0,
     created_at: "2026-10-01T00:00:00.000Z",
     ...partial,
   };

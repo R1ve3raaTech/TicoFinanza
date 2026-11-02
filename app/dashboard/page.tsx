@@ -11,10 +11,17 @@ import {
 } from "@/lib/fixedExpenses";
 import { greeting, monthHeadline } from "@/lib/greeting";
 import { compareMonths } from "@/lib/comparison";
+import { expectedIncomes, incomeTotals } from "@/lib/fixedIncomes";
 import { categorySpending, monthSummary, monthlyTotals } from "@/lib/insights";
 import { resolveFirstName } from "@/lib/profile";
 import { createClient } from "@/lib/supabase/server";
-import type { Account, FixedExpense, Transaction, UserCategory } from "@/lib/types";
+import type {
+  Account,
+  FixedExpense,
+  FixedIncome,
+  Transaction,
+  UserCategory,
+} from "@/lib/types";
 
 type RecentMovement = Pick<
   Transaction,
@@ -46,6 +53,7 @@ export default async function DashboardPage() {
     { data: categories },
     { data: accounts },
     { data: recent },
+    { data: incomes },
   ] = await Promise.all([
       // Seis meses de historial: alcanza para el gráfico, y de paso trae el
       // mes en curso para los totales y el desglose por categoría.
@@ -81,6 +89,7 @@ export default async function DashboardPage() {
         .not("description", "is", null)
         .order("transaction_date", { ascending: false })
         .limit(80),
+      supabase.from("fixed_incomes").select("*").eq("user_id", user.id),
     ]);
 
   const history = (movements ?? []) as Pick<
@@ -124,6 +133,12 @@ export default async function DashboardPage() {
 
   // Comparación contra el mes pasado, cortada el mismo día del mes. Los
   // movimientos de los dos meses ya vinieron en `history`.
+  const fixedIncomes = (incomes ?? []) as FixedIncome[];
+  const incomes30 = incomeTotals(fixedIncomes, currentMonth);
+  // Solo los que ya pasaron su fecha y nadie confirmó: el resto no ocupa
+  // espacio en el resumen.
+  const toConfirm = expectedIncomes(fixedIncomes, todayKey).filter((i) => i.confirmable);
+
   const todayNumber = Number(todayKey.slice(8, 10));
   const comparison = compareMonths(history, currentMonth, todayNumber);
 
@@ -142,6 +157,8 @@ export default async function DashboardPage() {
       months={monthlyTotals(history, 6)}
       customCategories={(categories ?? []) as UserCategory[]}
       recent={(recent ?? []) as RecentMovement[]}
+      toConfirm={toConfirm}
+      pendingIncome={incomes30.pending}
       todayKey={todayKey}
       todayLabel={todayLabel}
       monthLabel={monthLabel}
