@@ -1091,3 +1091,74 @@ SHA-256 de la llave de firma, el TWA abre con barra de direcciones
 visible y no se ve como app; (2) **un TWA no da offline** — es Chrome en
 una caja, así que sigue necesitando el caché de pantallas que está
 pendiente desde la nota anterior.
+
+
+## Dónde quedamos (2026-11-02, caché sin conexión)
+
+La app ya abre sin señal. Antes cualquier navegación pedía al servidor y
+caía en la pantalla del dinosaurio — incluso moverse entre secciones, que
+en App Router también pega a la red (los pedidos `?_rsc=`).
+
+**Service Worker** (`public/sw.js`, antes era un passthrough vacío):
+
+- **Inmutables al caché primero** (`/_next/static/`, `/brand/`, íconos):
+  tienen hash en el nombre, su contenido no cambia.
+- **Pantallas: red primero, caché solo si la red falla.** Al revés
+  mostraría datos viejos a alguien con señal, que es lo que hay que
+  evitar. Lo que se guarda es el HTML ya renderizado, así que trae los
+  datos dentro.
+- **`/entrar` y `/auth/*` no se guardan**: deciden a dónde mandarte según
+  la sesión, y una copia vieja puede dejarte en un login cuando ya
+  entraste.
+- **Los `?_rsc=` tampoco.** Cuando fallan, Next cae a pedir el documento
+  entero, que sí sale del caché. Guardarlos sería una segunda copia de
+  los datos que podría no coincidir con el HTML guardado.
+- `/sin-conexion` se precachea al instalar: es el respaldo para una
+  pantalla que nunca se abrió.
+- `VERSION` en el archivo invalida todo lo guardado al subirla.
+
+**El aviso de datos viejos es la salvaguarda de todo esto**
+(`components/offline/OfflineBanner.tsx`). Sin él, el caché sería una
+trampa: la app abriría mostrando saldos viejos con la misma cara de
+siempre.
+
+- La hora la arma el **servidor** al generar la pantalla y queda escrita
+  en el HTML (`renderedAt` en el layout de /dashboard). Cuando ese HTML
+  sale del caché, el texto dice la hora en que se generó, que es la
+  antigüedad real de lo que se está viendo. Calcularla en el navegador
+  daría la hora de ahora — justo la mentira a evitar.
+- **`navigator.onLine` solo NO alcanza.** Se lo vio reportar "con señal"
+  con la red cortada, justo después de navegar. Como de esto depende que
+  se avise, el banner hace un pedido de verdad (`/manifest.webmanifest`
+  con `cache: "no-store"`) y decide con eso.
+
+**Privacidad**: cerrar sesión a propósito borra las pantallas guardadas
+(`lib/pageCache.ts` manda un mensaje al worker). El HTML guardado trae
+los montos de esa persona y en una compu compartida quedaría al alcance
+de quien entre después. **El cierre por inactividad NO borra**: ahí
+vuelve la misma persona, y perder el modo sin conexión cada quince
+minutos lo volvería inútil.
+
+**Lectura sin conexión: no hay un segundo almacén de datos.** Lo que se
+consulta sin señal sale del HTML guardado, que ya trae los números
+renderizados; escribir va por la cola de IndexedDB que ya existía. Un
+espejo de los datos en IndexedDB sería una segunda fuente de verdad que
+puede discrepar con el servidor, y en una app de plata eso es peor que
+no tener modo sin conexión.
+
+**Para probar el Service Worker hay que usar el build de producción**
+(`npm run build` + `next start`), no `next dev`. En desarrollo los chunks
+cambian de nombre y el caché sirve los viejos, así que se prueba código
+que ya no existe — pasó en esta sesión y parecía un bug del banner.
+
+**Lo que sigue sin existir**: abrir sin señal una pantalla que nunca se
+visitó con señal. Esa cae en `/sin-conexion`, a propósito: inventar la
+pantalla sin datos sería peor.
+
+**Estado**: `npm test` (131), `eslint`, `tsc` y `npm run build` limpios.
+QA con Playwright contra el build de producción, con la red cortada de
+verdad: 11 comprobaciones — que el worker controle la pestaña, qué
+pantallas se guardan y cuáles no, que recargar sin señal no falle y
+muestre la pantalla real, que una nunca abierta caiga en el respaldo, que
+el aviso aparezca con la hora correcta y desaparezca con señal, y que
+cerrar sesión borre lo guardado.

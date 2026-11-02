@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
+import { OfflineBanner } from "@/components/offline/OfflineBanner";
 import { QueueOwnerProvider } from "@/components/offline/QueueOwner";
 import { AppShell } from "@/components/shell/AppShell";
 import { IdleLogout } from "@/components/shell/IdleLogout";
@@ -12,6 +13,19 @@ import { createClient } from "@/lib/supabase/server";
  * rail en tablet/escritorio y pestañas abajo en teléfono (ver AppShell).
  * Comprueba el usuario en servidor antes de mostrar el área protegida.
  */
+const STAMP = new Intl.DateTimeFormat("es-CR", {
+  day: "numeric",
+  month: "long",
+  hour: "numeric",
+  minute: "2-digit",
+  timeZone: "America/Costa_Rica",
+});
+
+/** Cuándo se generó esta pantalla, en hora de Costa Rica. */
+function renderedAt(): string {
+  return STAMP.format(new Date());
+}
+
 export default async function DashboardLayout({ children }: { children: ReactNode }) {
   const supabase = await createClient();
   const {
@@ -41,7 +55,13 @@ export default async function DashboardLayout({ children }: { children: ReactNod
       {/* De quién es lo que quedó sin enviar. IndexedDB es del origen y
           sobrevive al cierre de sesión, así que la cola se filtra por el
           usuario de la sesión (ver components/offline/QueueOwner.tsx). */}
-      <QueueOwnerProvider userId={user.id}>{children}</QueueOwnerProvider>
+      <QueueOwnerProvider userId={user.id}>
+        {/* La hora se arma acá, al generar la pantalla, y queda escrita en
+            el HTML: cuando ese HTML sale del caché sin señal, el aviso
+            dice de cuándo son los datos de verdad. */}
+        <OfflineBanner renderedAt={renderedAt()} />
+        {children}
+      </QueueOwnerProvider>
     </AppShell>
   );
 }
