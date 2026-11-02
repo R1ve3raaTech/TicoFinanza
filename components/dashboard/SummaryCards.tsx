@@ -1,7 +1,22 @@
 import type { ReactNode } from "react";
 import { Money } from "@/components/ui/Money";
+import type { Comparison } from "@/lib/comparison";
+import { comparisonTone } from "@/lib/comparison";
 import { formatMoney } from "@/lib/format";
 import type { MonthSummary } from "@/lib/insights";
+
+/**
+ * "12 % más que en octubre a esta altura". Se compara contra el mismo día
+ * del mes pasado, no contra el mes completo: medio mes contra uno entero
+ * siempre diría que vas mejorando.
+ */
+function variationHint(comparison?: Comparison): string | null {
+  if (!comparison || comparison.percent === null) return null;
+  const tone = comparisonTone(comparison);
+  if (tone === "igual") return "Igual que el mes pasado a esta altura";
+  const percent = Math.abs(Math.round(comparison.percent));
+  return `${percent} % ${tone} que el mes pasado a esta altura`;
+}
 
 function Card({
   label,
@@ -40,7 +55,13 @@ function Card({
  * aparte, en la misma tarjeta, sin pintarlo de rojo — es un compromiso, no
  * una pérdida.
  */
-export function SummaryCards({ summary }: { summary: MonthSummary }) {
+export function SummaryCards({
+  summary,
+  comparison,
+}: {
+  summary: MonthSummary;
+  comparison?: Comparison;
+}) {
   const deficit = summary.net < 0;
   // En cero no hay ni superávit ni déficit: el verde ahí sobra.
   const netTone = deficit ? "text-expense" : summary.net > 0 ? "text-income" : "text-ink";
@@ -61,7 +82,11 @@ export function SummaryCards({ summary }: { summary: MonthSummary }) {
       >
         <Money value={-summary.fixedExpenses} tabular={false} className="text-ink" />
       </Card>
-      <Card label="Gastos variables" swatch="bg-chart-expense" hint="Lo anotado a mano este mes">
+      <Card
+        label="Gastos variables"
+        swatch="bg-chart-expense"
+        hint={variationHint(comparison) ?? "Lo anotado a mano este mes"}
+      >
         <Money value={-summary.variableExpenses} tabular={false} className="text-ink" />
       </Card>
       <Card

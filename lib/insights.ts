@@ -93,6 +93,11 @@ export interface CategorySlice {
   share: number;
   /** Cuánto de ese monto viene de gastos fijos. */
   fixed: number;
+  /**
+   * Variación del gasto variable contra el mes pasado hasta el mismo día,
+   * en porcentaje. `null` si el mes pasado no hubo nada con que comparar.
+   */
+  changePercent?: number | null;
 }
 
 /**

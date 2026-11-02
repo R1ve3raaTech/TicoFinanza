@@ -10,10 +10,16 @@ import {
   upcomingPayments,
 } from "@/lib/fixedExpenses";
 import { greeting, monthHeadline } from "@/lib/greeting";
+import { compareMonths } from "@/lib/comparison";
 import { categorySpending, monthSummary, monthlyTotals } from "@/lib/insights";
 import { resolveFirstName } from "@/lib/profile";
 import { createClient } from "@/lib/supabase/server";
 import type { Account, FixedExpense, Transaction, UserCategory } from "@/lib/types";
+
+type RecentMovement = Pick<
+  Transaction,
+  "description" | "category" | "account_id" | "transaction_date"
+>;
 
 export const metadata: Metadata = { title: "Resumen" };
 
@@ -34,8 +40,13 @@ export default async function DashboardPage() {
   const todayKey = dayKey();
   const currentMonth = monthKeyOf(todayKey);
 
-  const [{ data: movements }, { data: expenses }, { data: categories }, { data: accounts }] =
-    await Promise.all([
+  const [
+    { data: movements },
+    { data: expenses },
+    { data: categories },
+    { data: accounts },
+    { data: recent },
+  ] = await Promise.all([
       // Seis meses de historial: alcanza para el gráfico, y de paso trae el
       // mes en curso para los totales y el desglose por categoría.
       //
@@ -61,6 +72,15 @@ export default async function DashboardPage() {
         .select("*")
         .eq("user_id", user.id)
         .order("created_at", { ascending: true }),
+      // Para sugerir categoría y cuenta al escribir una descripción. Es una
+      // lista corta y con pocas columnas: solo alimenta el autocompletado.
+      supabase
+        .from("transactions")
+        .select("description, category, account_id, transaction_date")
+        .eq("user_id", user.id)
+        .not("description", "is", null)
+        .order("transaction_date", { ascending: false })
+        .limit(80),
     ]);
 
   const history = (movements ?? []) as Pick<
@@ -102,14 +122,26 @@ export default async function DashboardPage() {
       .replace(",", "")
   );
 
+  // Comparación contra el mes pasado, cortada el mismo día del mes. Los
+  // movimientos de los dos meses ya vinieron en `history`.
+  const todayNumber = Number(todayKey.slice(8, 10));
+  const comparison = compareMonths(history, currentMonth, todayNumber);
+
+  const slices = categorySpending(ofThisMonth, fixed, currentMonth).map((slice) => ({
+    ...slice,
+    changePercent: compareMonths(history, currentMonth, todayNumber, slice.label).percent,
+  }));
+
   return (
     <DashboardView
       summary={summary}
+      comparison={comparison}
       accounts={(accounts ?? []) as Account[]}
       payments={upcomingPayments(fixed, todayKey)}
-      categorySlices={categorySpending(ofThisMonth, fixed, currentMonth)}
+      categorySlices={slices}
       months={monthlyTotals(history, 6)}
       customCategories={(categories ?? []) as UserCategory[]}
+      recent={(recent ?? []) as RecentMovement[]}
       todayKey={todayKey}
       todayLabel={todayLabel}
       monthLabel={monthLabel}

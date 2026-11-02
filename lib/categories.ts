@@ -5,6 +5,10 @@
  * lo que ve todo el mundo sin migración.
  */
 export const DEFAULT_EXPENSE_CATEGORIES = [
+  // "Alimentación" faltaba y el súper terminaba cayendo en Vivienda, que
+  // mezcla el alquiler con las compras de la semana en el mismo pedazo de
+  // la dona.
+  "Alimentación",
   "Vivienda",
   "Servicios",
   "Salud",

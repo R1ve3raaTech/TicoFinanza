@@ -64,7 +64,14 @@ export function MovementsView({
   csvHref: string;
 }) {
   return (
-    <MovementEntryProvider customCategories={customCategories} accounts={accounts}>
+    <MovementEntryProvider
+      customCategories={customCategories}
+      accounts={accounts}
+      recent={entries
+        .filter((e) => e.kind === "transaction")
+        .map((e) => (e.kind === "transaction" ? e.transaction : null))
+        .filter((t): t is NonNullable<typeof t> => t !== null)}
+    >
       <main id="contenido" className="mx-auto w-full max-w-[1180px] px-4 pb-12 md:px-8 xl:px-12">
         <PageHeader
           title="Movimientos"

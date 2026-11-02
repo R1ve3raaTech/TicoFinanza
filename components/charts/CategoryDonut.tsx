@@ -131,6 +131,15 @@ export function CategoryDonut({ slices, total }: { slices: CategorySlice[]; tota
               <span className="money shrink-0 text-label text-ink">
                 {formatMoney(slice.amount)}
               </span>
+              {/* La variación va en tinta neutra, no en verde o rojo:
+                  gastar más en una categoría no es "malo" por sí solo, y
+                  pintarlo de alarma todos los meses enseña a ignorarlo. */}
+              {typeof slice.changePercent === "number" && (
+                <span className="money hidden w-12 shrink-0 text-right text-micro text-ink-3 sm:block">
+                  {slice.changePercent > 0 ? "+" : ""}
+                  {Math.round(slice.changePercent)}%
+                </span>
+              )}
               <span className="money w-9 shrink-0 text-right text-meta text-ink-3">
                 {Math.round(slice.share * 100)}%
               </span>

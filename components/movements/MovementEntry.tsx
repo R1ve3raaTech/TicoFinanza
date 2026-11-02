@@ -24,10 +24,13 @@ const MovementEntryContext = createContext<MovementEntryApi | null>(null);
 export function MovementEntryProvider({
   customCategories,
   accounts = [],
+  recent = [],
   children,
 }: {
   customCategories: UserCategory[];
   accounts?: Account[];
+  /** Movimientos recientes, para sugerir categoría y cuenta al escribir. */
+  recent?: Pick<Transaction, "description" | "category" | "account_id" | "transaction_date">[];
   children: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
@@ -56,6 +59,7 @@ export function MovementEntryProvider({
         movement={editing}
         customCategories={customCategories}
         accounts={accounts}
+        recent={recent}
       />
     </MovementEntryContext.Provider>
   );

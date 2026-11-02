@@ -7,10 +7,11 @@ import { FixedExpenseEntryProvider } from "@/components/fixed/FixedExpenseEntry"
 import { InstallAppButton } from "@/components/InstallAppButton";
 import { AddMovementButton, MovementEntryProvider } from "@/components/movements/MovementEntry";
 import { PageHeader } from "@/components/shell/PageHeader";
+import type { Comparison } from "@/lib/comparison";
 import type { UpcomingPayment } from "@/lib/fixedExpenses";
 import type { MonthHeadline } from "@/lib/greeting";
 import type { CategorySlice, MonthSummary, MonthTotal } from "@/lib/insights";
-import type { Account, UserCategory } from "@/lib/types";
+import type { Account, Transaction, UserCategory } from "@/lib/types";
 import { FirstSteps } from "./FirstSteps";
 import { SummaryCards } from "./SummaryCards";
 import { UpcomingPayments } from "./UpcomingPayments";
@@ -29,11 +30,13 @@ import { UpcomingPayments } from "./UpcomingPayments";
  */
 export function DashboardView({
   summary,
+  comparison,
   accounts,
   payments,
   categorySlices,
   months,
   customCategories,
+  recent = [],
   todayKey,
   todayLabel,
   monthLabel,
@@ -44,11 +47,15 @@ export function DashboardView({
   hasMovement,
 }: {
   summary: MonthSummary;
+  /** Gasto variable de este mes contra el pasado, al mismo día. */
+  comparison: Comparison;
   accounts: Account[];
   payments: UpcomingPayment[];
   categorySlices: CategorySlice[];
   months: MonthTotal[];
   customCategories: UserCategory[];
+  /** Movimientos recientes, para sugerir categoría y cuenta al escribir. */
+  recent?: Pick<Transaction, "description" | "category" | "account_id" | "transaction_date">[];
   todayKey: string;
   todayLabel: string;
   monthLabel: string;
@@ -68,7 +75,11 @@ export function DashboardView({
       accounts={accounts}
       todayKey={todayKey}
     >
-      <MovementEntryProvider customCategories={customCategories} accounts={accounts}>
+      <MovementEntryProvider
+        customCategories={customCategories}
+        accounts={accounts}
+        recent={recent}
+      >
         <main id="contenido" className="mx-auto w-full max-w-[1180px] px-4 pb-12 md:px-8 xl:px-12">
           <PageHeader
             title="Resumen"
@@ -108,7 +119,7 @@ export function DashboardView({
               </p>
             </div>
             <h3 className="pb-3 text-label text-ink-2">Tu mes de {monthLabel}</h3>
-            <SummaryCards summary={summary} />
+            <SummaryCards summary={summary} comparison={comparison} />
           </div>
 
           {/* Sin envoltorio con padding: cuando los tres pasos están

@@ -1,7 +1,7 @@
 "use client";
 
 import { useId, useRef, useState, useTransition } from "react";
-import { Trash } from "@phosphor-icons/react";
+import { CurrencyDollar, Trash, Users } from "@phosphor-icons/react";
 import { addTransaction, deleteTransaction, updateTransaction } from "@/app/dashboard/actions";
 import { AccountPicker } from "@/components/accounts/AccountPicker";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
@@ -9,9 +9,12 @@ import { useToast } from "@/components/Toast";
 import { Button } from "@/components/ui/Button";
 import { Dialog } from "@/components/ui/Dialog";
 import { Field, FormError, inputClass } from "@/components/ui/Field";
+import { Money } from "@/components/ui/Money";
 import { expenseCategories, incomeCategories } from "@/lib/categories";
 import { monthKey } from "@/lib/fixedExpenses";
 import { deleteReceiptFile } from "@/lib/receiptUpload";
+import { suggestFor } from "@/lib/smartMatch";
+import { conversionLabel, DEFAULT_USD_RATE, isValidRate, usdToCrc } from "@/lib/usd";
 import type { Account, Transaction, TransactionType, UserCategory } from "@/lib/types";
 import {
   AmountInput,
@@ -20,6 +23,7 @@ import {
   formatAmountInput,
   parseAmount,
 } from "./MovementFields";
+import { BillSplitPanel } from "./BillSplitPanel";
 import { ReceiptField } from "./ReceiptField";
 
 /** "YYYY-MM-DDTHH:mm" en hora local, para <input type="datetime-local">. */
@@ -53,6 +57,7 @@ export function MovementDialog({
   movement,
   customCategories = [],
   accounts = [],
+  recent = [],
 }: {
   open: boolean;
   onClose: () => void;
@@ -60,6 +65,8 @@ export function MovementDialog({
   movement?: Transaction | null;
   customCategories?: UserCategory[];
   accounts?: Account[];
+  /** Movimientos recientes, para sugerir categoría y cuenta. */
+  recent?: Pick<Transaction, "description" | "category" | "account_id" | "transaction_date">[];
 }) {
   const toast = useToast();
   const formId = useId();
@@ -87,6 +94,17 @@ export function MovementDialog({
   const [error, setError] = useState<string | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [pending, startTransition] = useTransition();
+
+  // Anotar en dólares: se convierte al guardar y lo que queda registrado es
+  // un monto en colones, como cualquier otro.
+  const [usd, setUsd] = useState(false);
+  const [rate, setRate] = useState(String(DEFAULT_USD_RATE));
+  const [splitOpen, setSplitOpen] = useState(false);
+
+  // La sugerencia solo pisa la categoría mientras nadie la haya tocado a
+  // mano: adivinar por encima de una decisión explícita es peor que no
+  // adivinar.
+  const [touchedCategory, setTouchedCategory] = useState(editing);
   // El comprobante se sube al elegirlo, antes de guardar el movimiento: si el
   // formulario se cierra sin guardar hay que borrar ese archivo, que si no
   // queda en el bucket sin que ningún movimiento lo referencie.
@@ -100,6 +118,21 @@ export function MovementDialog({
   const pickedMonth = date.slice(0, 7);
   const otherMonth =
     pickedMonth && pickedMonth !== currentMonth ? monthName(pickedMonth) : null;
+
+  // La sugerencia se CALCULA en el render, no se guarda en estado ni se
+  // sincroniza con un efecto: es una función pura de lo que hay escrito.
+  // Guardarla obligaría a mantener dos fuentes de verdad en sincronía, que
+  // es de donde salen los formularios que se "pegan" en un valor viejo.
+  const suggested =
+    touchedCategory || type !== "EXPENSE"
+      ? null
+      : suggestFor(description, categories, recent);
+
+  const effectiveCategory = suggested?.category ?? category;
+  const effectiveAccountId =
+    suggested?.accountId && accounts.some((a) => a.id === suggested.accountId)
+      ? suggested.accountId
+      : accountId;
 
   function close() {
     if (!savedRef.current && receiptPath && receiptPath !== originalReceipt) {
@@ -118,20 +151,27 @@ export function MovementDialog({
 
   function submit() {
     setError(null);
-    const value = parseAmount(amount);
-    if (!amount || !Number.isFinite(value) || value <= 0) {
+    const typed = parseAmount(amount);
+    if (!amount || !Number.isFinite(typed) || typed <= 0) {
       setError("Ingresá un monto mayor a cero.");
       return;
     }
+
+    const parsedRate = Number(rate.replace(",", "."));
+    if (usd && !isValidRate(parsedRate)) {
+      setError("El tipo de cambio no parece válido. Revisalo.");
+      return;
+    }
+    const value = usd ? usdToCrc(typed, parsedRate) : typed;
 
     startTransition(async () => {
       const input = {
         amount: value,
         description,
-        category,
+        category: effectiveCategory,
         type,
         transactionDate: new Date(date).toISOString(),
-        accountId,
+        accountId: effectiveAccountId,
         receiptPath,
       };
       const result = movement
@@ -204,7 +244,70 @@ export function MovementDialog({
         >
           <TypeToggle value={type} onChange={pickType} />
 
-          <AmountInput value={amount} onChange={setAmount} autoFocus />
+          <div className="flex flex-col gap-2">
+            <AmountInput
+              value={amount}
+              onChange={setAmount}
+              autoFocus
+              label={usd ? "Monto en dólares" : "Monto"}
+            />
+
+            {usd && (
+              <div className="flex flex-wrap items-end gap-3">
+                <Field label="Tipo de cambio" className="w-[8.5rem]">
+                  <input
+                    inputMode="decimal"
+                    value={rate}
+                    onChange={(e) => setRate(e.target.value)}
+                    className={`${inputClass} money`}
+                  />
+                </Field>
+                {parseAmount(amount) > 0 && isValidRate(Number(rate.replace(",", "."))) && (
+                  <p className="pb-2 text-meta text-ink-3">
+                    {conversionLabel(parseAmount(amount), Number(rate.replace(",", ".")))} ={" "}
+                    <Money
+                      value={usdToCrc(parseAmount(amount), Number(rate.replace(",", ".")))}
+                      className="text-ink"
+                    />
+                  </p>
+                )}
+              </div>
+            )}
+
+            <div className="flex flex-wrap items-center gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                aria-pressed={usd}
+                onClick={() => setUsd((v) => !v)}
+                className="-ml-2"
+              >
+                <CurrencyDollar size={14} />
+                {usd ? "Volver a colones" : "Anotar en dólares"}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                aria-pressed={splitOpen}
+                aria-expanded={splitOpen}
+                onClick={() => setSplitOpen((v) => !v)}
+              >
+                <Users size={14} />
+                Dividir cuenta
+              </Button>
+            </div>
+
+            {splitOpen && (
+              <BillSplitPanel
+                onApply={(yours, message) => {
+                  setUsd(false);
+                  setAmount(formatAmountInput(yours));
+                  if (!description.trim()) setDescription(message);
+                  setSplitOpen(false);
+                }}
+              />
+            )}
+          </div>
 
           <Field label="Descripción">
             <input
@@ -219,14 +322,25 @@ export function MovementDialog({
 
           <CategoryPicker
             categories={categories}
-            value={category}
-            onChange={setCategory}
+            value={effectiveCategory}
+            onChange={(next) => {
+              setTouchedCategory(true);
+              setCategory(next);
+            }}
             label={type === "INCOME" ? "Tipo de ingreso" : "Categoría"}
           />
 
+          {suggested?.source && (
+            <p className="-mt-3 text-meta text-ink-3">
+              {suggested.source === "historial"
+                ? "Categoría y cuenta tomadas de la última vez que anotaste algo parecido."
+                : "Categoría sugerida por el comercio. Cambiala si no es."}
+            </p>
+          )}
+
           <AccountPicker
             accounts={accounts}
-            value={accountId}
+            value={effectiveAccountId}
             onChange={setAccountId}
             label={type === "INCOME" ? "¿A qué cuenta entró?" : "¿De qué cuenta salió?"}
           />
