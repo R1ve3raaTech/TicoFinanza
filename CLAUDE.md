@@ -865,11 +865,17 @@ diálogo de marcar pagado.
 
 ## Dónde quedamos (2026-11-03)
 
-Cuatro módulos sobre lo de la sesión anterior. **La migración 0023 ya la
-corrió Camil** (confirmado 2026-11-03), así que no queda ninguna SQL
-pendiente. **Commiteado y pusheado; el deploy quedó sin hacer** — el
-clasificador de auto mode bloqueó `npx vercel --prod` dos veces y hay que
-correrlo a mano.
+Cuatro módulos sobre lo de la sesión anterior. La migración 0023 ya la
+corrió Camil (confirmado 2026-11-03).
+
+**HAY UNA MIGRACIÓN SIN CORRER: `0024_offline_client_id.sql`.** Agrega
+`transactions.client_id` con un índice único parcial por
+`(user_id, client_id)`. **Deployar antes de correrla rompe el guardado de
+cualquier movimiento**, porque `addTransaction` ya inserta esa columna.
+Primero la migración, después el deploy.
+
+**Commiteado y pusheado; el deploy quedó sin hacer** — el clasificador de
+auto mode bloqueó `npx vercel --prod` dos veces y hay que correrlo a mano.
 
 **Ingresos fijos con confirmación de un toque** (migración 0023)
 
@@ -961,15 +967,28 @@ de la 0023)
   eso marcaba toda la cola como fallida (`isFrameworkNavigation`).
 - **El vaciado corre desde la página**, no desde el Service Worker.
   Background Sync mandaría con la app cerrada, pero un SW no puede llamar
-  una Server Action, y abrir una API aparte pide una clave de
-  deduplicación en la base para que un reintento con la respuesta perdida
-  no anote el gasto dos veces.
+  una Server Action.
+- **La cola está atada al usuario** (`userId` en cada pendiente,
+  `QueueOwnerProvider` en el layout de /dashboard). IndexedDB es del
+  origen y no de la sesión: en una compu compartida sobrevive al cierre de
+  sesión, y sin dueño lo que una persona anotó sin señal se le mostraría a
+  la siguiente **y se mandaría a su cuenta**. Lo de otra persona no se
+  borra —es un gasto sin registrar— pero queda invisible hasta que vuelva
+  a entrar. Al eliminar la cuenta sí se borra lo suyo.
+- **Deduplicación real** (migración 0024): cada movimiento anotado lleva un
+  `clientId` que genera el navegador, y el índice único
+  `(user_id, client_id)` hace que un reintento no inserte dos veces. Es el
+  caso de la red móvil mala: el pedido llega, la fila se inserta y la
+  respuesta se pierde, así que el navegador cree que falló y reintenta.
+  `addTransaction` trata el error 23505 como éxito, porque lo es.
+  El formulario usa el **mismo** `clientId` para el intento con señal y
+  para el que queda en la cola, que es lo que cierra esa ventana.
 - **Lo que sigue sin existir**: caché de la app para abrirla sin señal
   desde cero. Hoy, sin datos y con la app cerrada, la página no carga. Un
   caché de páginas en una app de plata muestra saldos viejos, así que si se
   hace, tiene que decir "datos de la última vez" en pantalla.
 
-**Estado**: `npm test` (128), `eslint`, `tsc` y `npm run build` limpios. QA
+**Estado**: `npm test` (130), `eslint`, `tsc` y `npm run build` limpios. QA
 con Playwright a 1440 oscuro y 768/390/360 claro sobre metas, ingresos
 fijos, aguinaldo, reporte (incluida la vista de impresión emulada) y la
 cola offline con la red cortada de verdad. Sin overflow horizontal.

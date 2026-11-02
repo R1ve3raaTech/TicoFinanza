@@ -8,6 +8,7 @@ import {
   isNetworkFailure,
   localId,
   MAX_ATTEMPTS,
+  ownedBy,
   sendable,
   type PendingMovement,
 } from "@/lib/offline";
@@ -19,6 +20,7 @@ import {
   putPending,
   releasePending,
 } from "@/lib/offlineDb";
+import { useQueueOwner } from "./QueueOwner";
 
 /** Avisa a todas las partes de la app que miran la cola. */
 const CHANGED = "ticofinanza:cola-cambio";
@@ -27,10 +29,16 @@ function announce() {
   if (typeof window !== "undefined") window.dispatchEvent(new Event(CHANGED));
 }
 
-/** Guarda un movimiento para mandarlo cuando vuelva la señal. */
-export async function queueMovement(input: MovementInput): Promise<void> {
+/**
+ * Guarda un movimiento para mandarlo cuando vuelva la señal.
+ *
+ * Pide el dueño: sin él, en una compu compartida el gasto de una persona
+ * terminaría en la cuenta de la siguiente que entre.
+ */
+export async function queueMovement(userId: string, input: MovementInput): Promise<void> {
   await putPending({
     id: localId(),
+    userId,
     input,
     queuedAt: Date.now(),
     status: "pending",
@@ -52,6 +60,7 @@ export async function queueMovement(input: MovementInput): Promise<void> {
  */
 export function useOfflineQueue() {
   const router = useRouter();
+  const owner = useQueueOwner();
   const [items, setItems] = useState<PendingMovement[]>([]);
   const [flushing, setFlushing] = useState(false);
   const [ready, setReady] = useState(false);
@@ -62,7 +71,7 @@ export function useOfflineQueue() {
       return [];
     }
     try {
-      const rows = await listPending();
+      const rows = ownedBy(await listPending(), owner);
       setItems(rows);
       setReady(true);
       return rows;
@@ -72,14 +81,17 @@ export function useOfflineQueue() {
       setReady(true);
       return [];
     }
-  }, []);
+  }, [owner]);
 
   const flush = useCallback(async () => {
-    if (!isSupported()) return;
+    if (!isSupported() || !owner) return;
     setFlushing(true);
     let sent = 0;
     try {
-      const queue = sendable(await listPending());
+      // Solo los de esta sesión: mandar los de otra persona los metería
+      // en la cuenta equivocada, porque la acción escribe siempre con el
+      // usuario que tiene la sesión abierta.
+      const queue = sendable(ownedBy(await listPending(), owner));
       for (const item of queue) {
         // Si otra pestaña o un vaciado anterior ya lo tomó, se salta.
         if (!(await claimPending(item.id))) continue;
@@ -125,7 +137,7 @@ export function useOfflineQueue() {
       announce();
       if (sent > 0) router.refresh();
     }
-  }, [refresh, router]);
+  }, [owner, refresh, router]);
 
   useEffect(() => {
     let alive = true;
@@ -134,7 +146,8 @@ export function useOfflineQueue() {
     // efecto: leer IndexedDB es suscribirse a un sistema de afuera, y el
     // estado se actualiza en la respuesta, no de forma síncrona al montar.
     void (async () => {
-      const rows = await listPending().catch(() => [] as PendingMovement[]);
+      const all = await listPending().catch(() => [] as PendingMovement[]);
+      const rows = ownedBy(all, owner);
       if (!alive) return;
       setItems(rows);
       setReady(true);
@@ -150,7 +163,7 @@ export function useOfflineQueue() {
       window.removeEventListener("online", onOnline);
       window.removeEventListener(CHANGED, onChanged);
     };
-  }, [flush, refresh]);
+  }, [flush, owner, refresh]);
 
   const discard = useCallback(
     async (id: string) => {

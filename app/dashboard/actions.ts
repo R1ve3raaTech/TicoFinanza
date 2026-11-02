@@ -39,6 +39,12 @@ export interface MovementInput {
   transactionDate: string;
   accountId: string | null;
   /**
+   * Id que genera el navegador al anotar, para que un reintento no
+   * inserte dos veces. Lo manda el formulario de movimientos y la cola
+   * sin conexión; el resto de la app lo deja sin poner.
+   */
+  clientId?: string | null;
+  /**
    * Ruta del comprobante en el bucket `receipts`, o null si no tiene. El
    * archivo lo sube el navegador directo a Storage (ver ReceiptField): por
    * acá solo pasa la ruta, no los bytes — una Server Action tiene un tope de
@@ -94,9 +100,19 @@ export async function addTransaction(input: MovementInput) {
     type: input.type,
     account_id: input.accountId,
     receipt_url: input.receiptPath ?? null,
+    client_id: input.clientId || null,
     transaction_date: new Date(input.transactionDate).toISOString(),
   });
 
+  // 23505 es el índice único de (user_id, client_id): este movimiento ya
+  // había entrado y lo que se perdió fue la respuesta, no el dato. Se
+  // responde que salió bien, porque salió bien — reportar un error haría
+  // que la cola lo reintentara para siempre o que la persona lo anotara
+  // de nuevo a mano, y ahí sí quedaría duplicado.
+  if (error?.code === "23505") {
+    revalidateMovements();
+    return { error: null };
+  }
   if (error) return { error: "No se pudo guardar el movimiento. Intentá de nuevo." };
 
   revalidateMovements();

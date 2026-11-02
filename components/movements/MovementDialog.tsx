@@ -5,6 +5,7 @@ import { CurrencyDollar, Trash, Users } from "@phosphor-icons/react";
 import { addTransaction, deleteTransaction, updateTransaction } from "@/app/dashboard/actions";
 import { AccountPicker } from "@/components/accounts/AccountPicker";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { useQueueOwner } from "@/components/offline/QueueOwner";
 import { queueMovement } from "@/components/offline/useOfflineQueue";
 import { useToast } from "@/components/Toast";
 import { Button } from "@/components/ui/Button";
@@ -13,7 +14,7 @@ import { Field, FormError, inputClass } from "@/components/ui/Field";
 import { Money } from "@/components/ui/Money";
 import { expenseCategories, incomeCategories } from "@/lib/categories";
 import { monthKey } from "@/lib/fixedExpenses";
-import { isFrameworkNavigation, isNetworkFailure } from "@/lib/offline";
+import { isFrameworkNavigation, isNetworkFailure, localId } from "@/lib/offline";
 import { deleteReceiptFile } from "@/lib/receiptUpload";
 import { suggestFor } from "@/lib/smartMatch";
 import { conversionLabel, DEFAULT_USD_RATE, isValidRate, usdToCrc } from "@/lib/usd";
@@ -96,6 +97,7 @@ export function MovementDialog({
   const [error, setError] = useState<string | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [pending, startTransition] = useTransition();
+  const owner = useQueueOwner();
 
   // Anotar en dólares: se convierte al guardar y lo que queda registrado es
   // un monto en colones, como cualquier otro.
@@ -167,6 +169,10 @@ export function MovementDialog({
     const value = usd ? usdToCrc(typed, parsedRate) : typed;
 
     startTransition(async () => {
+      // El mismo id para el intento con señal y para el reintento desde la
+      // cola: si el primero llegó al servidor y lo que se perdió fue la
+      // respuesta, el segundo choca con el índice único y no duplica el
+      // gasto (migración 0024).
       const input = {
         amount: value,
         description,
@@ -175,13 +181,19 @@ export function MovementDialog({
         transactionDate: new Date(date).toISOString(),
         accountId: effectiveAccountId,
         receiptPath,
+        clientId: localId(),
       };
       // Sin señal, un movimiento nuevo se guarda en el teléfono en vez de
       // perderse. Editar y borrar no: esas tocan una fila que ya existe en
       // la base, y resolverlas a ciegas desde una cola local es cómo se
       // pierde la edición de otro dispositivo.
-      if (!movement && typeof navigator !== "undefined" && navigator.onLine === false) {
-        await queueMovement(input);
+      if (
+        !movement &&
+        owner &&
+        typeof navigator !== "undefined" &&
+        navigator.onLine === false
+      ) {
+        await queueMovement(owner, input);
         savedRef.current = true;
         toast.success("Sin señal: se guardó acá y se manda solo");
         onClose();
@@ -198,8 +210,8 @@ export function MovementDialog({
         // pasar para que la navegación ocurra en vez de mostrar un error
         // de conexión que no tiene nada que ver.
         if (isFrameworkNavigation(networkError)) throw networkError;
-        if (!movement && isNetworkFailure(networkError)) {
-          await queueMovement(input);
+        if (!movement && owner && isNetworkFailure(networkError)) {
+          await queueMovement(owner, input);
           savedRef.current = true;
           toast.success("Sin señal: se guardó acá y se manda solo");
           onClose();

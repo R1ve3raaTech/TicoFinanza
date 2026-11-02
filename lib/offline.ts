@@ -18,6 +18,13 @@ export type PendingStatus = "pending" | "sending" | "failed";
 export interface PendingMovement {
   /** Id local, solo para esta cola. No es el id del movimiento. */
   id: string;
+  /**
+   * Quién lo anotó. IndexedDB es del origen y no de la sesión: en una
+   * compu compartida la cola sobrevive al cierre de sesión, y sin dueño
+   * lo que anotó una persona se le mostraría a la siguiente y se mandaría
+   * a su cuenta.
+   */
+  userId: string;
   input: MovementInput;
   /** Cuándo se anotó, en milisegundos. Marca el orden de envío. */
   queuedAt: number;
@@ -58,6 +65,12 @@ export function isNetworkFailure(error: unknown): boolean {
 export function isFrameworkNavigation(error: unknown): boolean {
   const digest = (error as { digest?: unknown } | null)?.digest;
   return typeof digest === "string" && digest.startsWith("NEXT_");
+}
+
+/** Solo los de esta sesión. Los de otra persona ni se listan ni se mandan. */
+export function ownedBy(items: PendingMovement[], userId: string | null): PendingMovement[] {
+  if (!userId) return [];
+  return items.filter((item) => item.userId === userId);
 }
 
 /** Orden de envío: lo que se anotó primero se manda primero. */

@@ -23,6 +23,7 @@ function transaction(
     receipt_url: null,
     fixed_expense_id: null,
     fixed_income_id: null,
+    client_id: null,
     transaction_date: date,
     created_at: date,
   };

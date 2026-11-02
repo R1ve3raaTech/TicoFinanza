@@ -2,6 +2,7 @@ import { it } from "node:test";
 import assert from "node:assert/strict";
 import {
   isFrameworkNavigation,
+  ownedBy,
   isNetworkFailure,
   localId,
   MAX_ATTEMPTS,
@@ -15,6 +16,7 @@ import {
 
 function item(partial: Partial<PendingMovement> & { id: string }): PendingMovement {
   return {
+    userId: "u1",
     input: {
       amount: 4_200,
       description: "Soda",
@@ -95,4 +97,17 @@ it("un redirect de Next no es un movimiento fallido", () => {
   assert.equal(isFrameworkNavigation(new Error("Failed to fetch")), false);
   assert.equal(isFrameworkNavigation(null), false);
   assert.equal(isFrameworkNavigation(undefined), false);
+});
+
+it("la cola de otra persona ni se lista ni se manda", () => {
+  // IndexedDB es del origen, no de la sesión: en una compu compartida lo
+  // que quedó sin enviar sigue ahí después de cerrar sesión. Sin filtrar,
+  // el gasto de una persona entraría en la cuenta de la siguiente.
+  const items = [item({ id: "a" }), item({ id: "b", userId: "u2" })];
+  assert.deepEqual(ownedBy(items, "u1").map((i) => i.id), ["a"]);
+  assert.deepEqual(ownedBy(items, "u2").map((i) => i.id), ["b"]);
+});
+
+it("sin sesión no se lista ni se manda nada", () => {
+  assert.deepEqual(ownedBy([item({ id: "a" })], null), []);
 });

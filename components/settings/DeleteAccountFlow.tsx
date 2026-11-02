@@ -7,9 +7,11 @@ import {
   confirmAccountDeletion,
   requestAccountDeletionCode,
 } from "@/app/dashboard/ajustes/actions";
+import { useQueueOwner } from "@/components/offline/QueueOwner";
 import { Button } from "@/components/ui/Button";
 import { Dialog } from "@/components/ui/Dialog";
 import { Field, FormError, inputClass } from "@/components/ui/Field";
+import { clearPendingOf } from "@/lib/offlineDb";
 import { SettingsRow } from "./SettingsSection";
 
 const CONFIRM_WORD = "ELIMINAR";
@@ -25,6 +27,7 @@ export function DeleteAccountFlow({ email }: { email: string }) {
   const [typed, setTyped] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const owner = useQueueOwner();
 
   function close() {
     if (pending || step === "deleted") return;
@@ -54,6 +57,10 @@ export function DeleteAccountFlow({ email }: { email: string }) {
       if (result.error) {
         setError(result.error);
       } else {
+        // Lo que quedó sin enviar en este navegador ya no tiene a dónde
+        // ir, y dejarlo en una compu compartida es dejar datos de plata
+        // de alguien que pidió que se borrara todo.
+        if (owner) await clearPendingOf(owner).catch(() => {});
         setStep("deleted");
         setTimeout(() => router.push("/"), 1800);
       }

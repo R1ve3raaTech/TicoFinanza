@@ -44,6 +44,12 @@ export interface Transaction {
   /** Ingreso fijo que lo originó, al confirmarlo. No cuenta dos veces. */
   fixed_income_id: string | null;
   /**
+   * Id que generó el navegador al anotar sin señal. Solo lo traen los
+   * movimientos que pasaron por la cola offline; evita que un reintento
+   * con la respuesta perdida anote el gasto dos veces (migración 0024).
+   */
+  client_id: string | null;
+  /**
    * Gasto fijo que originó este movimiento, si se registró al marcarlo
    * pagado. Un movimiento con esto puesto **no** cuenta como gasto variable
    * (el fijo ya suma por su lado), pero sí mueve el saldo de la cuenta.

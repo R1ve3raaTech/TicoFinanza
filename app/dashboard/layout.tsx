@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
+import { QueueOwnerProvider } from "@/components/offline/QueueOwner";
 import { AppShell } from "@/components/shell/AppShell";
 import { IdleLogout } from "@/components/shell/IdleLogout";
 import { ThemeSync } from "@/components/ThemeSync";
@@ -37,7 +38,10 @@ export default async function DashboardLayout({ children }: { children: ReactNod
       <ThemeSync dbTheme={dbTheme} />
       {/* Solo dentro del área con sesión: afuera no hay nada que cerrar. */}
       <IdleLogout />
-      {children}
+      {/* De quién es lo que quedó sin enviar. IndexedDB es del origen y
+          sobrevive al cierre de sesión, así que la cola se filtra por el
+          usuario de la sesión (ver components/offline/QueueOwner.tsx). */}
+      <QueueOwnerProvider userId={user.id}>{children}</QueueOwnerProvider>
     </AppShell>
   );
 }

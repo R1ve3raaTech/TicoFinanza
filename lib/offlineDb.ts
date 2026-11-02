@@ -117,6 +117,21 @@ export async function claimPending(id: string): Promise<boolean> {
   });
 }
 
+/**
+ * Borra todo lo que quedó sin enviar de un usuario.
+ *
+ * Se llama al eliminar la cuenta: esos movimientos ya no tienen a dónde
+ * ir, y dejarlos en una compu compartida es dejar datos de plata de
+ * alguien que pidió que se borrara todo.
+ */
+export async function clearPendingOf(userId: string): Promise<void> {
+  if (!isSupported()) return;
+  const rows = await listPending();
+  for (const row of rows) {
+    if (row.userId === userId) await deletePending(row.id);
+  }
+}
+
 /** Devuelve un pendiente a la cola después de un intento fallido. */
 export async function releasePending(
   id: string,
