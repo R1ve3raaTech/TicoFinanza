@@ -862,3 +862,114 @@ de la captura y la meta description). La captura
 sobre resumen y fijos: sin overflow ni errores de consola, más 6
 comprobaciones del neto, la proyección, la ausencia del calendario y el
 diálogo de marcar pagado.
+
+## Dónde quedamos (2026-11-03)
+
+Cuatro módulos sobre lo de la sesión anterior. **La migración 0023 ya la
+corrió Camil** (confirmado 2026-11-03), así que no queda ninguna SQL
+pendiente. **Commiteado y pusheado; el deploy quedó sin hacer** — el
+clasificador de auto mode bloqueó `npx vercel --prod` dos veces y hay que
+correrlo a mano.
+
+**Ingresos fijos con confirmación de un toque** (migración 0023)
+
+- Tabla `fixed_incomes` aparte de `fixed_expenses`: se parecen en la forma
+  (monto, día, cuenta) y no en el comportamiento. Un gasto fijo vencido es
+  una deuda y va en rojo; un ingreso que no llegó es otra cosa, y lo que
+  vence sin confirmar **no se pinta de rojo** — el rojo de esta app
+  significa plata que sale.
+- **No se registra solo al llegar la fecha.** Aparece en el resumen para
+  confirmarlo, con el monto editable: el caso real es la quincena que vino
+  distinta por un rebajo o unas horas extra. Insertarlo automático dejaría
+  el saldo mintiendo cada vez que el depósito se atrasa.
+- Una quincena son dos días de pago en la misma fila (`second_pay_day`), no
+  dos ingresos que haya que mantener a la par.
+- Viven en **Fijos → Ingresos** (`?ver=ingresos`), no en una sexta sección.
+- Con esto el saldo proyectado quedó completo: "si entran ₡X y pagás ₡Y de
+  fijos". Solo cuenta ingresos declarados como fijos; nunca inventa plata.
+
+**Prorrateo de metas anuales** (columnas `recurrence` y `cycles_completed`
+de la 0023)
+
+- No es un módulo nuevo: una meta ya tenía monto, fecha y ritmo mensual. Un
+  módulo paralelo habría sido la tercera forma de apartar plata en la app.
+- **"Ya lo pagué" hace tres cosas que son una sola idea**: borra los abonos
+  (esa plata vuelve al saldo de la cuenta), registra el gasto real (que la
+  saca) y corre la fecha un año. El neto es cero si pagaste justo lo
+  apartado y es la diferencia si el recibo vino más caro. Por eso el monto
+  se pide: el marchamo de este año casi nunca es el del anterior.
+- Los abonos del ciclo que cerró se pierden como historial; lo que queda es
+  el movimiento del pago, que es el dato que sirve después.
+- El salto de ciclo va condicionado a `cycles_completed` **y** `target_date`
+  leídos antes (compare-and-swap), igual que marcar un gasto fijo pagado:
+  dos toques seguidos no registran el pago dos veces.
+- Ir atrasado se muestra en tinta, no en rosa: es un dato para ponerse al
+  día, no plata que sale.
+
+**Panel de aguinaldo** (Fijos → Ingresos, debajo de los ingresos fijos)
+
+- Ventana del 1.º de diciembre al 30 de noviembre, entre doce. Lo que nadie
+  tiene claro no es la fórmula sino que no es por año calendario, así que
+  la ventana va **escrita con fechas**.
+- Cuenta **solo la categoría "Salario"** (`AGUINALDO_CATEGORY`). Sumar todo
+  ingreso daría un número más grande y falso.
+- Los meses sin salario anotado se nombran en el texto además de la tira de
+  doce celdas: el `title` del hover no existe en teléfono.
+- **El mes que corre no cuenta como hueco**: marcarlo el 1.º de cada mes
+  sería un reclamo por un salario que todavía no tenía por qué entrar.
+
+**Reporte mensual** (`/dashboard/reporte?mes=`, enlace en Ajustes → Datos)
+
+- **Sin dependencias**: `window.print()` + `@media print`. El diálogo del
+  navegador guarda en PDF en escritorio, Android e iOS. Una librería de PDF
+  pesa cientos de kilobytes, redibuja con su propio motor y rompe las
+  tildes al cambiar de fuente.
+- Los estilos viven en `components/report/ReportPrintStyles.tsx`, **no en
+  `app/globals.css`**: solo existen para esa pantalla.
+- El papel se fuerza a blanco aunque la app esté en oscuro; `break-inside:
+  avoid` por sección y fila; `table-header-group` para que el encabezado se
+  repita por hoja. El rail y la barra de pestañas se ocultan con `print:`
+  desde `AppShell`.
+- El movimiento que generó marcar un fijo pagado **no** cuenta en el
+  desglose (ya pesa como fijo) pero **sí** sale en la lista: el desglose
+  tiene que cuadrar consigo mismo y la lista contra el banco.
+- Los porcentajes se redondean uno por uno y pueden no dar 100 exacto.
+  Cuadrarlos obligaría a mentir en una fila.
+- Un reporte del mes en curso dice hasta qué día llegan los datos.
+- **Ojo con `capitalize` de Tailwind**: pone mayúscula en cada palabra
+  ("Octubre De 2026"). Para español va `first-letter:uppercase`.
+
+**Guardado offline de movimientos** (`lib/offline.ts`, `lib/offlineDb.ts`,
+`components/offline/`)
+
+- Cola en IndexedDB para anotar sin señal. Se guarda la *intención*, no el
+  movimiento: al mandarlo se llama la misma Server Action, así que no hay
+  un segundo camino de escritura que valide distinto.
+- Los pendientes **se ven**, arriba de la lista y separados de ella.
+  Guardar en silencio es indistinguible de perder el dato (ver el bug del
+  filtro "Todo", 2026-11-02).
+- **Editar y borrar no se encolan**: tocan una fila que ya existe, y
+  resolverlas a ciegas desde una cola local pierde la edición hecha en otro
+  dispositivo.
+- Fallo de red → se reintenta. Rechazo del servidor → no, se muestra el
+  motivo. Sin esa distinción la cola crece sola con algo que nunca entra.
+- **Dos trampas que costaron bugs**: (1) en IndexedDB los manejadores de la
+  transacción hay que engancharlos de corrido, sin `await` en el medio — la
+  transacción se cierra apenas se vacía la cola de microtareas y un
+  `tx.oncomplete` tardío no se llama nunca; (2) `redirect()` de Next llega
+  al cliente como excepción con `digest` "NEXT_…", y con la sesión vencida
+  eso marcaba toda la cola como fallida (`isFrameworkNavigation`).
+- **El vaciado corre desde la página**, no desde el Service Worker.
+  Background Sync mandaría con la app cerrada, pero un SW no puede llamar
+  una Server Action, y abrir una API aparte pide una clave de
+  deduplicación en la base para que un reintento con la respuesta perdida
+  no anote el gasto dos veces.
+- **Lo que sigue sin existir**: caché de la app para abrirla sin señal
+  desde cero. Hoy, sin datos y con la app cerrada, la página no carga. Un
+  caché de páginas en una app de plata muestra saldos viejos, así que si se
+  hace, tiene que decir "datos de la última vez" en pantalla.
+
+**Estado**: `npm test` (128), `eslint`, `tsc` y `npm run build` limpios. QA
+con Playwright a 1440 oscuro y 768/390/360 claro sobre metas, ingresos
+fijos, aguinaldo, reporte (incluida la vista de impresión emulada) y la
+cola offline con la red cortada de verdad. Sin overflow horizontal.
