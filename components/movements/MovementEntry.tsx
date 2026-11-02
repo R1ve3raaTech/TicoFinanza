@@ -3,7 +3,7 @@
 import { createContext, useCallback, useContext, useState, type ReactNode } from "react";
 import { Plus } from "@phosphor-icons/react";
 import { Button, type ButtonVariant } from "@/components/ui/Button";
-import type { Account, Transaction, UserCategory } from "@/lib/types";
+import type { Account, Transaction, TransactionType, UserCategory } from "@/lib/types";
 import { MovementDialog } from "./MovementDialog";
 
 interface MovementEntryApi {
@@ -25,15 +25,24 @@ export function MovementEntryProvider({
   customCategories,
   accounts = [],
   recent = [],
+  autoOpen = null,
   children,
 }: {
   customCategories: UserCategory[];
   accounts?: Account[];
   /** Movimientos recientes, para sugerir categoría y cuenta al escribir. */
   recent?: Pick<Transaction, "description" | "category" | "account_id" | "transaction_date">[];
+  /**
+   * Abrir el formulario solo al entrar, con esta pestaña marcada.
+   *
+   * Es lo que usan los accesos rápidos del ícono de la app: quien los
+   * toca ya dijo qué quiere anotar, y pedirle un toque más para abrir el
+   * formulario desperdiciaría justamente lo que el atajo ahorra.
+   */
+  autoOpen?: TransactionType | null;
   children: ReactNode;
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(Boolean(autoOpen));
   const [editing, setEditing] = useState<Transaction | null>(null);
   const [session, setSession] = useState(0);
 
@@ -60,6 +69,7 @@ export function MovementEntryProvider({
         customCategories={customCategories}
         accounts={accounts}
         recent={recent}
+        initialType={autoOpen ?? "EXPENSE"}
       />
     </MovementEntryContext.Provider>
   );

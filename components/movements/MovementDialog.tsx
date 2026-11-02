@@ -61,11 +61,14 @@ export function MovementDialog({
   customCategories = [],
   accounts = [],
   recent = [],
+  initialType = "EXPENSE",
 }: {
   open: boolean;
   onClose: () => void;
   /** Movimiento a editar, o null para registrar uno nuevo. */
   movement?: Transaction | null;
+  /** Pestaña marcada al abrir uno nuevo. Al editar manda el movimiento. */
+  initialType?: TransactionType;
   customCategories?: UserCategory[];
   accounts?: Account[];
   /** Movimientos recientes, para sugerir categoría y cuenta. */
@@ -78,7 +81,7 @@ export function MovementDialog({
   const expense = expenseCategories(customCategories);
   const income = incomeCategories(customCategories);
 
-  const [type, setType] = useState<TransactionType>(movement?.type ?? "EXPENSE");
+  const [type, setType] = useState<TransactionType>(movement?.type ?? initialType);
   const [amount, setAmount] = useState(movement ? formatAmountInput(movement.amount) : "");
   const [description, setDescription] = useState(movement?.description ?? "");
   const [category, setCategory] = useState(

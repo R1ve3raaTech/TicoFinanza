@@ -1210,3 +1210,50 @@ pantallas se guardan y cuáles no, que recargar sin señal no falle y
 muestre la pantalla real, que una nunca abierta caiga en el respaldo, que
 el aviso aparezca con la hora correcta y desaparezca con señal, y que
 cerrar sesión borre lo guardado.
+
+
+## Dónde quedamos (2026-11-02, atajos y portada)
+
+**Accesos rápidos del ícono** (`shortcuts` en `app/manifest.ts`). Al
+mantener apretado el ícono de la app instalada aparecen "Anotar un gasto"
+y "Anotar un ingreso".
+
+- Apuntan a `/dashboard/movimientos?nuevo=gasto|ingreso`, **no** a una
+  ruta propia: el formulario es un diálogo, no una pantalla, y una ruta
+  aparte obligaría a mantener el mismo formulario dos veces. El pedido
+  original decía `/movimientos/nuevo?tipo=`, que en esta app no existe —
+  un atajo a una ruta inexistente es un 404 en el menú del sistema.
+- El parámetro lo lee `page.tsx` y baja como `autoOpen` hasta
+  `MovementEntryProvider`, que abre el diálogo con esa pestaña marcada.
+  Cualquier otro valor se ignora: un parámetro raro no debería abrir un
+  formulario a medias.
+- Solo dos. Android muestra hasta cuatro, pero a más atajos menos sirve
+  cada uno.
+
+**Portada**: botón secundario "Instalar la app"
+(`components/landing/InstallCta.tsx`) y dos datos nuevos en la fila de
+objeciones (funciona sin señal, Android o navegador).
+
+- **Secundario, no primario**: la acción principal de la portada sigue
+  siendo entrar, y la regla de una sola acción primaria por pantalla
+  vale también acá.
+- Usa el aviso nativo del navegador cuando lo hay y si no lleva a
+  `/descargar`. **El rótulo es el mismo en los dos casos**: cambia el
+  elemento, no lo que se lee, porque un texto que cambia al hidratar es
+  un parpadeo en el botón principal de la portada.
+- Lo estético se mantuvo corto a propósito: **un** resplandor quieto y
+  muy tenue detrás de la captura, y **un** levantado al pasar el puntero.
+  Nada que se repita solo. El pedido hablaba de glow, micro-interacciones
+  y "tarjetas destacadas"; lo último habría revertido el rediseño del
+  2026-09-14, que sacó justamente las tarjetas de `Features` y el acento
+  decorativo para bajarle el look SaaS. Si alguna vez se quiere, que sea
+  una decisión tomada, no un efecto colateral.
+- La fila de insignias lleva `max-w-[26rem]` para que envuelva dos y dos:
+  suelta, en escritorio quedaban tres arriba y una huérfana abajo.
+
+**Estado**: `npm test` (138), `eslint`, `tsc` y `npm run build` limpios.
+QA con Playwright contra el build de producción a 1440 oscuro y 768/390
+claro: los dos atajos declarados, con ícono, y **sus URLs respondiendo de
+verdad** (307 al login, que es lo correcto sin sesión); el CTA apuntando
+a /descargar; las cuatro insignias; una sola acción primaria en el hero;
+sin overflow ni errores de consola.

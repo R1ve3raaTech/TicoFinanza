@@ -5,16 +5,28 @@ import { resolvePeriod } from "@/lib/dateRange";
 import { dayKey } from "@/lib/fixedExpenses";
 import { buildLedger } from "@/lib/ledger";
 import { createClient } from "@/lib/supabase/server";
-import type { Account, Transaction, Transfer, UserCategory } from "@/lib/types";
+import type {
+  Account,
+  Transaction,
+  TransactionType,
+  Transfer,
+  UserCategory,
+} from "@/lib/types";
 
 export const metadata: Metadata = { title: "Movimientos" };
 
 export default async function MovementsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ periodo?: string; from?: string; to?: string }>;
+  searchParams: Promise<{ periodo?: string; from?: string; to?: string; nuevo?: string }>;
 }) {
-  const { periodo, from, to } = await searchParams;
+  const { periodo, from, to, nuevo } = await searchParams;
+
+  // Los accesos rápidos del ícono de la app entran por acá
+  // (ver `shortcuts` en app/manifest.ts). Cualquier otro valor se ignora:
+  // un parámetro raro no debería abrir un formulario a medias.
+  const autoOpen: TransactionType | null =
+    nuevo === "gasto" ? "EXPENSE" : nuevo === "ingreso" ? "INCOME" : null;
 
   const supabase = await createClient();
   const {
@@ -82,6 +94,7 @@ export default async function MovementsPage({
       period={range.id}
       periodLabel={range.label}
       csvHref={range.csvQuery ? `/api/export-csv?${range.csvQuery}` : "/api/export-csv"}
+      autoOpen={autoOpen}
     />
   );
 }

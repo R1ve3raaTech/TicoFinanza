@@ -5,7 +5,7 @@ import { buttonClass } from "@/components/ui/Button";
 import { Money } from "@/components/ui/Money";
 import type { PeriodId } from "@/lib/dateRange";
 import type { LedgerEntry } from "@/lib/ledger";
-import type { Account, UserCategory } from "@/lib/types";
+import type { Account, TransactionType, UserCategory } from "@/lib/types";
 import { PendingMovements } from "@/components/offline/PendingMovements";
 import { DateRangeFilter } from "./DateRangeFilter";
 import { AddMovementButton, MovementEntryProvider } from "./MovementEntry";
@@ -51,6 +51,7 @@ export function MovementsView({
   period,
   periodLabel,
   csvHref,
+  autoOpen = null,
 }: {
   entries: LedgerEntry[];
   accounts: Account[];
@@ -63,9 +64,12 @@ export function MovementsView({
   periodLabel: string;
   /** Exportación con el mismo rango que se está viendo. */
   csvHref: string;
+  /** Abrir el formulario al entrar: lo usan los accesos rápidos del ícono. */
+  autoOpen?: TransactionType | null;
 }) {
   return (
     <MovementEntryProvider
+      autoOpen={autoOpen}
       customCategories={customCategories}
       accounts={accounts}
       recent={entries
