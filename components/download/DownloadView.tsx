@@ -11,14 +11,20 @@ import { Logo } from "@/components/Logo";
 import { buttonClass } from "@/components/ui/Button";
 import { NativeInstallButton } from "./NativeInstallButton";
 
-/** Rutas dentro de `public/`. Son las que sirve el navegador tal cual. */
+/** Ruta dentro de `public/`. Es la que sirve el navegador tal cual. */
 export const APK_PATH = "/downloads/TicoFinanza.apk";
-export const MSIX_PATH = "/downloads/TicoFinanza.msixbundle";
 
-/** Lo que el servidor averiguó de cada archivo. null = todavía no existe. */
+/**
+ * Lo que el servidor averiguó del archivo. null = todavía no existe.
+ *
+ * Solo Android tiene descarga. Windows se instala desde la barra del
+ * navegador, en un clic, y el paquete que PWABuilder genera para instalar
+ * a mano no sirve suelto: necesita el .msix, un script y un .exe auxiliar
+ * en la misma carpeta. En iPhone Apple no permite instalar por fuera de
+ * su tienda.
+ */
 export interface Downloads {
   apk: { bytes: number } | null;
-  msix: { bytes: number } | null;
 }
 
 function formatSize(bytes: number): string {
@@ -133,7 +139,7 @@ function NotPublished({ what }: { what: string }) {
  * permisos raros.
  */
 export function DownloadView({ downloads }: { downloads: Downloads }) {
-  const { apk, msix } = downloads;
+  const { apk } = downloads;
 
   return (
     <main id="contenido" className="flex min-h-[100dvh] flex-col bg-ground text-ink">
@@ -275,17 +281,16 @@ export function DownloadView({ downloads }: { downloads: Downloads }) {
             subtitle="Queda como programa, con su ventana y su ícono en el menú de inicio."
             action={
               <>
-                {msix ? (
-                  <FileButton
-                    href={MSIX_PATH}
-                    name="TicoFinanza.msixbundle"
-                    bytes={msix.bytes}
-                    label="Descargar instalador"
-                  />
-                ) : (
-                  <NotPublished what="El instalador" />
-                )}
-                <NativeInstallButton label="Instalar desde el navegador" />
+                {/* Sin archivo descargable a propósito: el paquete que se
+                    instala a mano necesita el .msix, un script y un .exe
+                    auxiliar en la misma carpeta, así que un archivo suelto
+                    no instala nada. Desde la barra del navegador es un
+                    clic y cero archivos. */}
+                <NativeInstallButton label="Instalar TicoFinanza" />
+                <p className="text-meta leading-relaxed text-ink-3">
+                  Se instala desde el mismo navegador, en un clic. No hay que bajar ningún
+                  archivo.
+                </p>
               </>
             }
             steps={[

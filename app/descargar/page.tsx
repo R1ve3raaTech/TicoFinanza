@@ -1,12 +1,12 @@
 import { statSync } from "node:fs";
 import path from "node:path";
 import type { Metadata } from "next";
-import { APK_PATH, DownloadView, MSIX_PATH } from "@/components/download/DownloadView";
+import { APK_PATH, DownloadView } from "@/components/download/DownloadView";
 
 export const metadata: Metadata = {
   title: "Descargar",
   description:
-    "Instalá TicoFinanza en Android, iPhone o Windows: el archivo de instalación, o la app desde el navegador con su propio ícono.",
+    "Instalá TicoFinanza en Android, iPhone o Windows, con su propio ícono y sin la barra del navegador.",
 };
 
 /**
@@ -17,11 +17,10 @@ export const metadata: Metadata = {
  * todavía no publicamos el archivo; y es un error que nadie reporta,
  * porque parece culpa del dispositivo.
  *
- * Para publicar uno: ponerlo en `public/downloads/` con el nombre exacto
- * (ver APK_PATH y MSIX_PATH) y volver a deployar. No hay que tocar nada
- * más — el botón aparece solo, con el tamaño real al lado. La ruta es
- * estática, así que la comprobación corre al construir, y cada deploy
- * vuelve a construir.
+ * Para publicarlo: ponerlo en `public/downloads/` con el nombre exacto
+ * (ver APK_PATH) y volver a deployar. No hay que tocar nada más — el
+ * botón aparece solo, con el tamaño real al lado. La ruta es estática,
+ * así que la comprobación corre al construir, y cada deploy construye.
  */
 function fileInfo(publicPath: string): { bytes: number } | null {
   try {
@@ -37,9 +36,5 @@ function fileInfo(publicPath: string): { bytes: number } | null {
 }
 
 export default function DownloadPage() {
-  return (
-    <DownloadView
-      downloads={{ apk: fileInfo(APK_PATH), msix: fileInfo(MSIX_PATH) }}
-    />
-  );
+  return <DownloadView downloads={{ apk: fileInfo(APK_PATH) }} />;
 }

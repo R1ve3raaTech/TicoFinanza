@@ -1061,6 +1061,28 @@ Bubblewrap/Capacitor en el proyecto.
   `/descargar`.
 - Enlazada desde el pie de la landing y agregada al sitemap: una página
   que nadie enlaza es una página que nadie encuentra.
+- **Tres tarjetas, una por plataforma** (Android, iPhone/iPad, Windows),
+  en cuadrícula de 3 columnas desde 768px y apiladas en teléfono. Todas
+  con la misma forma —ícono, para qué es, la acción, pasos numerados—
+  para poder compararlas de un vistazo.
+- **Windows no ofrece archivo descargable, a propósito.** El paquete que
+  PWABuilder genera para instalar a mano (`TicoFinanza.sideload.msix`)
+  **no sirve suelto**: `install.ps1` necesita el `.msix` y
+  `utils/pwainstaller.exe` en la misma carpeta. Instalar desde la barra
+  de Edge o Chrome es un clic y cero archivos. El `.appxbundle` es para
+  subir a la Microsoft Store, no para repartir.
+- El botón de "instalar desde el navegador" va en la fila de acciones y
+  no en el pie: en el pie dejaba una divisoria colgando sin nada debajo
+  cuando el navegador no ofrece el aviso nativo, que es casi siempre.
+- **`public/.well-known/assetlinks.json`** (generado por PWABuilder, ya
+  commiteado) es lo que hace que el TWA de Android abra sin barra de
+  direcciones. La huella que trae tiene que ser la de la llave que firma
+  el APK: si se regenera con otra llave, hay que actualizarlo.
+- **Los paquetes de PWABuilder NO van en el repo.** El 2026-11-02 se
+  descomprimieron en la raíz (el proyecto de Xcode de iOS quedó en
+  `src/`, que es justo donde Next busca una ubicación alternativa del
+  proyecto) y se movieron a `Desktop/TicoFinanza-paquetes/`. Si vuelven a
+  aparecer ahí, mismo destino.
 
 **Para generar el APK** (cuando se haga): es un TWA con Bubblewrap sobre
 `https://www.ticofinanza.com/manifest.webmanifest`. Dos cosas que hay que
