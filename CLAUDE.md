@@ -1257,3 +1257,55 @@ claro: los dos atajos declarados, con ícono, y **sus URLs respondiendo de
 verdad** (307 al login, que es lo correcto sin sesión); el CTA apuntando
 a /descargar; las cuatro insignias; una sola acción primaria en el hero;
 sin overflow ni errores de consola.
+
+
+## Dónde quedamos (2026-11-02, pulido)
+
+Camil pidió "botón de volver en toda la app", micro-interacciones y "que se
+vea más completa". Se acordó: el volver **solo donde falta** (adentro ya
+hay rail y barra de pestañas siempre visibles, y una flecha extra ahí
+estorba más que ayuda), y de lo demás, pulido + que no queden pantallas
+pobres.
+
+**Lo que la auditoría encontró, y se arregló:**
+
+- **El reporte mensual era la única pantalla sin salida propia ni
+  esqueleto de carga.** Ahora tiene un volver a Ajustes (de donde se
+  llega) y su `loading.tsx`. El volver va dentro de
+  `.reporte-no-imprimir`: en el papel sobra. Comprobado emulando la
+  impresión.
+- **Los esqueletos medían 1000px y las pantallas 1180px.** Ajustes,
+  Fijos, Movimientos y Plan saltaban ~180px al cargar; solo el del
+  resumen se había actualizado cuando se cambió el ancho. Es el tipo de
+  bug que nadie reporta pero que hace que la app se sienta floja.
+- **Había UN solo `active:` en toda la app.** En teléfono no existe el
+  hover, así que apretar un botón no devolvía ninguna señal: en una
+  conexión lenta se siente como que no registró el toque. Ahora el kit
+  compartido (`Button`, `ToggleChip`, `Segmented`, `Switch`) se hunde un
+  2 % al apretarlo, y se apaga con `prefers-reduced-motion`.
+- **No había 404 propio**: Next servía el suyo, fondo blanco aun con la
+  app en oscuro y texto en inglés. Ahora hay uno con las dos salidas
+  (resumen para quien tiene sesión, portada para quien no).
+
+**Detalles para la próxima vez:**
+
+- **Tailwind v4 emite la propiedad `scale` suelta, no `transform`.** Al
+  medir un estado de pulsado con Playwright hay que leer
+  `getComputedStyle(el).scale`; `transform` devuelve `none` y parece que
+  el efecto no existe.
+- Las transiciones nombran las propiedades
+  (`transition-[color,background-color,transform]`) en vez de usar
+  `transition-all`: animar todo incluye el alto, y un botón que cambia de
+  texto crecería con animación.
+- `surface-selected` **no sirve** como color de pulsado: en claro es más
+  *claro* que `surface-hover` y en oscuro más oscuro, así que el efecto
+  saldría invertido según el tema.
+- Los estados vacíos ya estaban cubiertos en las 16 secciones que los
+  necesitan; no hacía falta tocarlos.
+
+**Estado**: `npm test` (138), `eslint`, `tsc` y `npm run build` limpios.
+QA con Playwright contra el build de producción: el 404 responde 404 de
+verdad, es el propio y respeta el tema; los cuatro esqueletos alineados;
+el CSS servido trae `:active` y su `prefers-reduced-motion`; un botón
+pasa de `scale: none` a `0.98` al apretarlo; y el volver del reporte no
+aparece en la vista de impresión.

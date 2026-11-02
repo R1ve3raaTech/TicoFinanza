@@ -17,8 +17,24 @@ export type ButtonVariant = "primary" | "secondary" | "ghost" | "danger" | "dang
 // botones que van pegados a un input.
 export type ButtonSize = "sm" | "md" | "lg" | "field";
 
+/**
+ * `active:scale` es la respuesta al toque.
+ *
+ * En teléfono no existe el hover, así que sin esto apretar un botón no
+ * devolvía ninguna señal: la pantalla se quedaba igual hasta que terminaba
+ * la acción, y en una conexión lenta eso se siente como que no registró el
+ * toque. El hundido es chico a propósito —2 %— y se apaga con movimiento
+ * reducido.
+ *
+ * La transición nombra las propiedades en vez de usar `transition-all`:
+ * animar todo incluye cosas como el alto, y un botón que cambia de texto
+ * crecería con animación.
+ */
 const BASE =
-  "inline-flex shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-control font-medium transition-colors duration-150 cursor-pointer disabled:pointer-events-none disabled:opacity-45";
+  "inline-flex shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-control font-medium cursor-pointer " +
+  "transition-[color,background-color,border-color,transform] duration-150 " +
+  "active:scale-[0.98] motion-reduce:transition-none motion-reduce:active:scale-100 " +
+  "disabled:pointer-events-none disabled:opacity-45";
 
 const VARIANTS: Record<ButtonVariant, string> = {
   primary: "bg-accent text-on-accent hover:bg-accent-deep",

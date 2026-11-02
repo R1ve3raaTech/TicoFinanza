@@ -70,7 +70,7 @@ export function Segmented<T extends string>({
             disabled={disabled}
             onClick={() => onChange(option.value)}
             onKeyDown={(e) => onKeyDown(e, i)}
-            className={`inline-flex h-8 items-center justify-center gap-1.5 rounded-[5px] px-3 text-label transition-colors duration-150 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 sm:h-7 ${
+            className={`inline-flex h-8 items-center justify-center gap-1.5 rounded-[5px] px-3 text-label transition-[color,background-color,transform] duration-150 cursor-pointer active:scale-[0.97] motion-reduce:active:scale-100 disabled:cursor-not-allowed disabled:opacity-50 sm:h-7 ${
               fullWidth ? "flex-1" : ""
             } ${selected ? "bg-surface-selected shadow-[0_0_0_1px_var(--line),0_1px_2px_rgb(0_0_0/0.06)]" : ""} ${toneClass}`}
           >

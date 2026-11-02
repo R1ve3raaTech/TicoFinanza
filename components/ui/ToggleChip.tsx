@@ -24,7 +24,7 @@ export function ToggleChip({
       type="button"
       aria-pressed={pressed}
       onClick={onClick}
-      className={`inline-flex h-8 items-center gap-1.5 rounded-control border px-2.5 text-label transition-colors duration-150 cursor-pointer ${
+      className={`inline-flex h-8 items-center gap-1.5 rounded-control border px-2.5 text-label transition-[color,background-color,border-color,transform] duration-150 cursor-pointer active:scale-[0.97] motion-reduce:active:scale-100 ${
         pressed
           ? "border-ink/60 bg-surface-selected text-ink"
           : "border-line text-ink-2 hover:border-line-strong hover:text-ink"

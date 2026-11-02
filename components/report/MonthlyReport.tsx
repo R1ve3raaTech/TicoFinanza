@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CaretLeft, CaretRight } from "@phosphor-icons/react/dist/ssr";
+import { ArrowLeft, CaretLeft, CaretRight } from "@phosphor-icons/react/dist/ssr";
 import { Money } from "@/components/ui/Money";
 import type { MonthSummary } from "@/lib/insights";
 import type { BreakdownRow } from "@/lib/report";
@@ -143,9 +143,22 @@ export function MonthlyReport({
     >
       <ReportPrintStyles />
 
+      {/* Todo el cromo de navegación va dentro de `reporte-no-imprimir`:
+          en el papel sobra, y el encabezado pegajoso saldría pisando la
+          primera hoja. */}
+      <div className="reporte-no-imprimir">
+        <Link
+          href="/dashboard/ajustes"
+          className="-ml-2 inline-flex items-center gap-1.5 rounded-control px-2 py-1.5 text-meta text-ink-3 transition-colors duration-150 hover:bg-surface-hover hover:text-ink"
+        >
+          <ArrowLeft size={14} weight="bold" aria-hidden />
+          Ajustes
+        </Link>
+      </div>
+
       <nav
         aria-label="Mes del reporte"
-        className="reporte-no-imprimir flex flex-wrap items-center justify-between gap-3 pb-6"
+        className="reporte-no-imprimir flex flex-wrap items-center justify-between gap-3 pb-6 pt-2"
       >
         <span className="flex items-center gap-1">
           <Link

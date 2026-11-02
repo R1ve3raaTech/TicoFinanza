@@ -24,7 +24,7 @@ export function Switch({
       aria-label={label}
       disabled={disabled}
       onClick={onChange}
-      className={`relative inline-flex h-6 w-10 shrink-0 items-center rounded-full border transition-colors duration-150 cursor-pointer disabled:cursor-not-allowed disabled:opacity-45 ${
+      className={`relative inline-flex h-6 w-10 shrink-0 items-center rounded-full border transition-[background-color,border-color,transform] duration-150 cursor-pointer active:scale-[0.97] motion-reduce:active:scale-100 disabled:cursor-not-allowed disabled:opacity-45 ${
         checked ? "border-accent bg-accent" : "border-line-strong bg-surface-raised"
       }`}
     >
