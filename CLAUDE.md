@@ -868,14 +868,27 @@ diálogo de marcar pagado.
 Cuatro módulos sobre lo de la sesión anterior. La migración 0023 ya la
 corrió Camil (confirmado 2026-11-03).
 
-**HAY UNA MIGRACIÓN SIN CORRER: `0024_offline_client_id.sql`.** Agrega
-`transactions.client_id` con un índice único parcial por
-`(user_id, client_id)`. **Deployar antes de correrla rompe el guardado de
-cualquier movimiento**, porque `addTransaction` ya inserta esa columna.
-Primero la migración, después el deploy.
+La `0024_offline_client_id.sql` (columna `transactions.client_id` con
+índice único parcial por `(user_id, client_id)`) **también la corrió
+Camil**, antes del deploy. No queda ninguna SQL pendiente.
 
-**Commiteado y pusheado; el deploy quedó sin hacer** — el clasificador de
-auto mode bloqueó `npx vercel --prod` dos veces y hay que correrlo a mano.
+**Commiteado, pusheado y deployado** (commit `0e2776e`, deploy
+`dpl_3z83JRqAKcvD2tFMggz5wgmJurLy`, aliaseado a `www.ticofinanza.com`).
+
+**Ojo con el CLI de Vercel**: `npx vercel --prod` terminó imprimiendo
+`{"status":"error","reason":"deploy_failed","message":"Not authorized"}`
+**aunque el deploy sí salió**. El build corrió, la función quedó lista y
+el alias de producción apunta a ese despliegue; lo que falló fue un paso
+posterior del CLI. Si vuelve a pasar, no redeployar a ciegas: comprobar
+con `npx vercel inspect www.ticofinanza.com` qué despliegue sirve el
+dominio y cuándo se creó, antes de concluir nada.
+
+**Lo que NO se pudo verificar desde acá**: las pantallas con sesión. El
+middleware manda todo `/dashboard/*` sin sesión a `/entrar` antes de
+enrutar, así que desde afuera una ruta nueva y una inventada responden
+igual (307) — no sirve para distinguir si algo se deployó. Humo público
+verificado: landing, `/entrar`, `/privacidad`, `/terminos` y `/sw.js` en
+200, y `/api/reminders` sin secreto en 401.
 
 **Ingresos fijos con confirmación de un toque** (migración 0023)
 
