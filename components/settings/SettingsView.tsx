@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { DownloadSimple } from "@phosphor-icons/react/dist/ssr";
+import { DownloadSimple, Printer } from "@phosphor-icons/react/dist/ssr";
 import { PageHeader } from "@/components/shell/PageHeader";
 import { buttonClass } from "@/components/ui/Button";
 import type { Theme, UserCategory } from "@/lib/types";
@@ -95,6 +95,20 @@ export function SettingsView({
                 <DownloadSimple size={14} />
                 Descargar CSV
               </a>
+            </SettingsRow>
+
+            <SettingsRow
+              inline
+              label="Reporte mensual"
+              description="El mes en una hoja: resumen, desglose por categoría y el detalle de cada movimiento. Se imprime o se guarda como PDF desde el navegador."
+            >
+              <Link
+                href="/dashboard/reporte"
+                className={buttonClass({ variant: "secondary", size: "sm" })}
+              >
+                <Printer size={14} />
+                Ver el reporte
+              </Link>
             </SettingsRow>
           </SettingsSection>
 

@@ -19,18 +19,25 @@ export function AppShell({
   children: ReactNode;
 }) {
   return (
-    <div className="flex min-h-[100dvh] w-full">
+    // `print:` oculta el cromo al imprimir: en el papel el rail y la barra
+    // de pestañas no sirven para nada y se comen el margen (ver el reporte
+    // mensual, components/report/).
+    <div className="flex min-h-[100dvh] w-full print:block print:min-h-0">
       <a
         href="#contenido"
         className="sr-only z-[80] rounded-control bg-surface px-3 py-2 text-sm text-ink focus:not-sr-only focus:fixed focus:left-3 focus:top-3"
       >
         Saltar al contenido
       </a>
-      <AppRail name={name} email={email} avatarUrl={avatarUrl} />
-      <div className="flex min-w-0 flex-1 flex-col pb-[calc(3.5rem+env(safe-area-inset-bottom))] md:pb-0">
+      <div className="contents print:hidden">
+        <AppRail name={name} email={email} avatarUrl={avatarUrl} />
+      </div>
+      <div className="flex min-w-0 flex-1 flex-col pb-[calc(3.5rem+env(safe-area-inset-bottom))] md:pb-0 print:block print:pb-0">
         {children}
       </div>
-      <MobileTabBar />
+      <div className="contents print:hidden">
+        <MobileTabBar />
+      </div>
     </div>
   );
 }
