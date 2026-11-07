@@ -13,7 +13,17 @@ export default function SettingsLoading() {
         <div className="skeleton mt-2 h-4 w-64 rounded-[4px]" />
       </div>
 
-      <div className="lg:grid lg:grid-cols-[170px_minmax(0,1fr)] lg:gap-14">
+      {/* La tarjeta de cuenta que abre Ajustes. */}
+      <div className="flex items-center gap-3.5 border-b border-line pb-6 pt-4 md:gap-4 md:pt-2">
+        <div className="skeleton h-[52px] w-[52px] rounded-full" />
+        <div className="min-w-0 flex-1">
+          <div className="skeleton h-5 w-40 rounded-[4px]" />
+          <div className="skeleton mt-1.5 h-3.5 w-56 max-w-full rounded-[4px]" />
+          <div className="skeleton mt-2 h-3 w-44 rounded-[4px]" />
+        </div>
+      </div>
+
+      <div className="pt-6 lg:grid lg:grid-cols-[170px_minmax(0,1fr)] lg:gap-14">
         <div className="hidden flex-col gap-3 lg:flex">
           {Array.from({ length: 5 }).map((_, i) => (
             <div key={i} className="skeleton h-3.5 w-24 rounded-[4px]" />

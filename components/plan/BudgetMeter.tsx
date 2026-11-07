@@ -1,13 +1,19 @@
 import { CheckCircle, Warning, WarningCircle } from "@phosphor-icons/react/dist/ssr";
+import { CategoryMark } from "@/components/ui/CategoryMark";
 import { Money } from "@/components/ui/Money";
 import type { BudgetProgress, BudgetStatus } from "@/lib/budgets";
 
 /**
  * Medidor de un presupuesto.
  *
- * El color dice cómo viene (verde con margen, ámbar al acercarse, rosa al
- * pasarse) pero nunca va solo: cada fila lleva ícono, rótulo y el porcentaje
- * escrito, así se entiende igual en escala de grises o con daltonismo.
+ * El color de la barra dice cómo viene (verde con margen, ámbar al
+ * acercarse, rosa al pasarse) pero nunca va solo: cada fila lleva ícono,
+ * rótulo y el porcentaje escrito, así se entiende igual en escala de grises
+ * o con daltonismo.
+ *
+ * La marca de la izquierda es otra cosa y no se confunde con eso: dice de
+ * qué categoría es el tope, con el mismo color e ícono que esa categoría
+ * tiene en Fijos y en Movimientos.
  */
 const STATUS: Record<
   BudgetStatus,
@@ -48,8 +54,11 @@ export function BudgetMeter({ item }: { item: BudgetProgress }) {
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex items-baseline justify-between gap-3">
-        <span className="min-w-0 truncate text-label text-ink">{item.category}</span>
+      <div className="flex items-center justify-between gap-3">
+        <span className="flex min-w-0 items-center gap-2">
+          <CategoryMark category={item.category} size={26} />
+          <span className="min-w-0 truncate text-label text-ink">{item.category}</span>
+        </span>
         <span className="money shrink-0 text-meta text-ink-3">
           <Money value={item.spent} tabular className="text-ink" /> de{" "}
           <Money value={item.limit} tabular />

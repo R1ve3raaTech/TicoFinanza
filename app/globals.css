@@ -96,6 +96,41 @@
   --goal-violeta: #9333ea;
   --goal-neutro: #52525b;
 
+
+  /* Color de categoría: identidad, no dato.
+     ---------------------------------------
+     Son los tonos de la marquita que acompaña a cada categoría (el sello del
+     día en Fijos, el cuadrito de cada movimiento, la fila de cada tope).
+     Sirven para reconocer "esto es comida" de un vistazo en una lista larga,
+     que es lo que le faltaba a las pantallas de adentro.
+
+     **No son colores de gráfico y no se usan para pintar datos.** Pasados por
+     el validador de la skill dataviz como paleta categórica fallan: nueve
+     tonos no se distinguen entre sí con daltonismo (el peor par adyacente da
+     ΔE 2.0 en deuteranopía) ni siquiera con visión normal. Como marca de
+     identidad sí sirven, porque el color nunca va solo: al lado hay un ícono
+     propio y el nombre escrito de la categoría. Lo único que el validador
+     exige para eso —contraste >= 3:1 contra la superficie— lo pasan los diez,
+     en claro y en oscuro.
+
+     Por eso la dona del resumen sigue con su rampa de un solo celeste: ahí el
+     color SÍ es el dato.
+
+     El verde queda para las categorías de ingreso (Salario, Freelance) y no
+     se le da a ninguna de gasto: así un tono verde en una lista sigue
+     queriendo decir que entró plata. Tampoco se usan el rosa de --expense ni
+     el ámbar de --warn, que significan gasto y alerta. */
+  --cat-naranja: #c2410c;
+  --cat-indigo: #4338ca;
+  --cat-celeste: #0369a1;
+  --cat-cian: #0e7490;
+  --cat-azul: #1d4ed8;
+  --cat-violeta: #7e22ce;
+  --cat-fucsia: #a21caf;
+  --cat-pizarra: #475569;
+  --cat-piedra: #78716c;
+  --cat-verde: #047857;
+
   /* Fondo detrás de un diálogo abierto */
   --scrim: rgb(0 0 0 / 0.45);
 
@@ -143,6 +178,16 @@
     --goal-indigo: #818cf8;
     --goal-violeta: #c084fc;
     --goal-neutro: #a1a1aa;
+    --cat-naranja: #fb923c;
+    --cat-indigo: #818cf8;
+    --cat-celeste: #38bdf8;
+    --cat-cian: #22d3ee;
+    --cat-azul: #60a5fa;
+    --cat-violeta: #c084fc;
+    --cat-fucsia: #e879f9;
+    --cat-pizarra: #94a3b8;
+    --cat-piedra: #a8a29e;
+    --cat-verde: #34d399;
     --scrim: rgb(0 0 0 / 0.62);
   }
 }
@@ -182,6 +227,16 @@
   --goal-indigo: #818cf8;
   --goal-violeta: #c084fc;
   --goal-neutro: #a1a1aa;
+  --cat-naranja: #fb923c;
+  --cat-indigo: #818cf8;
+  --cat-celeste: #38bdf8;
+  --cat-cian: #22d3ee;
+  --cat-azul: #60a5fa;
+  --cat-violeta: #c084fc;
+  --cat-fucsia: #e879f9;
+  --cat-pizarra: #94a3b8;
+  --cat-piedra: #a8a29e;
+  --cat-verde: #34d399;
   --scrim: rgb(0 0 0 / 0.62);
 }
 
@@ -225,6 +280,16 @@
   --color-goal-indigo: var(--goal-indigo);
   --color-goal-violeta: var(--goal-violeta);
   --color-goal-neutro: var(--goal-neutro);
+  --color-cat-naranja: var(--cat-naranja);
+  --color-cat-indigo: var(--cat-indigo);
+  --color-cat-celeste: var(--cat-celeste);
+  --color-cat-cian: var(--cat-cian);
+  --color-cat-azul: var(--cat-azul);
+  --color-cat-violeta: var(--cat-violeta);
+  --color-cat-fucsia: var(--cat-fucsia);
+  --color-cat-pizarra: var(--cat-pizarra);
+  --color-cat-piedra: var(--cat-piedra);
+  --color-cat-verde: var(--cat-verde);
   --color-scrim: var(--scrim);
 
   --color-background: var(--ground);

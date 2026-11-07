@@ -105,31 +105,9 @@ export function BudgetsSection({
         </div>
       ) : (
         <>
-          <dl className="grid grid-cols-3 gap-6 border-y border-line py-3">
-            <div className="min-w-0">
-              <dt className="text-meta text-ink-3">Tope total</dt>
-              <dd className="money mt-0.5 text-label text-ink">
-                <Money value={totals.limit} />
-              </dd>
-            </div>
-            <div className="min-w-0">
-              <dt className="text-meta text-ink-3">Gastado</dt>
-              <dd className="money mt-0.5 text-label text-ink">
-                <Money value={totals.spent} />
-              </dd>
-            </div>
-            <div className="min-w-0">
-              <dt className="text-meta text-ink-3">Disponible</dt>
-              <dd
-                className={`money mt-0.5 text-label ${
-                  totals.limit - totals.spent < 0 ? "text-expense" : "text-ink"
-                }`}
-              >
-                <Money value={totals.limit - totals.spent} />
-              </dd>
-            </div>
-          </dl>
-
+          {/* Tope total, gastado y disponible viven en el encabezado de la
+              pestaña (SectionLead en PlanView): repetirlos acá era leer las
+              mismas tres cifras dos veces en media pantalla. */}
           <ul>
             {progress.map((item) => (
               <li key={item.id} className="border-b border-line">

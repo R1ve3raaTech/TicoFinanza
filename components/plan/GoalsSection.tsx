@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { ArrowsClockwise, CheckCircle, Plus } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/Button";
 import { Money } from "@/components/ui/Money";
-import { annualMonthly, goalColorVar, goalProgress, goalsTotal, proration } from "@/lib/goals";
+import { annualMonthly, goalColorVar, goalProgress, proration } from "@/lib/goals";
 import type { Account, GoalContribution, SavingsGoal } from "@/lib/types";
 import { CompleteCycleDialog } from "./CompleteCycleDialog";
 import { ContributeDialog } from "./ContributeDialog";
@@ -82,7 +82,6 @@ export function GoalsSection({
     setSession((s) => s + 1);
   }
 
-  const totals = goalsTotal(goals);
   const perMonth = annualMonthly(goals, todayKey);
 
   return (
@@ -111,15 +110,12 @@ export function GoalsSection({
         </div>
       ) : (
         <>
-          <div className="border-y border-line py-3">
-            <div className="flex items-baseline justify-between gap-4">
-              <span className="text-meta text-ink-3">Apartado en total</span>
-              <span className="money text-label text-ink">
-                <Money value={totals.saved} /> de <Money value={totals.target} />
-              </span>
-            </div>
+          <div className="border-t border-line py-3">
+            {/* "Apartado en total" y el objetivo viven en el encabezado de
+                la pestaña (SectionLead en PlanView). Acá queda lo que ese
+                encabezado no puede decir: cuánto hay que poner por mes. */}
             {perMonth > 0 && (
-              <div className="mt-1.5 flex items-baseline justify-between gap-4">
+              <div className="flex items-baseline justify-between gap-4">
                 <span className="text-meta text-ink-3">Prorrateo de lo anual</span>
                 <span className="money text-meta text-ink-2">
                   <Money value={perMonth} /> por mes

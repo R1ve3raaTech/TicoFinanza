@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { DownloadSimple, Printer } from "@phosphor-icons/react/dist/ssr";
+import { Avatar } from "@/components/shell/Avatar";
 import { PageHeader } from "@/components/shell/PageHeader";
 import { buttonClass } from "@/components/ui/Button";
 import type { Theme, UserCategory } from "@/lib/types";
@@ -40,7 +41,31 @@ export function SettingsView({
     <main id="contenido" className="mx-auto w-full max-w-[1180px] px-4 pb-12 md:px-8 xl:px-12">
       <PageHeader title="Ajustes" meta="Tu cuenta, tus categorías, los recordatorios y cómo se ve la app." />
 
-      <div className="lg:grid lg:grid-cols-[150px_minmax(0,1fr)] lg:gap-10 xl:gap-14">
+      {/* Ajustes es la única sección sin una cifra que la encabece, así que
+          lo que abre es de quién es esta app. La pantalla entraba directo a
+          una lista de controles, sin nada que dijera en qué cuenta estás —
+          que es justo lo que uno viene a comprobar cuando entra acá. */}
+      <section
+        aria-label="Tu cuenta"
+        className="flex items-center gap-3.5 border-b border-line pb-6 pt-4 md:gap-4 md:pt-2"
+      >
+        <Avatar src={avatarUrl} name={fullName || email} size={52} />
+        <div className="min-w-0">
+          <p className="truncate text-[1.25rem] font-semibold leading-tight tracking-[-0.02em] text-ink">
+            {fullName || "Tu cuenta"}
+          </p>
+          <p className="truncate text-label text-ink-3">{email}</p>
+          <p className="mt-1 text-meta text-ink-3">
+            {transactionCount === 0
+              ? "Todavía no anotaste ningún movimiento"
+              : `${transactionCount.toLocaleString("es-CR")} movimiento${
+                  transactionCount === 1 ? "" : "s"
+                } anotado${transactionCount === 1 ? "" : "s"}`}
+          </p>
+        </div>
+      </section>
+
+      <div className="pt-6 lg:grid lg:grid-cols-[150px_minmax(0,1fr)] lg:gap-10 xl:gap-14">
         <SettingsIndex />
 
         <div className="min-w-0 max-w-[880px]">

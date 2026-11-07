@@ -2,25 +2,15 @@ import Link from "next/link";
 import { AguinaldoPanel } from "@/components/incomes/AguinaldoPanel";
 import { FixedIncomesList } from "@/components/incomes/FixedIncomesList";
 import { InstallAppButton } from "@/components/InstallAppButton";
+import { LeadFigure, SectionLead } from "@/components/shell/SectionLead";
 import { PageHeader } from "@/components/shell/PageHeader";
 import { Money } from "@/components/ui/Money";
 import type { Aguinaldo } from "@/lib/aguinaldo";
+import { incomeTotals } from "@/lib/fixedIncomes";
 import type { FixedTotals, UpcomingPayment } from "@/lib/fixedExpenses";
 import type { Account, FixedExpense, FixedIncome, UserCategory } from "@/lib/types";
 import { AddFixedExpenseButton, FixedExpenseEntryProvider } from "./FixedExpenseEntry";
 import { FixedExpensesList } from "./FixedExpensesList";
-
-function Figure({ label, value, hint }: { label: string; value: number; hint?: string }) {
-  return (
-    <div className="min-w-0">
-      <dt className="text-meta text-ink-3">{label}</dt>
-      <dd className="mt-1 text-figure text-ink">
-        <Money value={value} tabular={false} />
-      </dd>
-      {hint && <p className="mt-0.5 text-micro text-ink-3">{hint}</p>}
-    </div>
-  );
-}
 
 /**
  * Membresías y gastos fijos. Composición separada de la carga de datos
@@ -53,6 +43,9 @@ export function FixedExpensesView({
   aguinaldo: Aguinaldo;
 }) {
   const pendingCount = payments.filter((p) => p.status === "PENDING").length;
+  // Cuentas del mes para el encabezado de la pestaña de ingresos. Es una
+  // función pura sobre datos que ya bajaron: no hay consulta de más.
+  const incomes30 = incomeTotals(incomes, currentMonth);
 
   return (
     <FixedExpenseEntryProvider
@@ -100,7 +93,30 @@ export function FixedExpensesView({
         </nav>
 
         {tab === "ingresos" ? (
-          <div className="max-w-[900px] pt-5">
+          <div className="max-w-[900px]">
+            <SectionLead
+              label={`Entra todos los meses en ${monthLabel}`}
+              value={incomes30.expected}
+              note={
+                incomes.length === 0
+                  ? "Todavía no anotaste ningún ingreso fijo. Con el salario cargado, el resumen puede decirte cómo vas a cerrar el mes."
+                  : incomes30.pending > 0
+                    ? "Lo que ya entró y lo que falta por confirmar. Un ingreso no se registra solo al llegar la fecha: lo confirmás vos, por si vino distinto."
+                    : "Todo lo del mes ya entró y quedó confirmado."
+              }
+              aside={
+                incomes.length > 0 ? (
+                  <>
+                    <LeadFigure label="Confirmado">
+                      <Money value={incomes30.confirmed} />
+                    </LeadFigure>
+                    <LeadFigure label="Por confirmar">
+                      <Money value={incomes30.pending} />
+                    </LeadFigure>
+                  </>
+                ) : undefined
+              }
+            />
             <FixedIncomesList
               incomes={incomes}
               accounts={accounts}
@@ -112,21 +128,31 @@ export function FixedExpensesView({
           </div>
         ) : (
         <>
-        <dl className="grid grid-cols-2 gap-6 border-b border-line pb-6 pt-5 sm:grid-cols-3">
-          <Figure label="Total del mes" value={-totals.total} />
-          <Figure
-            label="Pendiente"
-            value={-totals.pending}
-            hint={
-              pendingCount === 0
-                ? "Todo al día"
-                : `${pendingCount} pago${pendingCount === 1 ? "" : "s"} por hacer`
-            }
-          />
-          <Figure label="Pagado" value={-totals.paid} />
-        </dl>
+        <SectionLead
+          label={`Se te va en fijos en ${monthLabel}`}
+          value={-totals.total}
+          note={
+            expenses.length === 0
+              ? "Cargá los pagos que se repiten todos los meses y la app sabe de antemano qué se te viene, en vez de enterarse cuando ya salió la plata."
+              : pendingCount === 0
+                ? "Todo pagado este mes. El día 1 vuelven a arrancar en pendiente, solos."
+                : `Te faltan ${pendingCount} pago${pendingCount === 1 ? "" : "s"} por hacer este mes.`
+          }
+          aside={
+            expenses.length > 0 ? (
+              <>
+                <LeadFigure label="Pagado">
+                  <Money value={totals.paid} />
+                </LeadFigure>
+                <LeadFigure label="Por pagar">
+                  <Money value={totals.pending} />
+                </LeadFigure>
+              </>
+            ) : undefined
+          }
+        />
 
-        <div className="pt-4">
+        <div className="border-t border-line pt-4">
           <FixedExpensesList expenses={expenses} payments={payments} accounts={accounts} />
         </div>
         </>

@@ -1,6 +1,7 @@
 import { DownloadSimple } from "@phosphor-icons/react/dist/ssr";
 import { InstallAppButton } from "@/components/InstallAppButton";
 import { PageHeader } from "@/components/shell/PageHeader";
+import { LeadFigure, SectionLead } from "@/components/shell/SectionLead";
 import { buttonClass } from "@/components/ui/Button";
 import { Money } from "@/components/ui/Money";
 import type { PeriodId } from "@/lib/dateRange";
@@ -11,32 +12,6 @@ import { DateRangeFilter } from "./DateRangeFilter";
 import { AddMovementButton, MovementEntryProvider } from "./MovementEntry";
 import { MovementList } from "./MovementList";
 import { TransferButton } from "./TransferButton";
-
-function Figure({
-  label,
-  swatch,
-  value,
-  plus,
-}: {
-  label: string;
-  swatch?: string;
-  value: number;
-  plus?: boolean;
-}) {
-  return (
-    <div className="min-w-0">
-      <dt className="flex items-center gap-2 text-meta text-ink-3">
-        {swatch && <span aria-hidden className={`h-2 w-2 shrink-0 rounded-[2px] ${swatch}`} />}
-        {label}
-      </dt>
-      {/* A 360px tres cifras a tamaño `figure` se salen de la pantalla: en
-          teléfono bajan un escalón. */}
-      <dd className="mt-1 text-[1.0625rem] font-medium leading-6 tracking-[-0.02em] text-ink sm:text-figure">
-        <Money value={value} plus={plus} tabular={false} />
-      </dd>
-    </div>
-  );
-}
 
 /**
  * Libro de ingresos, gastos variables y transferencias. Composición separada
@@ -112,15 +87,37 @@ export function MovementsView({
             habría forma de distinguirlo de un dato perdido. */}
         <PendingMovements />
 
-        <dl className="grid grid-cols-3 gap-6 border-b border-line pb-6 pt-5">
-          <Figure label="Ingresos" swatch="bg-chart-income" value={income} plus />
-          <Figure label="Gastos" swatch="bg-chart-expense" value={-expense} />
-          <Figure label="Neto" value={income - expense} plus />
-        </dl>
+        {/* Las tres cifras eran del mismo tamaño y ninguna mandaba. La que
+            contesta "¿cómo me fue en este rato?" es el neto; las otras dos
+            son de dónde sale. */}
+        <SectionLead
+          label={`Lo que queda ${periodLabel}`}
+          value={income - expense}
+          tone={income - expense < 0 ? "expense" : "ink"}
+          note={
+            income === 0 && expense === 0
+              ? "No hay nada anotado en este período. Cambiá el filtro de arriba o registrá un movimiento."
+              : income === 0
+                ? "Todo lo de este período son salidas: no hay ningún ingreso anotado."
+                : income - expense < 0
+                  ? "En este período salió más de lo que entró."
+                  : "En este período entró más de lo que salió."
+          }
+          aside={
+            <>
+              <LeadFigure label="Entró" swatch="bg-chart-income">
+                <Money value={income} plus />
+              </LeadFigure>
+              <LeadFigure label="Salió" swatch="bg-chart-expense">
+                <Money value={-expense} />
+              </LeadFigure>
+            </>
+          }
+        />
 
         {/* En teléfono las acciones secundarias no caben en la barra de
             arriba (que es solo ícono): van acá, debajo de las cifras. */}
-        <div className="flex flex-wrap items-center gap-2 pt-4 md:hidden">
+        <div className="flex flex-wrap items-center gap-2 border-t border-line pt-4 md:hidden">
           <TransferButton accounts={accounts} />
           <a href={csvHref} className={buttonClass({ variant: "ghost", size: "sm" })} download>
             <DownloadSimple size={14} />

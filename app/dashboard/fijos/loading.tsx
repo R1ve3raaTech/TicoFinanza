@@ -13,16 +13,16 @@ export default function FixedExpensesLoading() {
         <div className="skeleton mt-2 h-4 w-56 rounded-[4px]" />
       </div>
 
-      <div className="grid grid-cols-2 gap-6 border-b border-line pb-6 pt-5 sm:grid-cols-3">
-        {Array.from({ length: 3 }).map((_, i) => (
-          <div key={i}>
-            <div className="skeleton h-3 w-20 rounded-[4px]" />
-            <div className="skeleton mt-2 h-6 w-24 rounded-[4px]" />
-          </div>
-        ))}
+      {/* Mismas medidas que SectionLead: rótulo, cifra grande y las dos
+          cifras de apoyo. */}
+      <div className="pb-6 pt-4 md:pt-2">
+        <div className="skeleton h-3 w-40 rounded-[4px]" />
+        <div className="skeleton mt-2 h-12 w-56 rounded-[6px] md:h-14 md:w-64" />
+        <div className="skeleton mt-4 h-3 w-60 rounded-[4px]" />
+        <div className="skeleton mt-4 h-3.5 w-72 max-w-full rounded-[4px]" />
       </div>
 
-      <div className="pt-6">
+      <div className="border-t border-line pt-6">
         <div className="skeleton h-4 w-40 rounded-[4px]" />
         <div className="mt-4 border-t border-line">
           {Array.from({ length: 6 }).map((_, i) => (

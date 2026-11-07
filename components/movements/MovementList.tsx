@@ -19,6 +19,7 @@ import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useToast } from "@/components/Toast";
 import { Button } from "@/components/ui/Button";
 import { inputClass } from "@/components/ui/Field";
+import { categoryClasses } from "@/components/ui/CategoryMark";
 import { Money } from "@/components/ui/Money";
 import { Segmented } from "@/components/ui/Segmented";
 import { ToggleChip } from "@/components/ui/ToggleChip";
@@ -538,11 +539,18 @@ export function MovementList({
                                 {isPicked && <Check size={12} weight="bold" />}
                               </span>
                             )}
-                            {/* La flecha dice ingreso o gasto por su forma, no
-                                por el color: el monto ya lleva el signo. */}
+                            {/* Dos datos en un cuadrito: la FORMA de la
+                                flecha dice si entró o salió (nunca el color,
+                                que para eso el monto ya lleva el signo
+                                escrito), y el COLOR dice de qué categoría es.
+                                Así una lista larga se agrupa sola a la vista.
+                                El color nunca va solo: la categoría también
+                                está escrita en la fila. */}
                             <span
                               aria-hidden
-                              className="flex h-8 w-8 items-center justify-center rounded-control bg-surface-raised text-ink-3"
+                              className={`flex h-8 w-8 items-center justify-center rounded-control ${
+                                categoryClasses(transaction.category).soft
+                              } ${categoryClasses(transaction.category).text}`}
                             >
                               {income ? <ArrowDownLeft size={15} /> : <ArrowUpRight size={15} />}
                             </span>

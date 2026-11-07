@@ -3,7 +3,11 @@ import { CaretLeft, CaretRight } from "@phosphor-icons/react/dist/ssr";
 import { DebtsSection } from "@/components/debts/DebtsSection";
 import { InstallAppButton } from "@/components/InstallAppButton";
 import { PageHeader } from "@/components/shell/PageHeader";
-import type { BudgetProgress } from "@/lib/budgets";
+import { LeadFigure, SectionLead } from "@/components/shell/SectionLead";
+import { Money } from "@/components/ui/Money";
+import { budgetTotals, type BudgetProgress } from "@/lib/budgets";
+import { debtTotals } from "@/lib/debts";
+import { goalsTotal } from "@/lib/goals";
 import type { Account, Debt, GoalContribution, SavingsGoal } from "@/lib/types";
 import { BudgetsSection } from "./BudgetsSection";
 import { GoalsSection } from "./GoalsSection";
@@ -58,6 +62,11 @@ export function PlanView({
   debts: Debt[];
   todayKey: string;
 }) {
+  // Funciones puras sobre datos que ya bajaron: ninguna consulta de más.
+  const budgets = budgetTotals(progress);
+  const goalsSum = goalsTotal(goals);
+  const debts30 = debtTotals(debts, todayKey);
+
   return (
     <main id="contenido" className="mx-auto w-full max-w-[1180px] px-4 pb-12 md:px-8 xl:px-12">
       <PageHeader
@@ -112,7 +121,30 @@ export function PlanView({
             </Link>
           </div>
 
-          <div className="pt-4">
+          {progress.length > 0 && (
+            <SectionLead
+              label={`Te queda de tus topes de ${monthLabel}`}
+              value={budgets.limit - budgets.spent}
+              tone={budgets.limit - budgets.spent < 0 ? "expense" : "ink"}
+              note={
+                budgets.over > 0
+                  ? `Ya te pasaste en ${budgets.over} categoría${budgets.over === 1 ? "" : "s"}. El tope se mide contra los movimientos y los gastos fijos de esa categoría.`
+                  : "Lo que podés seguir gastando sin pasarte de lo que vos mismo te pusiste."
+              }
+              aside={
+                <>
+                  <LeadFigure label="Tope total">
+                    <Money value={budgets.limit} />
+                  </LeadFigure>
+                  <LeadFigure label="Gastado">
+                    <Money value={budgets.spent} />
+                  </LeadFigure>
+                </>
+              }
+            />
+          )}
+
+          <div className={progress.length > 0 ? "border-t border-line pt-4" : "pt-4"}>
             <BudgetsSection
               progress={progress}
               monthYear={monthYear}
@@ -123,7 +155,23 @@ export function PlanView({
           </div>
         </div>
       ) : tab === "metas" ? (
-        <div className="pt-5">
+        <div>
+          {goals.length > 0 && (
+            <SectionLead
+              label="Llevás apartado"
+              value={goalsSum.saved}
+              note={
+                goalsSum.saved >= goalsSum.target
+                  ? "Ya juntaste todo lo que te propusiste."
+                  : `Te faltan ${Math.round(((goalsSum.target - goalsSum.saved) / goalsSum.target) * 100)} % para llegar a lo que te propusiste. Esta plata sigue en tus cuentas: apartarla es una marca, no un movimiento.`
+              }
+              aside={
+                <LeadFigure label="Objetivo">
+                  <Money value={goalsSum.target} />
+                </LeadFigure>
+              }
+            />
+          )}
           <GoalsSection
             goals={goals}
             accounts={accounts}
@@ -133,7 +181,29 @@ export function PlanView({
           />
         </div>
       ) : (
-        <div className="max-w-[760px] pt-5">
+        <div className="max-w-[760px]">
+          {debts.length > 0 && (
+            <SectionLead
+              label={debts30.net < 0 ? "Debés más de lo que te deben" : "Te deben más de lo que debés"}
+              value={debts30.net}
+              tone={debts30.net < 0 ? "expense" : "ink"}
+              note={
+                debts30.overdueCount > 0
+                  ? `${debts30.overdueCount} deuda${debts30.overdueCount === 1 ? " está vencida" : "s están vencidas"}. Una deuda no toca tus cuentas hasta que la saldás.`
+                  : "Una deuda no toca tus cuentas hasta que la saldás: prestar no es un gasto y que te deban no es un ingreso."
+              }
+              aside={
+                <>
+                  <LeadFigure label="Te deben">
+                    <Money value={debts30.owedToMe} />
+                  </LeadFigure>
+                  <LeadFigure label="Debés">
+                    <Money value={debts30.owedByMe} />
+                  </LeadFigure>
+                </>
+              }
+            />
+          )}
           <DebtsSection debts={debts} accounts={accounts} todayKey={todayKey} />
         </div>
       )}

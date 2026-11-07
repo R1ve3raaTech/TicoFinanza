@@ -232,31 +232,8 @@ export function DebtsSection({
         </div>
       ) : (
         <>
-          <dl className="grid grid-cols-3 gap-6 border-y border-line py-3">
-            <div className="min-w-0">
-              <dt className="text-meta text-ink-3">Te deben</dt>
-              <dd className="money mt-0.5 text-label text-ink">
-                <Money value={totals.owedToMe} />
-              </dd>
-            </div>
-            <div className="min-w-0">
-              <dt className="text-meta text-ink-3">Debés</dt>
-              <dd className="money mt-0.5 text-label text-ink">
-                <Money value={totals.owedByMe} />
-              </dd>
-            </div>
-            <div className="min-w-0">
-              <dt className="text-meta text-ink-3">A favor</dt>
-              <dd
-                className={`money mt-0.5 text-label ${
-                  totals.net < 0 ? "text-expense" : "text-ink"
-                }`}
-              >
-                <Money value={totals.net} plus />
-              </dd>
-            </div>
-          </dl>
-
+          {/* Te deben, debés y el neto viven en el encabezado de la pestaña
+              (SectionLead en PlanView). */}
           {pendingRows.length > 0 && (
             <ul className="pt-1">
               {pendingRows.map((row) => (

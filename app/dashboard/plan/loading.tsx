@@ -24,7 +24,16 @@ export default function PlanLoading() {
         <div className="skeleton h-8 w-8 rounded-control" />
       </div>
 
-      <div className="pt-6">
+      {/* Mismas medidas que SectionLead: rótulo, cifra grande y las dos
+          cifras de apoyo. */}
+      <div className="pb-6 pt-4 md:pt-2">
+        <div className="skeleton h-3 w-40 rounded-[4px]" />
+        <div className="skeleton mt-2 h-12 w-56 rounded-[6px] md:h-14 md:w-64" />
+        <div className="skeleton mt-4 h-3 w-60 rounded-[4px]" />
+        <div className="skeleton mt-4 h-3.5 w-72 max-w-full rounded-[4px]" />
+      </div>
+
+      <div className="border-t border-line pt-6">
         {Array.from({ length: 5 }).map((_, i) => (
           <div key={i} className="flex flex-col gap-2 border-b border-line py-3.5">
             <div className="flex justify-between">

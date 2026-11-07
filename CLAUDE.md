@@ -1460,3 +1460,63 @@ transferencia, y la vuelta a movimiento con la pestaña elegida.
 transferencia se pueden borrar y rehacer como una sola transferencia — los
 saldos los recalcula la base desde cero (triggers de la 0020), así que
 borrarlos no deja nada descuadrado. **No se tocó ningún dato suyo.**
+
+## Dónde quedamos (2026-11-07, tercera parte)
+
+Camil: las otras secciones se sienten pobres al lado del resumen, los gastos
+fijos necesitan color, y quiere más variedad visual con lo que ya existe.
+Todavía sin deployar; nada de backend ni de datos.
+
+**Color por categoría** (`lib/categoryStyle.ts`, `components/ui/CategoryMark.tsx`,
+tokens `--cat-*`). Cada categoría tiene su ícono y su color, y aparecen en
+los tres lugares donde se la nombra: el sello del día en Fijos, el cuadrito
+de cada movimiento y la fila de cada tope. Una lista larga se agrupa sola a
+la vista.
+
+- **Es identidad, no dato.** Pasada por `validate_palette.js` de la skill
+  dataviz como paleta categórica, **falla**: nueve tonos no se distinguen
+  con daltonismo (peor par adyacente ΔE 2.0 en deuteranopía) ni con visión
+  normal (ΔE 4.8). Como marca sí sirve, porque el color nunca va solo —al
+  lado hay un ícono propio y el nombre escrito— y lo único que el validador
+  exige para eso, contraste >= 3:1 contra la superficie, lo pasan los diez
+  tonos en claro y en oscuro. **Por eso la dona del resumen sigue con su
+  rampa de un solo celeste: ahí el color SÍ es el dato.**
+- **El verde es solo de las categorías de ingreso** (Salario, Freelance) y
+  ninguna de gasto lo lleva: así un tono verde en una lista sigue queriendo
+  decir que entró plata. Tampoco se usan el rosa de `--expense` ni el ámbar
+  de `--warn`. Hay una prueba que lo verifica.
+- Una categoría propia recibe su tono por **hash del nombre**, no por orden
+  en la lista: por orden, borrar una le cambiaría el color a todas las de
+  abajo y el historial dejaría de reconocerse.
+- En la fila de un movimiento quedan dos canales: la **forma** de la flecha
+  dice si entró o salió, el **color** de qué categoría es.
+- Las clases van escritas enteras en una tabla (`TONE`) y no armadas con
+  plantillas: Tailwind lee el fuente buscando clases, y `bg-cat-${tono}`
+  nunca llega al CSS.
+- **Trampa del compilador de React**: `const Icon = categoryIcon(cat)` da
+  error de lint ("Cannot create components during render") — no distingue
+  una función que BUSCA un componente de una que lo CREA. Se indexa la tabla
+  en el render.
+
+**Cada sección abre con una cifra** (`components/shell/SectionLead.tsx`),
+con la misma anatomía del resumen: rótulo chico, cifra `display`, cifras de
+apoyo en línea y una oración que la interpreta.
+
+- Fijos → lo que se va en fijos este mes (y en la pestaña de ingresos, lo
+  que entra). Movimientos → lo que queda en el período. Plan → lo que queda
+  de los topes, lo apartado en metas, y el neto de las deudas.
+- **Los totales que estas cifras repiten se borraron de abajo**: el `dl` de
+  tres cifras de `BudgetsSection`, el de `DebtsSection` y la línea de
+  "Apartado en total" de `GoalsSection`. Eran las mismas cifras dos veces en
+  media pantalla.
+- **Ajustes no tiene cifra**: abre con una tarjeta de cuenta (foto, nombre,
+  correo y cuántos movimientos llevás anotados). Era la única pantalla que
+  entraba directo a una lista de controles sin decir en qué cuenta estás.
+- Los cuatro esqueletos de carga se ajustaron a las medidas nuevas.
+
+**Estado**: `npm test` (156, 6 nuevas sobre los tonos de categoría),
+`eslint`, `tsc` y `npm run build` limpios. QA con Playwright contra el build
+de producción sobre las **siete** vistas (fijos, fijos→ingresos,
+movimientos, plan→topes, plan→metas, plan→deudas, ajustes) a 1440 claro y
+390 oscuro: sin desborde horizontal ni errores de consola, revisadas una por
+una con captura.
