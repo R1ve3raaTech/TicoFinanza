@@ -7,6 +7,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { issueDeletionCode, verifyDeletionCode } from "@/lib/accountDeletion";
 import { sendPushToUser } from "@/lib/push/send";
+import { categoryClash } from "@/lib/categories";
 import { RECEIPTS_BUCKET } from "@/lib/receipts";
 import type { Theme, TransactionType } from "@/lib/types";
 
@@ -66,7 +67,19 @@ export async function addCategory(name: string, type: TransactionType) {
   const { supabase, user } = await requireUser();
 
   const trimmed = name.trim();
-  if (!trimmed) return { error: "Escribí un nombre para la categoría." };
+
+  // Las que ya tiene, para no dejar entrar la misma escrita distinto. El
+  // índice único de la tabla compara el texto tal cual, así que sin esto
+  // "Ferretería" y "ferreteria" conviven y quedan dos chips que dicen lo
+  // mismo en cada formulario.
+  const { data: mine } = await supabase
+    .from("user_categories")
+    .select("name")
+    .eq("user_id", user.id)
+    .eq("type", type);
+
+  const clash = categoryClash(trimmed, type, (mine ?? []).map((c) => c.name));
+  if (clash) return { error: clash, name: null };
 
   const { error } = await supabase
     .from("user_categories")
@@ -75,12 +88,18 @@ export async function addCategory(name: string, type: TransactionType) {
   if (error) {
     return {
       error: error.code === "23505" ? "Esa categoría ya existe." : "No se pudo agregar.",
+      name: null,
     };
   }
   revalidatePath("/dashboard/ajustes");
   revalidatePath("/dashboard/movimientos");
   revalidatePath("/dashboard/fijos");
-  return { error: null };
+  // El resumen y Plan también tienen formularios con el selector de
+  // categorías: sin esto, una categoría creada desde el resumen no aparecía
+  // ahí hasta la siguiente carga completa.
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/plan");
+  return { error: null, name: trimmed };
 }
 
 export async function deleteCategory(id: string) {
@@ -90,6 +109,8 @@ export async function deleteCategory(id: string) {
   revalidatePath("/dashboard/ajustes");
   revalidatePath("/dashboard/movimientos");
   revalidatePath("/dashboard/fijos");
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/plan");
   return { error: null };
 }
 

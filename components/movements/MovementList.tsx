@@ -19,7 +19,7 @@ import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useToast } from "@/components/Toast";
 import { Button } from "@/components/ui/Button";
 import { inputClass } from "@/components/ui/Field";
-import { categoryClasses } from "@/components/ui/CategoryMark";
+import { CategoryMark, categoryClasses } from "@/components/ui/CategoryMark";
 import { Money } from "@/components/ui/Money";
 import { Segmented } from "@/components/ui/Segmented";
 import { ToggleChip } from "@/components/ui/ToggleChip";
@@ -396,6 +396,7 @@ export function MovementList({
                             pressed={filterCategory === c}
                             onClick={() => setFilterCategory(filterCategory === c ? null : c)}
                           >
+                            <CategoryMark category={c} size={16} className="-ml-0.5 rounded-[4px]" />
                             {c}
                           </ToggleChip>
                         ))}

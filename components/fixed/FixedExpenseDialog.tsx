@@ -168,7 +168,12 @@ export function FixedExpenseDialog({
 
           <AmountInput value={amount} onChange={setAmount} label="Monto mensual" />
 
-          <CategoryPicker categories={categories} value={category} onChange={setCategory} />
+          <CategoryPicker
+            categories={categories}
+            createType="EXPENSE"
+            value={category}
+            onChange={setCategory}
+          />
 
           <AccountPicker
             accounts={accounts}

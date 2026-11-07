@@ -190,6 +190,7 @@ export function IncomeDialog({
 
           <CategoryPicker
             categories={categories}
+            createType="INCOME"
             value={category}
             onChange={setCategory}
             label="Tipo de ingreso"

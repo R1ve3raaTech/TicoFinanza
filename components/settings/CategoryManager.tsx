@@ -5,6 +5,7 @@ import { X } from "@phosphor-icons/react";
 import { addCategory, deleteCategory } from "@/app/dashboard/ajustes/actions";
 import { useToast } from "@/components/Toast";
 import { Button } from "@/components/ui/Button";
+import { CategoryMark } from "@/components/ui/CategoryMark";
 import { FormError, inputClass } from "@/components/ui/Field";
 import type { TransactionType, UserCategory } from "@/lib/types";
 import { SettingsRow } from "./SettingsSection";
@@ -55,8 +56,11 @@ function CategoryGroup({
             {categories.map((c) => (
               <li
                 key={c.id}
-                className="inline-flex h-7 items-center gap-0.5 rounded-control border border-line bg-surface pl-2.5 pr-0.5 text-label font-normal text-ink"
+                className="inline-flex h-7 items-center gap-1.5 rounded-control border border-line bg-surface pl-1.5 pr-0.5 text-label font-normal text-ink"
               >
+                {/* El color e ícono que le tocó: es el mismo que va a tener
+                    en las listas, así se ve acá antes de usarla. */}
+                <CategoryMark category={c.name} size={16} className="rounded-[4px]" />
                 {c.name}
                 <button
                   type="button"

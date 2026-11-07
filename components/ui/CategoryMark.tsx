@@ -51,6 +51,11 @@ const ICONS: Record<string, Icon> = {
   trabajo: Briefcase,
   salario: Briefcase,
   freelance: Briefcase,
+  // "Otro" y "Otros" son de la app y no tienen nada que representar: van con
+  // el glifo genérico, no con su inicial (la inicial es para distinguir una
+  // categoría propia de otra).
+  otro: DotsThreeOutline,
+  otros: DotsThreeOutline,
 };
 
 export function categoryIcon(category: string | null | undefined): Icon {
@@ -78,7 +83,13 @@ export function CategoryMark({
   // La tabla se indexa acá y no con `categoryIcon()`: el compilador de React
   // no distingue una función que BUSCA un componente de una que lo CREA, y
   // marca error al ver un componente saliendo de una llamada en el render.
-  const Icon = ICONS[normalizeCategory(category ?? "")] ?? DotsThreeOutline;
+  const Icon = ICONS[normalizeCategory(category ?? "")];
+  // Una categoría propia ("Ferretería", "Mascotas") no tiene ícono que la
+  // represente, así que lleva su inicial. Con el mismo glifo genérico para
+  // todas, dos categorías propias que caen en tonos parecidos se veían
+  // iguales; la letra las separa siempre.
+  const initial = category?.trim()?.[0]?.toUpperCase();
+
   return (
     <span
       // `aria-hidden`: el nombre de la categoría siempre está escrito al
@@ -87,7 +98,15 @@ export function CategoryMark({
       style={{ width: size, height: size }}
       className={`flex shrink-0 items-center justify-center rounded-control ${tone.soft} ${tone.text} ${className}`}
     >
-      <Icon size={Math.round(size * 0.5)} weight="fill" />
+      {Icon ? (
+        <Icon size={Math.round(size * 0.5)} weight="fill" />
+      ) : initial ? (
+        <span style={{ fontSize: Math.round(size * 0.46) }} className="font-semibold leading-none">
+          {initial}
+        </span>
+      ) : (
+        <DotsThreeOutline size={Math.round(size * 0.5)} weight="fill" />
+      )}
     </span>
   );
 }

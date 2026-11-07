@@ -1520,3 +1520,55 @@ de producción sobre las **siete** vistas (fijos, fijos→ingresos,
 movimientos, plan→topes, plan→metas, plan→deudas, ajustes) a 1440 claro y
 390 oscuro: sin desborde horizontal ni errores de consola, revisadas una por
 una con captura.
+
+## Dónde quedamos (2026-11-07, cuarta parte)
+
+Camil pidió poder crear sus propias categorías ("gasto ₡29.000 en
+ferretería"). **Ya existían** —tabla `user_categories` desde la fase del
+tracker manual— pero vivían **solo** en Ajustes → Categorías. Mismo problema
+que la transferencia: la función estaba, el lugar no.
+
+En la práctica, quien está anotando tiene que abandonar el formulario a
+medio llenar, irse a otra pantalla, crear la categoría y volver a empezar.
+Nadie hace eso: se elige "Otro" y la plata termina en una bolsa que no dice
+nada.
+
+- **`CategoryPicker` crea sin salir del formulario**: un chip "+ Nueva" al
+  final de los chips abre un campo en la misma fila, y al confirmar la
+  categoría queda creada y elegida de una. Está en los tres formularios que
+  piden categoría (movimiento, gasto fijo, ingreso fijo), con el tipo que le
+  corresponde a cada uno.
+- La recién creada se guarda en un estado local (`justAdded`) y no se espera
+  la lista del servidor: la acción revalida la ruta, pero el chip tiene que
+  aparecer marcado **ya**, antes de ese viaje.
+- **Escape dentro del campo necesita `e.nativeEvent.stopPropagation()`**, no
+  solo el `stopPropagation` del evento de React: el `Dialog` escucha Escape
+  en `document`, y sin frenar el evento nativo, cancelar el nombre de la
+  categoría cerraba el formulario entero a medio llenar. Enter adentro del
+  campo tampoco envía el movimiento.
+- **`addCategory` ahora valida de verdad** (`categoryClash` en
+  `lib/categories.ts`, con pruebas). El índice único de la tabla compara el
+  texto tal cual, así que antes entraban "Ferretería" y "ferreteria" por
+  separado, y peor: una que ya trae la app —las dos listas se concatenan al
+  mostrarlas, así que agregar "ocio" dejaba "Ocio" dos veces sin que la base
+  se quejara. La comparación es sin tildes ni mayúsculas, y hay techo de 24
+  caracteres.
+- `addCategory`/`deleteCategory` revalidan además `/dashboard` y
+  `/dashboard/plan`: esas pantallas también tienen formularios con el
+  selector, y una categoría creada desde el resumen no aparecía ahí hasta la
+  siguiente carga completa.
+- **Una categoría propia lleva su inicial** en la marca de color, no el
+  glifo genérico: con el mismo ícono para todas, dos propias que caen en
+  tonos parecidos se veían iguales. "Otro" y "Otros", que sí son de la app,
+  se quedan con el glifo.
+- Las categorías propias se ven con su color en Ajustes → Categorías y en
+  los chips del filtro de Movimientos.
+
+**Lo que no se pudo probar desde acá**: la creación de verdad. La vista de
+prueba no tiene sesión, así que `addCategory` redirige a `/entrar` — lo que
+sí confirma que el botón dispara la acción. Crear una categoría y verla
+quedar es de las cosas a mirar en producción.
+
+**Estado**: `npm test` (160, 4 nuevas sobre los choques de nombre),
+`eslint`, `tsc` y `npm run build` limpios. QA con Playwright a 1440 claro y
+390 oscuro: 20 comprobaciones, todas OK.

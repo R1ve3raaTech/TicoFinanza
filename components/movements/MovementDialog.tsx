@@ -389,6 +389,7 @@ export function MovementDialog({
 
           <CategoryPicker
             categories={categories}
+            createType={type}
             value={effectiveCategory}
             onChange={(next) => {
               setTouchedCategory(true);
