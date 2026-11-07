@@ -616,7 +616,7 @@ export function MovementList({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.16, ease: [0.2, 0, 0, 1] }}
-            className="fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-40 border-t border-line-strong bg-surface md:inset-x-auto md:bottom-6 md:right-8 md:rounded-surface md:border md:shadow-[0_10px_30px_-12px_rgb(0_0_0/0.35)]"
+            className="fixed inset-x-0 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-40 border-t border-line-strong bg-surface md:inset-x-auto md:bottom-6 md:right-8 md:rounded-surface md:border md:shadow-[0_10px_30px_-12px_rgb(0_0_0/0.35)]"
           >
             <div className="flex items-center justify-between gap-4 px-4 py-2.5 md:pl-4 md:pr-2">
               <span className="money text-sm text-ink-2" aria-live="polite">

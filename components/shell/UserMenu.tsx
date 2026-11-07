@@ -12,9 +12,13 @@ const ITEM =
   "flex h-9 w-full items-center gap-2.5 rounded-[5px] px-2.5 text-sm text-ink-2 outline-none transition-colors duration-150 cursor-pointer hover:bg-surface-hover hover:text-ink focus:bg-surface-hover focus:text-ink";
 
 /**
- * Cuenta del usuario al pie del rail. Cerrar sesión e instalar la app viven
- * acá adentro y no a la vista: son acciones de una vez, no tienen por qué
- * competir con la navegación todo el tiempo.
+ * Cuenta del usuario, en el extremo derecho de la píldora de navegación.
+ * Cerrar sesión e instalar la app viven acá adentro y no a la vista: son
+ * acciones de una vez, no tienen por qué competir con la navegación todo el
+ * tiempo.
+ *
+ * El disparador es solo la foto: en una píldora el ancho es prestado, y el
+ * nombre y el correo ya se leen al abrir el menú.
  */
 export function UserMenu({
   name,
@@ -36,8 +40,8 @@ export function UserMenu({
 
   useEffect(() => {
     if (!open) return;
-    // preventScroll: el rail es sticky y enfocar algo adentro llegaba a
-    // mover el scroll de la página.
+    // preventScroll: el menú cuelga de una píldora fija, y enfocar algo
+    // adentro llegaba a mover el scroll de la página detrás.
     menuRef.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus({ preventScroll: true });
 
     function onPointerDown(e: PointerEvent) {
@@ -86,14 +90,10 @@ export function UserMenu({
         aria-controls={open ? menuId : undefined}
         aria-label={`Cuenta: ${displayName}`}
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-center gap-2.5 rounded-control p-1.5 text-left transition-colors duration-150 cursor-pointer hover:bg-surface-hover xl:justify-start xl:px-2"
+        className="flex shrink-0 cursor-pointer items-center gap-1 rounded-full p-1 pr-1.5 transition-[background-color,transform] duration-150 hover:bg-surface-hover active:scale-[0.94] motion-reduce:transition-none motion-reduce:active:scale-100"
       >
-        <Avatar src={avatarUrl} name={name} size={28} />
-        <span className="hidden min-w-0 flex-1 xl:block">
-          <span className="block truncate text-label text-ink">{displayName}</span>
-          {email && <span className="block truncate text-micro text-ink-3">{email}</span>}
-        </span>
-        <CaretUpDown size={14} className="hidden shrink-0 text-ink-3 xl:block" />
+        <Avatar src={avatarUrl} name={name} size={30} />
+        <CaretUpDown size={13} className="shrink-0 text-ink-3" aria-hidden />
       </button>
 
       <AnimatePresence>
@@ -103,14 +103,14 @@ export function UserMenu({
             id={menuId}
             role="menu"
             aria-label="Cuenta"
-            initial={reduce ? { opacity: 0 } : { opacity: 0, y: 4 }}
+            initial={reduce ? { opacity: 0 } : { opacity: 0, y: -4 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.12 }}
-            className="absolute bottom-0 left-full z-50 ml-3 w-60 rounded-surface border border-line bg-surface p-1 shadow-[0_10px_30px_-10px_rgb(0_0_0/0.35)] xl:bottom-full xl:left-0 xl:mb-2 xl:ml-0 xl:w-full"
+            className="absolute right-0 top-full z-50 mt-2 w-60 rounded-surface border border-line bg-surface p-1 shadow-[0_14px_40px_-12px_rgb(0_0_0/0.45)]"
           >
-            {/* En el rail angosto el botón es solo la foto: el nombre va acá. */}
-            <div className="px-2.5 pb-2 pt-1.5 xl:hidden">
+            {/* El disparador es solo la foto: el nombre y el correo van acá. */}
+            <div className="px-2.5 pb-2 pt-1.5">
               <p className="truncate text-label text-ink">{displayName}</p>
               {email && <p className="truncate text-micro text-ink-3">{email}</p>}
             </div>

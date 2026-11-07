@@ -9,6 +9,7 @@ import { formatAmountInput, parseAmount } from "@/components/movements/MovementF
 import { Button } from "@/components/ui/Button";
 import { Dialog } from "@/components/ui/Dialog";
 import { Field, FormError, Select, inputClass } from "@/components/ui/Field";
+import { MoneyInput } from "@/components/ui/MoneyInput";
 import { ACCOUNT_TYPES } from "@/lib/accounts";
 import type { Account, AccountType } from "@/lib/types";
 
@@ -160,13 +161,9 @@ export function AccountDialog({
                 : "Lo que hay en la cuenta en este momento. En una tarjeta de crédito puede ser negativo."
             }
           >
-            <input
-              inputMode="decimal"
-              value={balance}
-              onChange={(e) => setBalance(e.target.value)}
-              placeholder="0"
-              className={`${inputClass} money`}
-            />
+            {/* `allowNegative`: una tarjeta de crédito tiene saldo en
+                contra, y es el único monto de la app que puede ir en menos. */}
+            <MoneyInput value={balance} onChange={setBalance} placeholder="0" allowNegative />
           </Field>
 
           <FormError>{error}</FormError>

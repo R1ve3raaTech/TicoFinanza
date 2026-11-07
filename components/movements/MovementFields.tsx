@@ -2,6 +2,7 @@
 
 import { useId } from "react";
 import { labelClass } from "@/components/ui/Field";
+import { handleAmountChange } from "@/components/ui/MoneyInput";
 import { Segmented } from "@/components/ui/Segmented";
 import { ToggleChip } from "@/components/ui/ToggleChip";
 import type { TransactionType } from "@/lib/types";
@@ -52,9 +53,16 @@ export function AmountInput({
           // no deja el atributo en el DOM y el foco se lo ganaba el panel).
           data-autofocus={autoFocus ? "" : undefined}
           inputMode="decimal"
+          autoComplete="off"
           value={value}
-          onChange={(e) => onChange(e.target.value)}
+          // Solo dígitos, y los miles se agrupan al escribir: ver
+          // lib/amount.ts y components/ui/MoneyInput.tsx.
+          onChange={(e) => handleAmountChange(e, onChange)}
           placeholder="0"
+          // `money` son cifras de ancho fijo. Acá no es un detalle de
+          // alineación: al agrupar los miles el texto cambia de largo
+          // debajo del cursor, y con dígitos de ancho variable la cifra
+          // entera se corre un pelo con cada tecla.
           className="money w-full min-w-0 bg-transparent text-[2.25rem] font-medium leading-tight tracking-[-0.03em] text-ink outline-none placeholder:text-ink-3/50 focus-visible:outline-none"
         />
       </span>
@@ -91,19 +99,9 @@ export function CategoryPicker({
 }
 
 /**
- * Convierte lo escrito en el campo de monto a número. Acepta tanto "12.500"
- * (puntos de miles, como se escribe la plata acá) como "12,5".
+ * `parseAmount` y `formatAmountInput` viven ahora en lib/amount.ts, junto
+ * con la limpieza de lo que se escribe (que antes no existía: el campo
+ * aceptaba letras). Se re-exportan desde acá porque los doce diálogos de la
+ * app las importan de este archivo.
  */
-export function parseAmount(value: string): number {
-  return Number(value.replace(/\./g, "").replace(",", "."));
-}
-
-/**
- * Monto guardado → texto del campo, con los puntos de miles que se usan acá
- * ("185.000" y no "185000"). Lo lee `parseAmount` sin problema.
- */
-export function formatAmountInput(amount: number): string {
-  const [whole, decimals] = String(amount).split(".");
-  const grouped = whole.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-  return decimals ? `${grouped},${decimals}` : grouped;
-}
+export { formatAmountInput, parseAmount } from "@/lib/amount";

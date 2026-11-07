@@ -139,7 +139,7 @@ export function MonthlyReport({
   return (
     <main
       id="contenido"
-      className="reporte mx-auto w-full max-w-[860px] px-4 pb-12 pt-6 md:px-8 md:pt-10"
+      className="reporte mx-auto w-full max-w-[860px] px-4 pb-12 pt-6 md:px-8 md:pt-4"
     >
       <ReportPrintStyles />
 

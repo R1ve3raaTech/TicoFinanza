@@ -11,7 +11,7 @@ export default function ReportLoading() {
     <main
       aria-busy="true"
       aria-label="Cargando el reporte"
-      className="mx-auto w-full max-w-[860px] px-4 pb-12 pt-6 md:px-8 md:pt-10"
+      className="mx-auto w-full max-w-[860px] px-4 pb-12 pt-6 md:px-8 md:pt-4"
     >
       <div className="skeleton h-5 w-20 rounded-[4px]" />
 

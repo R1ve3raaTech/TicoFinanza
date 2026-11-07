@@ -5,19 +5,9 @@ import { ArrowsLeftRight, Plus } from "@phosphor-icons/react";
 import { TransferDialog } from "@/components/movements/TransferDialog";
 import { Button } from "@/components/ui/Button";
 import { Money } from "@/components/ui/Money";
-import { accountTypeLabel, totalBalance } from "@/lib/accounts";
-import { formatMoney } from "@/lib/format";
+import { accountTypeLabel } from "@/lib/accounts";
 import type { Account } from "@/lib/types";
 import { AccountDialog } from "./AccountDialog";
-
-/** Qué dice la línea de proyección según lo que falte por moverse. */
-function projectionLabel(pendingIncome: number, pendingFixed: number): string {
-  if (pendingIncome > 0 && pendingFixed > 0) {
-    return `Si entran ${formatMoney(pendingIncome)} y pagás ${formatMoney(pendingFixed)} de fijos`;
-  }
-  if (pendingIncome > 0) return `Cuando entren los ${formatMoney(pendingIncome)} que faltan`;
-  return `Si pagás los ${formatMoney(pendingFixed)} de fijos que faltan`;
-}
 
 /**
  * Las billeteras y lo que hay en cada una, arriba del resumen.
@@ -25,18 +15,13 @@ function projectionLabel(pendingIncome: number, pendingFixed: number): string {
  * El saldo de una cuenta no se edita a mano: sale del saldo inicial más todo
  * lo registrado. Tocar una tarjeta abre la cuenta para cambiarle el nombre,
  * el tipo o ese saldo inicial.
+ *
+ * **Acá ya no va el saldo total.** Subió al encabezado del resumen
+ * (components/dashboard/SummaryHero.tsx), que es donde se mira primero; este
+ * panel quedó con lo que solo él puede contestar: en cuál de tus billeteras
+ * está esa plata.
  */
-export function AccountsPanel({
-  accounts,
-  pendingFixed = 0,
-  pendingIncome = 0,
-}: {
-  accounts: Account[];
-  /** Gastos fijos del mes que todavía no se pagaron. */
-  pendingFixed?: number;
-  /** Ingresos fijos del mes que todavía no entraron. */
-  pendingIncome?: number;
-}) {
+export function AccountsPanel({ accounts }: { accounts: Account[] }) {
   const [editing, setEditing] = useState<Account | null>(null);
   const [accountOpen, setAccountOpen] = useState(false);
   const [transferOpen, setTransferOpen] = useState(false);
@@ -47,8 +32,6 @@ export function AccountsPanel({
     setSession((s) => s + 1);
     setAccountOpen(true);
   }
-
-  const total = totalBalance(accounts);
 
   return (
     <section aria-labelledby="cuentas-titulo" className="min-w-0">
@@ -83,33 +66,7 @@ export function AccountsPanel({
         </div>
       ) : (
         <>
-          <div className="border-y border-line py-3">
-            <div className="flex items-baseline justify-between gap-4">
-              <span className="text-meta text-ink-3">Saldo total</span>
-              <Money
-                value={total}
-                className={`text-figure ${total < 0 ? "text-expense" : "text-ink"}`}
-              />
-            </div>
-
-            {/* Cómo cerrás el mes: lo que hay hoy, más los ingresos fijos
-                que faltan por entrar, menos los gastos fijos que faltan por
-                salir. Solo cuenta ingresos que vos declaraste como fijos —
-                nunca inventa plata que la app no sabe que viene. */}
-            {(pendingFixed > 0 || pendingIncome > 0) && (
-              <div className="mt-2 flex items-baseline justify-between gap-4 text-meta">
-                <span className="min-w-0 text-ink-3">{projectionLabel(pendingIncome, pendingFixed)}</span>
-                <Money
-                  value={total + pendingIncome - pendingFixed}
-                  className={
-                    total + pendingIncome - pendingFixed < 0 ? "text-expense" : "text-ink-2"
-                  }
-                />
-              </div>
-            )}
-          </div>
-
-          <ul className="grid gap-2 pt-3 sm:grid-cols-2 xl:grid-cols-3">
+          <ul className="grid gap-2 border-t border-line pt-3 sm:grid-cols-2 xl:grid-cols-3">
             {accounts.map((account) => {
               const negative = account.current_balance < 0;
               const type = accountTypeLabel(account.type);

@@ -11,11 +11,13 @@ import type { Comparison } from "@/lib/comparison";
 import type { ExpectedIncome } from "@/lib/fixedIncomes";
 import type { UpcomingPayment } from "@/lib/fixedExpenses";
 import type { MonthHeadline } from "@/lib/greeting";
+import { totalBalance } from "@/lib/accounts";
 import type { CategorySlice, MonthSummary, MonthTotal } from "@/lib/insights";
 import type { Account, Transaction, UserCategory } from "@/lib/types";
 import { FirstSteps } from "./FirstSteps";
 import { ExpectedIncomes } from "./ExpectedIncomes";
 import { SummaryCards } from "./SummaryCards";
+import { SummaryHero } from "./SummaryHero";
 import { UpcomingPayments } from "./UpcomingPayments";
 
 /**
@@ -91,7 +93,10 @@ export function DashboardView({
         <main id="contenido" className="mx-auto w-full max-w-[1180px] px-4 pb-12 md:px-8 xl:px-12">
           <PageHeader
             title="Resumen"
-            meta={todayLabel}
+            // El saludo por nombre va en la línea de contexto y no como
+            // párrafo aparte: así la pantalla abre con el saldo, que es la
+            // pregunta que trae quien la abre.
+            meta={`${greeting} · ${todayLabel}`}
             // Con la cuenta vacía la acción primaria vive en "Empezá por
             // acá" (y es cargar los fijos, no anotar un movimiento): dejarla
             // también en el encabezado daba tres botones celestes en una
@@ -105,27 +110,15 @@ export function DashboardView({
             }
           />
 
-          <div className="pt-3 md:pt-0">
-            <div className="pb-4">
-              <h2 className="text-heading text-ink">
-                {greeting}
-              </h2>
-              {/* La frase que contesta "cómo vengo", con los números de la
-                  persona. Sin ella la pantalla abría con cuatro cifras y
-                  nada que las interpretara. */}
-              <p className="mt-1 max-w-[60ch] text-sm leading-relaxed text-ink-2">
-                {headline ? (
-                  <>
-                    {headline.text}
-                    {headline.pending && (
-                      <span className="text-ink-3"> {headline.pending}</span>
-                    )}
-                  </>
-                ) : (
-                  <>Todavía no anotaste nada este mes. Empezá por los tres pasos de abajo.</>
-                )}
-              </p>
-            </div>
+          <SummaryHero
+            headline={headline}
+            total={totalBalance(accounts)}
+            hasAccounts={accounts.length > 0}
+            pendingFixed={summary.fixedPending}
+            pendingIncome={pendingIncome}
+          />
+
+          <div>
             <h3 className="pb-3 text-label text-ink-2">Tu mes de {monthLabel}</h3>
             <SummaryCards summary={summary} comparison={comparison} />
           </div>
@@ -146,11 +139,7 @@ export function DashboardView({
               Dos invitaciones a lo mismo, una debajo de la otra. */}
           {accounts.length > 0 && (
             <div className="pt-8">
-              <AccountsPanel
-              accounts={accounts}
-              pendingFixed={summary.fixedPending}
-              pendingIncome={pendingIncome}
-            />
+              <AccountsPanel accounts={accounts} />
             </div>
           )}
 

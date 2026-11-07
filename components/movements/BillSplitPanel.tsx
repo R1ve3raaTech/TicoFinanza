@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Check, Copy } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/Button";
 import { Field, inputClass, labelClass } from "@/components/ui/Field";
+import { MoneyInput } from "@/components/ui/MoneyInput";
 import { Money } from "@/components/ui/Money";
 import { splitBill, splitMessage } from "@/lib/billSplit";
 import { parseAmount } from "./MovementFields";
@@ -57,13 +58,7 @@ export function BillSplitPanel({
     <div className="flex flex-col gap-4 rounded-surface border border-line bg-surface-raised/50 p-3.5">
       <div className="grid grid-cols-[minmax(0,1fr)_5.5rem] gap-3">
         <Field label="Consumo">
-          <input
-            inputMode="decimal"
-            value={base}
-            onChange={(e) => setBase(e.target.value)}
-            placeholder="0"
-            className={`${inputClass} money`}
-          />
+          <MoneyInput value={base} onChange={setBase} placeholder="0" />
         </Field>
         <Field label="Personas">
           <input

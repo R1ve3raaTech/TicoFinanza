@@ -1309,3 +1309,106 @@ verdad, es el propio y respeta el tema; los cuatro esqueletos alineados;
 el CSS servido trae `:active` y su `prefers-reduced-motion`; un botón
 pasa de `scale: none` a `0.98` al apretarlo; y el volver del reporte no
 aparece en la vista de impresión.
+
+## Dónde quedamos (2026-11-07, píldoras y campo de monto)
+
+Camil probó la app instalada unos días y pidió tres cosas: el resumen más
+personalizado y con lo principal más a la vista, la navegación como píldora
+flotante (arriba en escritorio, abajo en teléfono) con microinteracciones, y
+que el campo de monto no acepte letras y agrupe los miles solo. Sin tocar
+backend, flujos ni datos de Supabase — y así fue: no hay migraciones nuevas
+ni cambios en acciones de servidor.
+
+**La navegación es ahora una píldora flotante** (`components/shell/TopNav.tsx`
+y `MobileTabBar.tsx`; `AppRail.tsx` se borró).
+
+- Arriba desde `md`, centrada, `fixed` con `backdrop-blur`. El rail se
+  llevaba 88px de ancho en laptop y 232px en escritorio para cinco entradas;
+  arriba la navegación ocupa alto y no ancho, que es lo que le sobra a una
+  pantalla de laptop y le falta a una tabla.
+- **El relleno que despeja las dos píldoras vive en `AppShell`**, no en cada
+  pantalla: `md:pt-[68px]` (12 de aire + 56 de alto) y
+  `pb-[calc(4.75rem+env(safe-area-inset-bottom))]` abajo. Si alguna pantalla
+  nueva no usa `AppShell`, le va a quedar la píldora encima.
+- Los dos elementos fijos que asumían la barra vieja de 3.5rem se corrieron:
+  la barra de selección múltiple de Movimientos y el `Toast`. **Si se agrega
+  otro elemento fijo abajo, hay que despejarla igual.**
+- Tres microinteracciones, todas en respuesta a algo que la persona hace:
+  la pastilla de la sección activa **se desliza** entre entradas
+  (`motion.span` con `layoutId`, framer mide y anima sin cálculo propio),
+  apretar hunde la entrada, y el ícono sube un píxel al pasar el puntero.
+  Con `prefers-reduced-motion` la duración pasa a 0 y el hundido se apaga —
+  el `initial` no se ramifica, que es lo que rompía la hidratación (ver nota
+  del 2026-09-14).
+- `UserMenu` se adaptó a la píldora: disparador compacto (solo la foto) y
+  menú hacia abajo, alineado a la derecha.
+- **El contenedor fijo de cada píldora lleva `pointer-events-none`** y la
+  píldora los vuelve a aceptar: ocupa todo el ancho para centrarse, y sin eso
+  se come los clics de la franja de arriba (o de abajo) del contenido.
+
+**El saldo total subió al encabezado del resumen**
+(`components/dashboard/SummaryHero.tsx`).
+
+- Era la cifra que uno viene a ver y estaba a 22px, abajo de las cuatro
+  tarjetas y de los primeros pasos: en teléfono había que bajar. Ahora abre
+  la pantalla en la escala `display` (48px / 56px en md).
+- Esa escala **existía en los tokens desde 2026-09** ("el saldo es la única
+  cifra display y nunca baja de 48px") y no la usaba nadie: el saldo se
+  dibujaba con `text-figure`, el tamaño de sus cuatro acompañantes.
+- Sigue habiendo una sola cifra protagonista: `AccountsPanel` ya no repite el
+  total ni la proyección (se le quitaron los props `pendingFixed` y
+  `pendingIncome`), solo desglosa por billetera.
+- El saludo por nombre pasó a la línea de contexto del encabezado ("Buenas
+  tardes, Camil · Sábado 7 de noviembre"): como párrafo aparte quedaban tres
+  textos apilados antes de la cifra.
+- Sin ninguna cuenta no se dibuja la cifra: un ₡0 gigante en una cuenta
+  recién creada no es un dato.
+
+**Campo de monto: solo dígitos y miles agrupados al escribir** (`lib/amount.ts`,
+`components/ui/MoneyInput.tsx`).
+
+- Antes cada diálogo tenía un `<input>` de texto con `inputMode="decimal"`:
+  **inputMode es una sugerencia al teclado del teléfono, no una validación**,
+  así que se podían escribir letras. La limpieza ahora es la misma para lo
+  tecleado y lo pegado.
+- **El separador de miles es el punto y el decimal la coma** ("1.250.000,50").
+  Camil lo pidió con coma ("4,532"); va con punto porque es lo que muestra
+  `formatMoney` en toda la app, y si el campo agrupara distinto, lo que uno
+  escribe y lo que la lista muestra dos líneas abajo serían dos formatos para
+  el mismo monto. **Queda dicho: si lo quiere con coma, se cambia en
+  `GROUP_SEPARATOR`/`DECIMAL_SEPARATOR` y en `formatMoney`, las dos cosas
+  juntas o no vale la pena.**
+- **El valor se escribe en el nodo antes de levantar el estado**
+  (`handleAmountChange`). Es lo que mantiene el cursor en su lugar: si solo se
+  levantara el estado, React repinta con un texto más largo —se le metió un
+  punto— y el cursor salta al final en cada tecla. Probado corrigiendo un
+  dígito en el medio de "1.250.000".
+- El campo usa cifras de ancho fijo (`money`). Acá no es alineación: al
+  agrupar, el texto cambia de largo debajo del cursor y con dígitos de ancho
+  variable la cifra entera se corre con cada tecla.
+- `allowNegative` solo en el saldo de una cuenta (una tarjeta de crédito va en
+  menos). En un movimiento el signo lo da el tipo, y un "-" escrito a mano
+  haría que el monto dijera lo contrario de lo elegido.
+- `parseAmount` y `formatAmountInput` se mudaron a `lib/amount.ts` y se
+  re-exportan desde `MovementFields` porque los doce diálogos las importan de
+  ahí.
+
+**Estado**: `npm test` (150, 12 nuevas sobre el campo de monto), `eslint`,
+`tsc` y `npm run build` limpios. QA con Playwright contra el build de
+producción (preview temporal del resumen, borrada antes de commitear) a
+1440 oscuro, 1280/768 claro y 390/360 de teléfono, más una pasada con
+movimiento reducido: **67 comprobaciones**, todas OK — la píldora centrada y
+flotante, el contenido que la despeja, la sección activa marcada, el hundido
+al apretar (`getComputedStyle(el).scale`, que es la propiedad que emite
+Tailwind v4), el saldo a 56px, el total que ya no se repite, el menú de
+cuenta abriendo hacia abajo sin salirse, y el campo de monto con sus cinco
+casos (miles, letras, coma decimal, edición en el medio, ancho fijo). Sin
+desborde horizontal ni errores de consola.
+
+**Ojo al probar con Playwright**: medir el hundido con `mouse.down()` sobre
+un enlace y soltar encima **es un clic y navega**. Hay que soltar lejos.
+Y `nav[aria-label="Principal"]` matchea las dos píldoras (una está oculta por
+breakpoint): usar `:visible` o `boundingBox()` devuelve null.
+
+**No deployado** al cierre: commiteado nada más, a la espera de que Camil lo
+pida.
