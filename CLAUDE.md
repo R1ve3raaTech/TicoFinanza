@@ -143,9 +143,17 @@ buscando transacciones "BAC" cuyo `description` no le suene a Nicaragua/BAC).
   instrucciones específicas que se probaron dos veces resultaron
   incorrectas — no reintroducir pasos de menú inventados sin confirmarlos
   con Camil primero.
-- Deploy manual siempre: `git push origin main` + `npx vercel --prod` (no
-  hay auto-deploy conectado a GitHub). Dominio de producción actual:
-  `www.ticofinanza.com`.
+- **Deploy automático en cada push a `main`** (corregido el 2026-11-07: esta
+  nota decía por error que no había auto-deploy, y por eso cada sesión
+  terminaba corriendo `npx vercel --prod` a mano de más). El repo
+  `R1ve3raaTech/TicoFinanza` está conectado al proyecto `finanzascr`, así que
+  un `git push origin main` construye y publica solo. Comprobado:
+  `npx vercel git connect` responde "already connected", y el push de los
+  cuatro commits de ese día creó el despliegue `finanzascr-nq2784xq9` sin que
+  nadie lo pidiera. **Consecuencia: todo lo que llegue a `main` sale a
+  producción**, así que lo que no esté para publicarse no se pushea.
+  `npx vercel --prod` sigue sirviendo para forzar un deploy sin commit.
+  Dominio de producción actual: `www.ticofinanza.com`.
 
 ## Dónde quedamos (2026-08-18)
 
