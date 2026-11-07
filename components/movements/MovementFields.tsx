@@ -30,6 +30,50 @@ export function TypeToggle({
   );
 }
 
+/** Lo que se puede anotar: un gasto, un ingreso, o plata que se mueve de una
+ *  billetera propia a otra. */
+export type EntryKind = TransactionType | "TRANSFER";
+
+/**
+ * Las tres cosas que se pueden anotar, en el mismo control.
+ *
+ * La transferencia **existía desde la migración 0020** pero vivía detrás de
+ * un botón chico en el panel "Tus cuentas" del resumen, lejos de donde uno
+ * va cuando quiere registrar algo. El resultado real: pasar plata del ahorro
+ * a la principal terminaba anotado como dos movimientos —un ingreso y un
+ * gasto— que además ensucian el mes, porque un traslado no es ni lo uno ni
+ * lo otro. Acá está donde se busca.
+ *
+ * "Transferir" solo aparece con dos cuentas o más (sin eso no hay a dónde
+ * mover) y solo al registrar: un movimiento ya guardado no se convierte en
+ * transferencia, son tablas distintas.
+ */
+export function EntryKindToggle({
+  value,
+  onChange,
+  canTransfer,
+}: {
+  value: EntryKind;
+  onChange: (kind: EntryKind) => void;
+  canTransfer: boolean;
+}) {
+  return (
+    <Segmented
+      ariaLabel="Qué vas a anotar"
+      value={value}
+      onChange={onChange}
+      fullWidth
+      options={[
+        { value: "EXPENSE", label: "Gasto" },
+        { value: "INCOME", label: "Ingreso", tone: "income" },
+        // "Transferir" y no "Transferencia": a 360px la palabra larga no
+        // entra en un tercio del ancho del diálogo y parte en dos líneas.
+        ...(canTransfer ? [{ value: "TRANSFER" as const, label: "Transferir" }] : []),
+      ]}
+    />
+  );
+}
+
 export function AmountInput({
   value,
   onChange,

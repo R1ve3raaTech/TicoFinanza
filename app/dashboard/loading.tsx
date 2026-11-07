@@ -10,14 +10,15 @@ export default function DashboardLoading() {
       </div>
       <div className="hidden pb-6 pt-8 md:block xl:pt-10">
         <div className="skeleton h-6 w-32 rounded-[4px]" />
-        <div className="skeleton mt-2 h-4 w-48 rounded-[4px]" />
       </div>
 
-      {/* Mismas medidas que SummaryHero: "Disponible hoy", la cifra grande y
-          la frase del mes. Si el esqueleto midiera distinto, la pantalla
-          saltaría al llegar los datos. */}
-      <div className="pb-6 pt-3 md:pt-2">
-        <div className="skeleton h-3 w-24 rounded-[4px]" />
+      {/* Mismas medidas que SummaryHero: saludo, fecha, "Disponible hoy", la
+          cifra grande y la frase del mes. Si el esqueleto midiera distinto,
+          la pantalla saltaría al llegar los datos. */}
+      <div className="pb-6 pt-3 md:pt-1">
+        <div className="skeleton h-7 w-56 rounded-[4px]" />
+        <div className="skeleton mt-2 h-3.5 w-40 rounded-[4px]" />
+        <div className="skeleton mt-7 h-3 w-24 rounded-[4px]" />
         <div className="skeleton mt-2 h-12 w-56 rounded-[6px] md:h-14 md:w-64" />
         <div className="skeleton mt-4 h-3.5 w-72 rounded-[4px]" />
       </div>

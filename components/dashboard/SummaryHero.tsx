@@ -12,13 +12,14 @@ function projectionLabel(pendingIncome: number, pendingFixed: number): string {
 }
 
 /**
- * La cabeza del resumen: cuánta plata hay y cómo viene el mes, en una
- * oración.
+ * La cabeza del resumen: a quién saluda la app, qué día es, cuánta plata hay
+ * y cómo viene el mes en una oración.
  *
- * El saludo por nombre no está acá sino en la línea de contexto del
- * encabezado ("Buenas tardes, Camil · Sábado 7 de noviembre"): como línea
- * aparte quedaban tres textos apilados antes de llegar a la cifra, que es a
- * lo que uno entra.
+ * **El saludo va a 24px, más grande que el título de la pantalla.** Venía a
+ * 15px y Camil avisó que ahí no se ve; en el medio estuvo como línea de
+ * contexto a 12px, que era peor. El nombre y la fecha son lo que hace que
+ * esto se sienta tu app y no una planilla, así que pesan: el título de
+ * sección queda arriba como rótulo chico y el saludo manda.
  *
  * **El saldo total subió acá desde el panel "Tus cuentas".** Era la cifra que
  * uno viene a ver —la única pregunta que se trae al abrir una app de
@@ -40,12 +41,18 @@ function projectionLabel(pendingIncome: number, pendingFixed: number): string {
  * desánimo.
  */
 export function SummaryHero({
+  greeting,
+  todayLabel,
   headline,
   total,
   hasAccounts,
   pendingFixed = 0,
   pendingIncome = 0,
 }: {
+  /** "Buenas tardes, Camil". La hora se resuelve en el servidor. */
+  greeting: string;
+  /** "Sábado 7 de noviembre", también resuelto en el servidor. */
+  todayLabel: string;
   /** Cómo viene el mes, en una oración. null si no hay nada anotado. */
   headline: MonthHeadline | null;
   /** Suma de los saldos de todas las billeteras. */
@@ -60,10 +67,15 @@ export function SummaryHero({
   const showProjection = hasAccounts && (pendingFixed > 0 || pendingIncome > 0);
 
   return (
-    <section aria-label="Tu plata hoy" className="pb-6 pt-3 md:pt-2">
+    <section aria-label="Tu plata hoy" className="pb-6 pt-3 md:pt-1">
+      <h2 className="text-[1.5rem] font-semibold leading-tight tracking-[-0.025em] text-ink">
+        {greeting}
+      </h2>
+      <p className="mt-1 text-label text-ink-3">{todayLabel}</p>
+
       {hasAccounts && (
         <>
-          <p className="text-meta text-ink-3">Disponible hoy</p>
+          <p className="mt-7 text-meta text-ink-3">Disponible hoy</p>
           <p
             className={`mt-1 text-display md:text-display-lg ${
               total < 0 ? "text-expense" : "text-ink"

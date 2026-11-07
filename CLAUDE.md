@@ -1412,3 +1412,51 @@ breakpoint): usar `:visible` o `boundingBox()` devuelve null.
 
 **No deployado** al cierre: commiteado nada más, a la espera de que Camil lo
 pida.
+
+## Dónde quedamos (2026-11-07, segunda parte)
+
+Dos pedidos de Camil sobre lo de arriba, todavía sin deployar.
+
+**El saludo y la fecha ahora pesan.** Venían a 15px en producción ("en esas
+letras pequeñas no se ven") y en la primera pasada de hoy habían quedado como
+línea de contexto a 12px, que era peor. Ahora el saludo va a **24px
+semibold** y la fecha a 13px, los dos arriba del todo en `SummaryHero`; el
+`PageHeader` del resumen quedó **sin línea de contexto** para no repetir la
+fecha. El título de sección ("Resumen") sigue arriba como rótulo chico: la
+jerarquía es rótulo 20px → saludo 24px → saldo 56px.
+
+**Transferir entre cuentas, desde donde uno registra.** La transferencia
+existía desde la migración 0020 y funcionaba, pero vivía detrás de un botón
+chico en "Tus cuentas". Camil, para pasar del ahorro a la principal, terminó
+anotando **dos movimientos** (un ingreso y un gasto) — que además ensucian el
+mes, porque un traslado no es ni lo uno ni lo otro. Era un problema de dónde
+está, no de qué hace: **no se tocó nada de la tabla `transfers` ni de
+`createTransfer`.**
+
+- `EntryKindToggle` (en `MovementFields.tsx`) es el control de tres opciones
+  —Gasto · Ingreso · Transferir— que ahora abre el formulario de registrar.
+- La etiqueta dice **"Transferir" y no "Transferencia"**: a 360px la palabra
+  larga no entra en un tercio del ancho del diálogo y parte en dos líneas.
+- `MovementEntryProvider` pasó a ser dueño **de los dos diálogos** y del
+  modo. Son dos y no uno con dos caras: la transferencia escribe en otra
+  tabla, valida otra cosa y no tiene categoría, comprobante ni dólares. Al
+  cambiar, uno sale y el otro entra en 160ms y se ve como un cruce; está
+  comprobado que después del cruce queda **un solo** diálogo en el DOM.
+- Volver de la transferencia a gasto/ingreso remonta el formulario de
+  movimiento con la pestaña elegida (`backToMovement`).
+- "Transferir" **solo aparece con dos cuentas o más** y **solo al registrar**:
+  un movimiento ya guardado no se convierte en transferencia.
+- El botón "Transferir" de "Tus cuentas" sigue igual, con su propio diálogo y
+  sin el control de arriba: desde ahí uno ya venía a transferir.
+
+**Estado**: `npm test` (150), `eslint`, `tsc` y `npm run build` limpios. QA
+con Playwright contra el build de producción a 1440 oscuro y 390 de teléfono:
+**31 comprobaciones**, todas OK — el saludo a 24px, la fecha sin repetirse,
+las tres opciones sin partirse en dos líneas, el cruce de diálogos, origen y
+destino distintos por defecto, el control que se queda arriba en la
+transferencia, y la vuelta a movimiento con la pestaña elegida.
+
+**Pendiente de Camil**: los dos movimientos que anotó a mano para simular la
+transferencia se pueden borrar y rehacer como una sola transferencia — los
+saldos los recalcula la base desde cero (triggers de la 0020), así que
+borrarlos no deja nada descuadrado. **No se tocó ningún dato suyo.**

@@ -93,10 +93,8 @@ export function DashboardView({
         <main id="contenido" className="mx-auto w-full max-w-[1180px] px-4 pb-12 md:px-8 xl:px-12">
           <PageHeader
             title="Resumen"
-            // El saludo por nombre va en la línea de contexto y no como
-            // párrafo aparte: así la pantalla abre con el saldo, que es la
-            // pregunta que trae quien la abre.
-            meta={`${greeting} · ${todayLabel}`}
+            // Sin línea de contexto acá: el saludo y la fecha los pone el
+            // encabezado del resumen (SummaryHero), en grande.
             // Con la cuenta vacía la acción primaria vive en "Empezá por
             // acá" (y es cargar los fijos, no anotar un movimiento): dejarla
             // también en el encabezado daba tres botones celestes en una
@@ -111,6 +109,8 @@ export function DashboardView({
           />
 
           <SummaryHero
+            greeting={greeting}
+            todayLabel={todayLabel}
             headline={headline}
             total={totalBalance(accounts)}
             hasAccounts={accounts.length > 0}

@@ -8,8 +8,8 @@ import { Button } from "@/components/ui/Button";
 import { Dialog } from "@/components/ui/Dialog";
 import { Field, FormError, Select, inputClass } from "@/components/ui/Field";
 import { accountTypeLabel } from "@/lib/accounts";
-import type { Account } from "@/lib/types";
-import { AmountInput, parseAmount } from "./MovementFields";
+import type { Account, TransactionType } from "@/lib/types";
+import { AmountInput, EntryKindToggle, parseAmount } from "./MovementFields";
 
 /** "YYYY-MM-DDTHH:mm" en hora local, para <input type="datetime-local">. */
 function forInput(date: Date): string {
@@ -25,17 +25,26 @@ function forInput(date: Date): string {
  * No es ingreso ni gasto: baja un saldo y sube el otro, y el superávit del
  * mes no se entera. La pantalla lo dice con todas las letras, porque es la
  * duda número uno de cualquiera que usa esto por primera vez.
+ *
+ * Con `onPickMovement` arriba aparece el mismo control de tres opciones que
+ * el formulario de movimientos, para poder devolverse: abierto desde ahí,
+ * esto es una de las tres cosas que se pueden anotar, no un formulario
+ * aparte al que uno llegó por otro lado.
  */
 export function TransferDialog({
   open,
   onClose,
   accounts,
   defaultFromId,
+  onPickMovement,
 }: {
   open: boolean;
   onClose: () => void;
   accounts: Account[];
   defaultFromId?: string | null;
+  /** Volver al formulario de gasto o ingreso. Sin esto no se dibuja el
+   *  control de arriba (el caso de "Transferir" desde "Tus cuentas"). */
+  onPickMovement?: (type: TransactionType) => void;
 }) {
   const toast = useToast();
   const formId = useId();
@@ -128,6 +137,14 @@ export function TransferDialog({
           }}
           className="flex flex-col gap-5"
         >
+          {onPickMovement && (
+            <EntryKindToggle
+              value="TRANSFER"
+              canTransfer
+              onChange={(kind) => kind !== "TRANSFER" && onPickMovement(kind)}
+            />
+          )}
+
           <AmountInput value={amount} onChange={setAmount} autoFocus />
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end">

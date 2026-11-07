@@ -22,6 +22,7 @@ import type { Account, Transaction, TransactionType, UserCategory } from "@/lib/
 import {
   AmountInput,
   CategoryPicker,
+  EntryKindToggle,
   TypeToggle,
   formatAmountInput,
   parseAmount,
@@ -62,9 +63,16 @@ export function MovementDialog({
   accounts = [],
   recent = [],
   initialType = "EXPENSE",
+  onTransfer,
 }: {
   open: boolean;
   onClose: () => void;
+  /**
+   * Pasar al formulario de transferencia entre cuentas. Si no viene, el
+   * control de arriba solo ofrece gasto e ingreso — es lo que pasa al
+   * editar un movimiento ya guardado y cuando hay una sola cuenta.
+   */
+  onTransfer?: () => void;
   /** Movimiento a editar, o null para registrar uno nuevo. */
   movement?: Transaction | null;
   /** Pestaña marcada al abrir uno nuevo. Al editar manda el movimiento. */
@@ -293,7 +301,15 @@ export function MovementDialog({
           }}
           className="flex flex-col gap-5"
         >
-          <TypeToggle value={type} onChange={pickType} />
+          {onTransfer ? (
+            <EntryKindToggle
+              value={type}
+              canTransfer
+              onChange={(kind) => (kind === "TRANSFER" ? onTransfer() : pickType(kind))}
+            />
+          ) : (
+            <TypeToggle value={type} onChange={pickType} />
+          )}
 
           <div className="flex flex-col gap-2">
             <AmountInput
