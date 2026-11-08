@@ -1951,3 +1951,59 @@ guía salga sola, que el botón arranque deshabilitado con el contador, que
 Escape y el clic afuera no la cierren, que el contador baje, que al llegar
 a cero aparezca la X y el botón diga "Empezar", que cerrar llame a la
 acción, y que los primeros pasos sean cinco con un solo botón celeste.
+
+## Dónde quedamos (2026-11-08, tercera parte)
+
+Tres cosas que reportó Camil mirando la app en producción.
+
+**La captura de fondo de /entrar llevaba su nombre y sus montos.** Es una
+página pública: salía "Buenas tardes, Camil" y los saldos de sus cuentas de
+verdad. Se regeneraron las tres capturas (`entrar-oscuro.jpg`,
+`entrar-claro.jpg` y `dashboard.png`, la de la portada) con una persona
+inventada —"Ana", cuentas y montos nuevos—. **Regla para la próxima: la
+vista temporal que genera capturas públicas no usa datos reales ni el
+nombre de nadie.**
+
+**Ajustes vuelve a ser un solo scroll, no pestañas.** Las pestañas se
+agregaron esta misma mañana y fueron un error visible: la mitad llevaba a un
+panel con una sola fila —"Recordatorios" era un interruptor solo en medio de
+una pantalla vacía, "Apariencia" lo mismo—. Repartir seis controles en siete
+pestañas hace que cada una se vea vacía y que haya que tocar siete veces
+para ver lo que entra en una pasada de scroll. Ahora son ocho bloques
+seguidos (`Bloque` en `SettingsDialog`), cada uno con su título y su línea:
+junto no es amontonado.
+
+**Y la bienvenida se puede volver a ver**: Ajustes → Guía → "Ver la
+bienvenida", sin contador (`countdown={0}`). Camil no lograba verla porque
+la 0026 marca como vista la guía a las cuentas que ya existen; con el botón
+no hace falta tocar SQL para revisarla. `WelcomeDialog` pasó a `layer="top"`
+porque ahora puede abrirse encima del diálogo de ajustes.
+
+**Plan se veía corrido a la izquierda.** La página iba a `max-w-[1180px]`
+centrada pero el contenido de cada pestaña estaba capado a 760 y pegado a la
+izquierda, así que en una pantalla ancha quedaba en los dos tercios de la
+izquierda. **La lección: capar el CONTENIDO dentro de una página más ancha
+lo descentra; hay que capar la PÁGINA.** Plan pasó a `max-w-[860px]` (no
+1180 como el resto: son medidores y filas, y a 1180 la barra de un tope mide
+un metro) y se quitaron los `max-w-[760px]` de adentro; su `loading.tsx` se
+ajustó al mismo ancho. Lo mismo tenía Fijos → Ingresos con un
+`max-w-[900px]`, que se quitó para que las dos pestañas midan igual y no
+salte al cambiar.
+
+**Un falso positivo para no repetir**: en una captura los dos diálogos
+(ajustes y la bienvenida encima) parecían translúcidos y superpuestos. No
+era un fallo — medidos los dos paneles, los dos opacos (`rgb(17,17,19)`,
+opacidad 1) y en capas 50 y 70. Era la animación de entrada a medio camino.
+**Antes de arreglar algo que se ve raro en una captura, medir el estilo
+calculado.**
+
+**Otro, al medir centrado con Playwright**: los hijos ocultos por breakpoint
+devuelven un rect de 0,0,0,0, así que entran en la cuenta como si estuvieran
+en la esquina y el centro calculado se va solo a la izquierda. Hay que
+filtrar por `width > 0 && height > 0`.
+
+**Estado**: `npm test` (178), `eslint`, `tsc` y `npm run build` limpios. QA
+con Playwright: 20 comprobaciones del diálogo de ajustes (sin pestañas, los
+ocho bloques en orden, cada uno con su línea, que el diálogo se desplace,
+que se llegue a la zona de peligro, y la bienvenida a pedido sin contador) y
+8 del centrado de Plan a 1520 y 1920 en las tres pestañas.

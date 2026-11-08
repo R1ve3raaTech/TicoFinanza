@@ -28,19 +28,32 @@ const SECONDS = 10;
  * app en otro teléfono no tiene por qué volver a frenar a quien ya la
  * leyó.
  */
-export function WelcomeDialog() {
-  const [left, setLeft] = useState(SECONDS);
+export function WelcomeDialog({
+  countdown = SECONDS,
+  onDone,
+}: {
+  /**
+   * Segundos antes de poder seguir. `0` la abre sin espera: es como se
+   * muestra desde Ajustes → Guía, donde quien la abrió ya sabe lo que está
+   * abriendo y frenarlo diez segundos sería un castigo.
+   */
+  countdown?: number;
+  /** Para quien la abrió a pedido y quiere enterarse de que se cerró. */
+  onDone?: () => void;
+} = {}) {
+  const [left, setLeft] = useState(countdown);
   const [open, setOpen] = useState(true);
   const [pending, startTransition] = useTransition();
 
   useEffect(() => {
+    if (countdown === 0) return;
     // El `setState` va dentro del tick y no en el cuerpo del efecto: en el
     // cuerpo sería un cambio de estado durante el propio efecto.
     const id = setInterval(() => {
       setLeft((seconds) => (seconds <= 1 ? 0 : seconds - 1));
     }, 1000);
     return () => clearInterval(id);
-  }, []);
+  }, [countdown]);
 
   const ready = left === 0;
 
@@ -49,6 +62,7 @@ export function WelcomeDialog() {
     startTransition(async () => {
       await markOnboardingSeen();
     });
+    onDone?.();
   }
 
   return (
@@ -59,8 +73,8 @@ export function WelcomeDialog() {
       // ni clic afuera. Es lo que distingue "la guía" de "un cartel".
       dismissible={ready}
       size="xl"
+      layer="top"
       title="Así funciona TicoFinanza"
-      description="Un minuto de lectura y después no la volvés a ver."
       footer={
         <Button variant="primary" onClick={done} disabled={!ready || pending}>
           {ready ? "Empezar" : `Empezar en ${left}`}

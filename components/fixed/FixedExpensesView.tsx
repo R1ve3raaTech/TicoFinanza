@@ -89,7 +89,7 @@ export function FixedExpensesView({
         </nav>
 
         {tab === "ingresos" ? (
-          <div className="max-w-[900px]">
+          <div>
             <SectionLead
               label={`Entra todos los meses en ${monthLabel}`}
               value={incomes30.expected}

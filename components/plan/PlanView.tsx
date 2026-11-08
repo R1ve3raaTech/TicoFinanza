@@ -68,7 +68,12 @@ export function PlanView({
   const debts30 = debtTotals(debts, todayKey);
 
   return (
-    <main id="contenido" className="mx-auto w-full max-w-[1180px] px-4 pb-12 md:px-8 xl:px-12">
+    // 860 y no los 1180 del resto de la app: acá no hay tablas ni gráficos
+    // de dos columnas, son medidores y filas. A 1180 la barra de un tope
+    // mide un metro de largo. Lo que importa es que el ancho lo marque la
+    // PÁGINA y no el contenido: capando el contenido, la columna quedaba
+    // pegada a la izquierda de una página más ancha y se veía corrida.
+    <main id="contenido" className="mx-auto w-full max-w-[860px] px-4 pb-12 md:px-8 xl:px-12">
       <PageHeader
         title="Plan"
         mobileActions={<InstallAppButton />}
@@ -99,7 +104,7 @@ export function PlanView({
       </nav>
 
       {tab === "presupuestos" ? (
-        <div className="max-w-[760px] pt-5">
+        <div className="pt-5">
           {/* El mes vive en la URL: los topes son por mes, y poder ir al
               anterior es la forma de ver cómo cerró. */}
           <div className="flex items-center justify-between gap-3 border-b border-line pb-3">
@@ -180,7 +185,7 @@ export function PlanView({
           />
         </div>
       ) : (
-        <div className="max-w-[760px]">
+        <div>
           {debts.length > 0 && (
             <SectionLead
               label={debts30.net < 0 ? "Debés más de lo que te deben" : "Te deben más de lo que debés"}
