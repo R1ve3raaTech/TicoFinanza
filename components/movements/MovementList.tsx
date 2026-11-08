@@ -20,6 +20,7 @@ import { useToast } from "@/components/Toast";
 import { Button } from "@/components/ui/Button";
 import { inputClass } from "@/components/ui/Field";
 import { CategoryMark, categoryClasses } from "@/components/ui/CategoryMark";
+import { useCategoryChoices } from "@/components/ui/CategoryStyle";
 import { Money } from "@/components/ui/Money";
 import { Segmented } from "@/components/ui/Segmented";
 import { ToggleChip } from "@/components/ui/ToggleChip";
@@ -102,6 +103,7 @@ export function MovementList({
 }) {
   const toast = useToast();
   const reduce = useReducedMotion();
+  const categoryChoices = useCategoryChoices();
   const { edit } = useMovementEntry();
   const [newIds, setNewIds] = useState<Set<string>>(new Set());
   const seenIds = useRef<Set<string> | null>(null);
@@ -549,8 +551,8 @@ export function MovementList({
                             <span
                               aria-hidden
                               className={`flex h-8 w-8 items-center justify-center rounded-control ${
-                                categoryClasses(transaction.category).soft
-                              } ${categoryClasses(transaction.category).text}`}
+                                categoryClasses(transaction.category, categoryChoices).soft
+                              } ${categoryClasses(transaction.category, categoryChoices).text}`}
                             >
                               {income ? <ArrowDownLeft size={15} /> : <ArrowUpRight size={15} />}
                             </span>

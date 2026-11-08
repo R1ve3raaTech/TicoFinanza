@@ -13,7 +13,8 @@ import type { UpcomingPayment } from "@/lib/fixedExpenses";
 import type { MonthHeadline } from "@/lib/greeting";
 import { totalBalance } from "@/lib/accounts";
 import type { CategorySlice, MonthSummary, MonthTotal } from "@/lib/insights";
-import type { Account, Transaction, UserCategory } from "@/lib/types";
+import type { RecentMovement } from "@/lib/quickEntry";
+import type { Account, UserCategory } from "@/lib/types";
 import { FirstSteps } from "./FirstSteps";
 import { ExpectedIncomes } from "./ExpectedIncomes";
 import { SummaryCards } from "./SummaryCards";
@@ -61,7 +62,7 @@ export function DashboardView({
   months: MonthTotal[];
   customCategories: UserCategory[];
   /** Movimientos recientes, para sugerir categoría y cuenta al escribir. */
-  recent?: Pick<Transaction, "description" | "category" | "account_id" | "transaction_date">[];
+  recent?: RecentMovement[];
   /** Ingresos fijos cuya fecha ya pasó y siguen sin confirmar. */
   toConfirm?: ExpectedIncome[];
   /** Ingresos fijos del mes que todavía no entraron. */

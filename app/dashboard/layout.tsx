@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { OfflineBanner } from "@/components/offline/OfflineBanner";
 import { QueueOwnerProvider } from "@/components/offline/QueueOwner";
 import { SettingsEntryProvider } from "@/components/settings/SettingsEntry";
+import { CategoryStyleProvider } from "@/components/ui/CategoryStyle";
 import { AppShell } from "@/components/shell/AppShell";
 import { IdleLogout } from "@/components/shell/IdleLogout";
 import { ThemeSync } from "@/components/ThemeSync";
@@ -81,38 +82,43 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   const stamp = renderedStamp();
 
   return (
-    // El provider de ajustes envuelve al shell y no al contenido: el botón
-    // que abre el diálogo vive en las dos píldoras de navegación, que
-    // AppShell dibuja FUERA de sus children. Adentro, el contexto no les
-    // llegaría.
-    <SettingsEntryProvider
-      data={{
-        userId: user.id,
-        email: user.email ?? "",
-        fullName: resolveDisplayName(user, profile?.full_name) ?? "",
-        birthDate: profile?.birth_date ?? null,
-        avatarUrl: avatarUrl ?? null,
-        categories: (categories ?? []) as UserCategory[],
-        theme: dbTheme,
-        remindersEnabled: settings?.reminders_enabled ?? false,
-        transactionCount: transactionCount ?? 0,
-      }}
-    >
-      <AppShell name={firstName} email={user?.email ?? undefined} avatarUrl={avatarUrl}>
-        <ThemeSync dbTheme={dbTheme} />
-        {/* Solo dentro del área con sesión: afuera no hay nada que cerrar. */}
-        <IdleLogout />
-        {/* De quién es lo que quedó sin enviar. IndexedDB es del origen y
-            sobrevive al cierre de sesión, así que la cola se filtra por el
-            usuario de la sesión (ver components/offline/QueueOwner.tsx). */}
-        <QueueOwnerProvider userId={user.id} renderedAtMs={stamp.ms}>
-          {/* La hora se arma acá, al generar la pantalla, y queda escrita en
-              el HTML: cuando ese HTML sale del caché sin señal, el aviso
-              dice de cuándo son los datos de verdad. */}
-          <OfflineBanner renderedAt={stamp.label} />
-          {children}
-        </QueueOwnerProvider>
-      </AppShell>
-    </SettingsEntryProvider>
+    // Los íconos y colores que el usuario le puso a sus categorías, para
+    // todas las listas de adentro. Sale de las mismas categorías que ya se
+    // consultan para el diálogo de ajustes: no hay consulta nueva.
+    <CategoryStyleProvider categories={(categories ?? []) as UserCategory[]}>
+      {/* El provider de ajustes envuelve al shell y no al contenido: el
+          botón que abre el diálogo vive en las dos píldoras de navegación,
+          que AppShell dibuja FUERA de sus children. Adentro, el contexto no
+          les llegaría. */}
+      <SettingsEntryProvider
+        data={{
+          userId: user.id,
+          email: user.email ?? "",
+          fullName: resolveDisplayName(user, profile?.full_name) ?? "",
+          birthDate: profile?.birth_date ?? null,
+          avatarUrl: avatarUrl ?? null,
+          categories: (categories ?? []) as UserCategory[],
+          theme: dbTheme,
+          remindersEnabled: settings?.reminders_enabled ?? false,
+          transactionCount: transactionCount ?? 0,
+        }}
+      >
+        <AppShell name={firstName} email={user?.email ?? undefined} avatarUrl={avatarUrl}>
+          <ThemeSync dbTheme={dbTheme} />
+          {/* Solo dentro del área con sesión: afuera no hay nada que cerrar. */}
+          <IdleLogout />
+          {/* De quién es lo que quedó sin enviar. IndexedDB es del origen y
+              sobrevive al cierre de sesión, así que la cola se filtra por el
+              usuario de la sesión (ver components/offline/QueueOwner.tsx). */}
+          <QueueOwnerProvider userId={user.id} renderedAtMs={stamp.ms}>
+            {/* La hora se arma acá, al generar la pantalla, y queda escrita en
+                el HTML: cuando ese HTML sale del caché sin señal, el aviso
+                dice de cuándo son los datos de verdad. */}
+            <OfflineBanner renderedAt={stamp.label} />
+            {children}
+          </QueueOwnerProvider>
+        </AppShell>
+      </SettingsEntryProvider>
+    </CategoryStyleProvider>
   );
 }

@@ -8,6 +8,8 @@ import { checkRateLimit } from "@/lib/rateLimit";
 import { issueDeletionCode, verifyDeletionCode } from "@/lib/accountDeletion";
 import { sendPushToUser } from "@/lib/push/send";
 import { categoryClash } from "@/lib/categories";
+import { isCategoryTone } from "@/lib/categoryStyle";
+import { isSymbolName } from "@/lib/materialSymbols";
 import { RECEIPTS_BUCKET } from "@/lib/receipts";
 import type { Theme, TransactionType } from "@/lib/types";
 
@@ -100,6 +102,71 @@ export async function addCategory(name: string, type: TransactionType) {
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/plan");
   return { error: null, name: trimmed };
+}
+
+/**
+ * Cambiarle el nombre, el ícono o el color a una categoría propia.
+ *
+ * `icon` y `color` son columnas de la migración 0025 y aceptan null, que
+ * quiere decir "elegí vos por mí": la app vuelve a decidir sola (ver
+ * lib/categoryStyle.ts). **Si la migración no se corrió, esta acción falla
+ * y el resto de la app sigue funcionando igual**: nada más lee esas
+ * columnas sin tolerar que falten.
+ */
+export async function updateCategory(
+  id: string,
+  input: { name: string; icon: string | null; color: string | null }
+) {
+  const { supabase, user } = await requireUser();
+
+  const trimmed = input.name.trim();
+
+  const { data: current } = await supabase
+    .from("user_categories")
+    .select("name, type")
+    .eq("id", id)
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (!current) return { error: "Esa categoría ya no existe." };
+
+  // Las demás del mismo tipo, sin contar esta: renombrar a lo que ya se
+  // llama no es un choque consigo misma.
+  const { data: others } = await supabase
+    .from("user_categories")
+    .select("name")
+    .eq("user_id", user.id)
+    .eq("type", current.type)
+    .neq("id", id);
+
+  const clash = categoryClash(trimmed, current.type, (others ?? []).map((c) => c.name));
+  if (clash) return { error: clash };
+
+  if (input.icon && !isSymbolName(input.icon)) return { error: "Ese ícono no existe." };
+  if (input.color && !isCategoryTone(input.color)) return { error: "Ese color no existe." };
+
+  const { error } = await supabase
+    .from("user_categories")
+    .update({ name: trimmed, icon: input.icon, color: input.color })
+    .eq("id", id)
+    .eq("user_id", user.id);
+
+  if (error) {
+    return {
+      error:
+        error.code === "42703"
+          ? "Falta correr la migración 0025 en Supabase."
+          : "No se pudo guardar la categoría.",
+    };
+  }
+
+  // Los movimientos guardan la categoría como texto, así que renombrarla no
+  // los arrastra: lo que ya estaba anotado conserva el nombre viejo. Se
+  // revalidan todas las pantallas igual, porque el color y el ícono sí se
+  // ven en todas.
+  for (const path of ["/dashboard", "/dashboard/ajustes", "/dashboard/movimientos", "/dashboard/fijos", "/dashboard/plan"]) {
+    revalidatePath(path);
+  }
+  return { error: null };
 }
 
 export async function deleteCategory(id: string) {

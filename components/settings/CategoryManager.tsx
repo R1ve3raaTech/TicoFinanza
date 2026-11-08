@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { X } from "@phosphor-icons/react";
+import { PencilSimple, X } from "@phosphor-icons/react";
 import { addCategory, deleteCategory } from "@/app/dashboard/ajustes/actions";
 import { useToast } from "@/components/Toast";
 import { Button } from "@/components/ui/Button";
 import { CategoryMark } from "@/components/ui/CategoryMark";
 import { FormError, inputClass } from "@/components/ui/Field";
 import type { TransactionType, UserCategory } from "@/lib/types";
+import { CategoryEditor } from "./CategoryEditor";
 import { SettingsRow } from "./SettingsSection";
 
 function CategoryGroup({
@@ -23,7 +24,14 @@ function CategoryGroup({
   const [name, setName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const [editing, setEditing] = useState<UserCategory | null>(null);
+  const [session, setSession] = useState(0);
   const noun = type === "INCOME" ? "ingreso" : "gasto";
+
+  function edit(category: UserCategory) {
+    setEditing(category);
+    setSession((n) => n + 1);
+  }
 
   function submit() {
     if (!name.trim()) return;
@@ -56,12 +64,20 @@ function CategoryGroup({
             {categories.map((c) => (
               <li
                 key={c.id}
-                className="inline-flex h-7 items-center gap-1.5 rounded-control border border-line bg-surface pl-1.5 pr-0.5 text-label font-normal text-ink"
+                className="inline-flex h-8 items-center gap-1 rounded-control border border-line bg-surface pl-1.5 pr-0.5 text-label font-normal text-ink"
               >
-                {/* El color e ícono que le tocó: es el mismo que va a tener
-                    en las listas, así se ve acá antes de usarla. */}
-                <CategoryMark category={c.name} size={16} className="rounded-[4px]" />
-                {c.name}
+                {/* Tocar la categoría abre su editor: nombre, ícono y color.
+                    El cuadrito muestra lo que va a verse en las listas. */}
+                <button
+                  type="button"
+                  onClick={() => edit(c)}
+                  aria-label={`Editar ${c.name}`}
+                  className="-my-1 flex cursor-pointer items-center gap-1.5 rounded-[4px] py-1 pr-1 transition-colors duration-150 hover:text-accent"
+                >
+                  <CategoryMark category={c.name} size={18} className="rounded-[4px]" />
+                  {c.name}
+                  <PencilSimple size={11} aria-hidden className="text-ink-3" />
+                </button>
                 <button
                   type="button"
                   onClick={() => remove(c.id, c.name)}
@@ -96,6 +112,13 @@ function CategoryGroup({
         </form>
         <FormError>{error}</FormError>
       </div>
+
+      <CategoryEditor
+        key={session}
+        open={Boolean(editing)}
+        onClose={() => setEditing(null)}
+        category={editing}
+      />
     </SettingsRow>
   );
 }

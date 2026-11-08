@@ -1683,3 +1683,83 @@ con Playwright a 1440 claro y 390 oscuro: 20 comprobaciones, incluida una
 que recorre las seis pestañas de ajustes y **falla si queda algún párrafo de
 13px o menos con más de seis palabras** — así la regla queda comprobada y no
 solo escrita.
+
+## Dónde quedamos (2026-11-07, séptima parte)
+
+### ⚠️ HAY UNA MIGRACIÓN SIN CORRER: `0025_category_icon_color.sql`
+
+Agrega `user_categories.icon` y `user_categories.color`, las dos NULL por
+defecto. **Es segura de correr en cualquier momento y también es segura de
+NO correr**: sin ella lo único que falla es el selector de ícono y color
+—`updateCategory` devuelve "Falta correr la migración 0025 en Supabase"— y
+todo lo demás sigue igual, porque las columnas se leen de forma tolerante y
+nadie más escribe en ellas.
+
+**Anotar un gasto o un ingreso, más rápido**
+
+Tres cambios, medidos contra lo que costaba antes: estirar el pulgar al
+botón de la esquina de arriba, escribir el monto, **bajar** con el teclado
+abierto hasta los chips de categoría, elegir, guardar.
+
+1. **El "+" en la píldora de abajo.** Es un enlace a
+   `/dashboard/movimientos?nuevo=gasto` —el mismo camino de los accesos
+   rápidos del ícono— y no una llamada al formulario: el formulario lo monta
+   cada pantalla y la barra vive fuera de ellas. De paso, al guardar quedás
+   en la lista donde se ve lo que anotaste.
+2. **Cuenta, fecha y comprobante arrancan plegados** detrás de "Más
+   detalles". De los ocho bloques del formulario, seis son siempre lo mismo
+   en un gasto del día a día. Comprobado en la QA: la categoría entra en
+   pantalla sin bajar, a 390 y a 1440. Al **editar** van abiertos: ahí uno
+   viene justamente a revisar.
+3. **"Lo de siempre"** (`lib/quickEntry.ts`): una fila con los movimientos
+   que más repetís; un toque llena monto, detalle, categoría y cuenta. Sale
+   de los mismos recientes que ya alimentan la sugerencia de categoría — no
+   hay consulta nueva, solo dos columnas más (`amount`, `type`) en el select
+   que ya existía.
+   - **Mínimo dos apariciones**: con una sola serían los últimos movimientos
+     y no los habituales, y ofrecería repetir el regalo de cumpleaños.
+   - **Manda el monto más reciente**, no el promedio ni el más repetido: si
+     el almuerzo subió de ₡3.000 a ₡3.500, vale el de ahora; el promedio
+     daría un número que nunca se pagó.
+   - **No guarda directo**: llena el formulario y deja guardar. Un botón que
+     escribe en la base sin que se vea qué escribió es la forma más rápida
+     de meter un dato equivocado.
+
+**Biblioteca de íconos y colores para las categorías**
+
+- Los íconos son **Material Symbols de Google** (Apache 2.0), 36 del juego
+  "outlined". **Los trazos están copiados en `lib/materialSymbols.ts`, no se
+  carga la fuente de Google.** Dos razones: la app funciona sin señal y una
+  fuente pedida a `fonts.googleapis.com` no llega —los íconos se verían como
+  el nombre escrito, "restaurant", en media pantalla—, y la fuente completa
+  pesa megas contra los ~16 KB de estos trazos. Para agregar otro: bajar
+  `https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsoutlined/<nombre>/default/24px.svg`
+  y pegar su atributo `d`. Todos comparten `viewBox="0 -960 960 960"`.
+- Los colores son los diez tonos `--cat-*` que ya existían. **Se guarda la
+  clave del tono ("naranja"), no un hexadecimal**, para que el mismo color
+  valga en claro y en oscuro.
+- **"Automático" es una opción de verdad y es la de arranque**: sin elegir
+  nada, la app sigue decidiendo por el nombre como venía haciendo. Obligar a
+  elegir convertiría crear una categoría en un trámite de tres decisiones.
+- Lo elegido llega a todas las listas por **contexto**
+  (`components/ui/CategoryStyle.tsx`, montado en el layout de /dashboard):
+  la marca se dibuja en sitios muy repartidos y ninguno tiene por qué
+  recibir la tabla de categorías para pintar un cuadrito. Los datos ya los
+  bajaba el layout para el diálogo de ajustes.
+- **Solo se pueden editar las categorías propias.** Las que trae la app no
+  son filas de `user_categories`, así que no hay dónde guardarles la
+  elección; su color e ícono siguen siendo los asignados a mano, que están
+  pensados uno por uno. Hacerlas editables pide sembrar filas por usuario y
+  es otra migración.
+- `CategoryMark` pasó a ser componente de cliente (lee el contexto) y
+  acepta `day` para el sello del día de Fijos y `previewIcon`/`previewTone`
+  para la vista previa del selector.
+
+**Estado**: `npm test` (174, 14 nuevas entre "lo de siempre" y la resolución
+de estilos), `eslint`, `tsc` y `npm run build` limpios. QA con Playwright a
+1440 claro y 390 oscuro: 39 comprobaciones — el "+" en la mitad de abajo de
+la pantalla, los tres bloques plegados y que "Más detalles" los abra, que la
+categoría entre sin scroll, que la fila de repetidos ofrezca lo que se
+repite y no lo que pasó una vez, que al tocar uno llene monto/detalle/
+categoría, y que la biblioteca traiga los 36 íconos y los 10 colores con el
+guardado ya marcado.

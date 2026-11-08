@@ -121,6 +121,16 @@ export interface UserCategory {
   user_id: string;
   name: string;
   type: TransactionType;
+  /**
+   * Ícono elegido: el nombre de un Material Symbol ("restaurant"), o null
+   * para que lo decida la app. Columna de la migración 0025.
+   */
+  icon: string | null;
+  /**
+   * Tono elegido: la CLAVE del color ("naranja"), no un hexadecimal, para
+   * que se adapte al tema claro y al oscuro. null = lo decide la app.
+   */
+  color: string | null;
   created_at: string;
 }
 

@@ -1,3 +1,5 @@
+"use client";
+
 import {
   Barbell,
   Bus,
@@ -12,15 +14,24 @@ import {
 // El tipo `Icon` solo lo exporta el paquete principal; los componentes vienen
 // de `/dist/ssr`, que es el que se puede usar en una pantalla de servidor.
 import type { Icon } from "@phosphor-icons/react";
-import { categoryTone, normalizeCategory, type CategoryTone } from "@/lib/categoryStyle";
+import {
+  normalizeCategory,
+  resolvedIcon,
+  resolvedTone,
+  type CategoryChoice,
+  type CategoryTone,
+} from "@/lib/categoryStyle";
+import { MATERIAL_SYMBOLS } from "@/lib/materialSymbols";
+import { useCategoryChoices } from "./CategoryStyle";
 
 /**
- * La marquita de una categoría: un ícono propio sobre un cuadrito del color
- * de la categoría.
+ * La marquita de una categoría: un ícono sobre un cuadrito de su color.
  *
- * Se importa de `@phosphor-icons/react/dist/ssr` a propósito y el archivo no
- * lleva "use client": así el mismo componente sirve en las pantallas que se
- * arman en el servidor y en las listas que son de cliente.
+ * El orden de prioridad es: lo que el usuario eligió para esa categoría
+ * (Ajustes → Categorías), y si no eligió nada, lo que la app decide sola.
+ * Lo elegido llega por contexto (components/ui/CategoryStyle.tsx) para no
+ * tener que pasarle la tabla de categorías a cada fila que dibuja un
+ * cuadrito.
  *
  * Las clases están escritas enteras en una tabla y no armadas con plantillas
  * (`bg-cat-${tono}`): Tailwind lee el código fuente buscando clases, y una
@@ -65,21 +76,44 @@ export function categoryIcon(category: string | null | undefined): Icon {
 
 /** Las clases de color de una categoría, para teñir algo que no es la marca
  *  (el sello del día en Fijos, por ejemplo). */
-export function categoryClasses(category: string | null | undefined) {
-  return TONE[categoryTone(category)];
+export function categoryClasses(
+  category: string | null | undefined,
+  choices: Record<string, CategoryChoice> = {}
+) {
+  return TONE[resolvedTone(category, choices)];
+}
+
+/** Las clases de un tono concreto, para el selector de colores. */
+export function toneClasses(tone: CategoryTone) {
+  return TONE[tone];
 }
 
 export function CategoryMark({
   category,
   size = 32,
   className = "",
+  /** Forzar lo que se muestra, sin mirar lo guardado: lo usa el selector. */
+  previewIcon,
+  previewTone,
+  day,
 }: {
   category: string | null | undefined;
   /** Lado del cuadrito en píxeles. */
   size?: number;
   className?: string;
+  previewIcon?: string | null;
+  previewTone?: CategoryTone;
+  /**
+   * En lugar del ícono, este número. Es el sello del día de cobro de un
+   * gasto fijo: ahí el dato que se busca con la vista es el día, y el color
+   * de la categoría es lo que agrupa la lista.
+   */
+  day?: number;
 }) {
-  const tone = categoryClasses(category);
+  const choices = useCategoryChoices();
+  const tone = previewTone ? TONE[previewTone] : categoryClasses(category, choices);
+  const chosenIcon = previewIcon !== undefined ? previewIcon : resolvedIcon(category, choices);
+  const symbol = chosenIcon ? MATERIAL_SYMBOLS[chosenIcon] : undefined;
   // La tabla se indexa acá y no con `categoryIcon()`: el compilador de React
   // no distingue una función que BUSCA un componente de una que lo CREA, y
   // marca error al ver un componente saliendo de una llamada en el render.
@@ -98,7 +132,25 @@ export function CategoryMark({
       style={{ width: size, height: size }}
       className={`flex shrink-0 items-center justify-center rounded-control ${tone.soft} ${tone.text} ${className}`}
     >
-      {Icon ? (
+      {day !== undefined ? (
+        <span
+          style={{ fontSize: Math.round(size * 0.38) }}
+          className="money font-medium leading-none"
+        >
+          {day}
+        </span>
+      ) : symbol ? (
+        // Material Symbols usa este sistema de coordenadas (el eje Y en
+        // negativo). Van como trazo y no como fuente: ver lib/materialSymbols.ts.
+        <svg
+          viewBox="0 -960 960 960"
+          width={Math.round(size * 0.62)}
+          height={Math.round(size * 0.62)}
+          fill="currentColor"
+        >
+          <path d={symbol.path} />
+        </svg>
+      ) : Icon ? (
         <Icon size={Math.round(size * 0.5)} weight="fill" />
       ) : initial ? (
         <span style={{ fontSize: Math.round(size * 0.46) }} className="font-semibold leading-none">
@@ -113,10 +165,11 @@ export function CategoryMark({
 
 /** Punto del color de la categoría, para donde no cabe la marca entera. */
 export function CategoryDot({ category, className = "" }: { category: string | null; className?: string }) {
+  const choices = useCategoryChoices();
   return (
     <span
       aria-hidden
-      className={`inline-block h-2 w-2 shrink-0 rounded-[2px] ${categoryClasses(category).dot} ${className}`}
+      className={`inline-block h-2 w-2 shrink-0 rounded-[2px] ${categoryClasses(category, choices).dot} ${className}`}
     />
   );
 }

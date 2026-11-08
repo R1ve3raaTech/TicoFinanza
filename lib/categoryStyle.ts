@@ -91,3 +91,57 @@ export function categoryTone(category: string | null | undefined): CategoryTone 
   const key = normalizeCategory(category);
   return KNOWN[key] ?? hashTone(key);
 }
+
+/** Lo que el usuario eligió para una categoría suya, si eligió algo. */
+export interface CategoryChoice {
+  name: string;
+  icon: string | null;
+  color: string | null;
+}
+
+const TONES: CategoryTone[] = [...WHEEL, "piedra", "verde"];
+
+export function isCategoryTone(value: string | null | undefined): value is CategoryTone {
+  return typeof value === "string" && (TONES as string[]).includes(value);
+}
+
+/** Los diez tonos, en el orden en que se muestran en el selector. */
+export const CATEGORY_TONES: CategoryTone[] = TONES;
+
+/**
+ * Índice por nombre normalizado de lo que el usuario eligió.
+ *
+ * La clave es el nombre y no el id porque las listas de la app (movimientos,
+ * fijos, topes) guardan la categoría como texto: un movimiento no apunta a
+ * la fila de `user_categories`, trae el nombre escrito.
+ */
+export function choiceIndex(categories: CategoryChoice[]): Record<string, CategoryChoice> {
+  const index: Record<string, CategoryChoice> = {};
+  for (const category of categories) {
+    if (!category.icon && !category.color) continue;
+    index[normalizeCategory(category.name)] = category;
+  }
+  return index;
+}
+
+/**
+ * El tono final de una categoría: el elegido si hay uno válido, y si no el
+ * automático. Un valor guardado que ya no exista en la paleta (porque se
+ * renombró un tono) cae al automático en vez de quedarse sin color.
+ */
+export function resolvedTone(
+  category: string | null | undefined,
+  choices: Record<string, CategoryChoice> = {}
+): CategoryTone {
+  const chosen = category ? choices[normalizeCategory(category)]?.color : null;
+  return isCategoryTone(chosen) ? chosen : categoryTone(category);
+}
+
+/** El ícono elegido, o null para que decida la app. */
+export function resolvedIcon(
+  category: string | null | undefined,
+  choices: Record<string, CategoryChoice> = {}
+): string | null {
+  if (!category) return null;
+  return choices[normalizeCategory(category)]?.icon ?? null;
+}

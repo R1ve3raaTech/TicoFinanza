@@ -1,7 +1,7 @@
 "use client";
 
 import { useId, useRef, useState, useTransition } from "react";
-import { CurrencyDollar, Trash, Users } from "@phosphor-icons/react";
+import { CaretDown, CurrencyDollar, Trash, Users } from "@phosphor-icons/react";
 import { addTransaction, deleteTransaction, updateTransaction } from "@/app/dashboard/actions";
 import { AccountPicker } from "@/components/accounts/AccountPicker";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
@@ -16,6 +16,7 @@ import { expenseCategories, incomeCategories } from "@/lib/categories";
 import { monthKey } from "@/lib/fixedExpenses";
 import { isFrameworkNavigation, isNetworkFailure, localId } from "@/lib/offline";
 import { deleteReceiptFile } from "@/lib/receiptUpload";
+import { frequentEntries, type RecentMovement } from "@/lib/quickEntry";
 import { suggestFor } from "@/lib/smartMatch";
 import { conversionLabel, DEFAULT_USD_RATE, isValidRate, usdToCrc } from "@/lib/usd";
 import type { Account, Transaction, TransactionType, UserCategory } from "@/lib/types";
@@ -28,6 +29,7 @@ import {
   parseAmount,
 } from "./MovementFields";
 import { BillSplitPanel } from "./BillSplitPanel";
+import { QuickEntries } from "./QuickEntries";
 import { ReceiptField } from "./ReceiptField";
 
 /** "YYYY-MM-DDTHH:mm" en hora local, para <input type="datetime-local">. */
@@ -80,7 +82,7 @@ export function MovementDialog({
   customCategories?: UserCategory[];
   accounts?: Account[];
   /** Movimientos recientes, para sugerir categoría y cuenta. */
-  recent?: Pick<Transaction, "description" | "category" | "account_id" | "transaction_date">[];
+  recent?: RecentMovement[];
 }) {
   const toast = useToast();
   const formId = useId();
@@ -115,6 +117,16 @@ export function MovementDialog({
   const [usd, setUsd] = useState(false);
   const [rate, setRate] = useState(String(DEFAULT_USD_RATE));
   const [splitOpen, setSplitOpen] = useState(false);
+  /**
+   * Cuenta, fecha y comprobante arrancan plegados.
+   *
+   * De los ocho bloques del formulario, seis son siempre lo mismo en un
+   * gasto del día a día: la cuenta de siempre, ahora, sin foto. Teniéndolos
+   * desplegados hay que bajar con el teclado abierto —que tapa media
+   * pantalla— para llegar a la categoría, y eso es lo que hacía lento
+   * anotar. Al editar van abiertos: ahí uno viene justamente a revisar.
+   */
+  const [detailsOpen, setDetailsOpen] = useState(editing || Boolean(originalReceipt));
 
   // La sugerencia solo pisa la categoría mientras nadie la haya tocado a
   // mano: adivinar por encima de una decisión explícita es peor que no
@@ -142,6 +154,10 @@ export function MovementDialog({
     touchedCategory || type !== "EXPENSE"
       ? null
       : suggestFor(description, categories, recent);
+
+  // De los mismos movimientos recientes que ya alimentan la sugerencia de
+  // categoría: no hay consulta nueva.
+  const frequent = frequentEntries(recent, type);
 
   const effectiveCategory = suggested?.category ?? category;
   const effectiveAccountId =
@@ -311,6 +327,21 @@ export function MovementDialog({
             <TypeToggle value={type} onChange={pickType} />
           )}
 
+          {/* Lo de siempre: un toque llena monto, detalle, categoría y
+              cuenta. Solo al registrar — al editar no hay nada que repetir. */}
+          {!editing && frequent.length > 0 && (
+            <QuickEntries
+              entries={frequent}
+              onPick={(entry) => {
+                setAmount(formatAmountInput(entry.amount));
+                setDescription(entry.description);
+                setCategory(entry.category ?? categories[0]);
+                setTouchedCategory(true);
+                if (entry.accountId) setAccountId(entry.accountId);
+              }}
+            />
+          )}
+
           <div className="flex flex-col gap-2">
             <AmountInput
               value={amount}
@@ -406,33 +437,46 @@ export function MovementDialog({
             </p>
           )}
 
-          <AccountPicker
-            accounts={accounts}
-            value={effectiveAccountId}
-            onChange={setAccountId}
-            label={type === "INCOME" ? "¿A qué cuenta entró?" : "¿De qué cuenta salió?"}
-          />
+          {detailsOpen ? (
+            <>
+              <AccountPicker
+                accounts={accounts}
+                value={effectiveAccountId}
+                onChange={setAccountId}
+                label={type === "INCOME" ? "¿A qué cuenta entró?" : "¿De qué cuenta salió?"}
+              />
 
-          <Field
-            label="Fecha y hora"
-            // El resumen cuenta solo el mes en curso. Sin este aviso, quien
-            // anota algo de un mes pasado ve que las cifras de arriba no se
-            // mueven y concluye que no se guardó.
-            hint={
-              otherMonth
-                ? `Queda registrado en ${otherMonth}, así que no entra en las cifras del resumen de este mes. Lo vas a ver acá, en Movimientos.`
-                : undefined
-            }
-          >
-            <input
-              type="datetime-local"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className={inputClass}
-            />
-          </Field>
+              <Field
+                label="Fecha y hora"
+                // El resumen cuenta solo el mes en curso. Sin este aviso, quien
+                // anota algo de un mes pasado ve que las cifras de arriba no se
+                // mueven y concluye que no se guardó.
+                hint={
+                  otherMonth
+                    ? `Queda registrado en ${otherMonth}, así que no entra en las cifras del resumen de este mes. Lo vas a ver acá, en Movimientos.`
+                    : undefined
+                }
+              >
+                <input
+                  type="datetime-local"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                  className={inputClass}
+                />
+              </Field>
 
-          <ReceiptField path={receiptPath} onChange={setReceiptPath} onError={setError} />
+              <ReceiptField path={receiptPath} onChange={setReceiptPath} onError={setError} />
+            </>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setDetailsOpen(true)}
+              className="-mt-1 inline-flex cursor-pointer items-center gap-1.5 self-start rounded-control text-label text-ink-3 transition-colors duration-150 hover:text-ink"
+            >
+              <CaretDown size={12} weight="bold" aria-hidden />
+              Más detalles
+            </button>
+          )}
 
           <FormError>{error}</FormError>
         </form>

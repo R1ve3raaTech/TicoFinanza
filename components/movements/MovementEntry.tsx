@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useState, type ReactNode } from "react";
 import { Plus } from "@phosphor-icons/react";
 import { Button, type ButtonVariant } from "@/components/ui/Button";
+import type { RecentMovement } from "@/lib/quickEntry";
 import type { Account, Transaction, TransactionType, UserCategory } from "@/lib/types";
 import { MovementDialog } from "./MovementDialog";
 import { TransferDialog } from "./TransferDialog";
@@ -40,7 +41,7 @@ export function MovementEntryProvider({
   customCategories: UserCategory[];
   accounts?: Account[];
   /** Movimientos recientes, para sugerir categoría y cuenta al escribir. */
-  recent?: Pick<Transaction, "description" | "category" | "account_id" | "transaction_date">[];
+  recent?: RecentMovement[];
   /**
    * Abrir el formulario solo al entrar, con esta pestaña marcada.
    *

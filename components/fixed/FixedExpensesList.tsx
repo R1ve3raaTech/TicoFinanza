@@ -5,7 +5,7 @@ import { Check, WarningCircle } from "@phosphor-icons/react";
 import { setFixedExpenseStatus } from "@/app/dashboard/fijos/actions";
 import { useToast } from "@/components/Toast";
 import { Button } from "@/components/ui/Button";
-import { categoryClasses, categoryIcon } from "@/components/ui/CategoryMark";
+import { CategoryMark } from "@/components/ui/CategoryMark";
 import { Money } from "@/components/ui/Money";
 import type { UpcomingPayment } from "@/lib/fixedExpenses";
 import type { Account, FixedExpense } from "@/lib/types";
@@ -94,8 +94,7 @@ export function FixedExpensesList({
             const payment = byId.get(expense.id);
             const paid = payment?.status === "PAID";
             const alert = Boolean(payment?.urgent) && !paid;
-            const tone = categoryClasses(expense.category);
-            const CategoryIcon = categoryIcon(expense.category);
+
             return (
               <li
                 key={expense.id}
@@ -111,12 +110,7 @@ export function FixedExpensesList({
                       con el color de la categoría, así la lista se agrupa
                       sola a la vista —todos los servicios del mismo color—
                       sin perder el día, que es para lo que se mira. */}
-                  <span
-                    aria-hidden
-                    className={`money flex h-9 w-9 shrink-0 items-center justify-center rounded-control text-label leading-none ${tone.soft} ${tone.text}`}
-                  >
-                    {expense.charge_day}
-                  </span>
+                  <CategoryMark category={expense.category} size={36} day={expense.charge_day} />
                   <span className="min-w-0">
                     <span className="block truncate text-sm font-medium text-ink">
                       {expense.name}
@@ -136,10 +130,7 @@ export function FixedExpensesList({
                         </span>
                       </span>
                       <span aria-hidden>·</span>
-                      <span className="flex shrink-0 items-center gap-1">
-                        <CategoryIcon size={11} weight="fill" aria-hidden className={tone.text} />
-                        {expense.category ?? "Sin categoría"}
-                      </span>
+                      <span className="shrink-0">{expense.category ?? "Sin categoría"}</span>
                     </span>
                   </span>
                 </button>

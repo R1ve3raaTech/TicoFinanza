@@ -13,6 +13,7 @@ import { greeting, monthHeadline } from "@/lib/greeting";
 import { compareMonths } from "@/lib/comparison";
 import { expectedIncomes, incomeTotals } from "@/lib/fixedIncomes";
 import { categorySpending, monthSummary, monthlyTotals } from "@/lib/insights";
+import type { RecentMovement } from "@/lib/quickEntry";
 import { resolveFirstName } from "@/lib/profile";
 import { createClient } from "@/lib/supabase/server";
 import type {
@@ -22,11 +23,6 @@ import type {
   Transaction,
   UserCategory,
 } from "@/lib/types";
-
-type RecentMovement = Pick<
-  Transaction,
-  "description" | "category" | "account_id" | "transaction_date"
->;
 
 export const metadata: Metadata = { title: "Resumen" };
 
@@ -84,7 +80,7 @@ export default async function DashboardPage() {
       // lista corta y con pocas columnas: solo alimenta el autocompletado.
       supabase
         .from("transactions")
-        .select("description, category, account_id, transaction_date")
+        .select("description, category, account_id, transaction_date, amount, type")
         .eq("user_id", user.id)
         .not("description", "is", null)
         .order("transaction_date", { ascending: false })
