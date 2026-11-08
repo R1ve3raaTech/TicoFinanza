@@ -131,6 +131,14 @@
   --cat-piedra: #78716c;
   --cat-verde: #047857;
 
+
+  /* Captura del resumen que va de fondo en /entrar, una por tema.
+     Es una variable y no dos <img> con `display:none` a propósito: el
+     navegador baja solo la URL que la variable resuelve, así que en claro
+     nunca se pide la oscura ni al revés. */
+  --shot-entrar: url("/screenshots/entrar-claro.jpg");
+  --velo-entrar: 72%;
+
   /* Fondo detrás de un diálogo abierto */
   --scrim: rgb(0 0 0 / 0.45);
 
@@ -188,6 +196,8 @@
     --cat-pizarra: #94a3b8;
     --cat-piedra: #a8a29e;
     --cat-verde: #34d399;
+    --shot-entrar: url("/screenshots/entrar-oscuro.jpg");
+    --velo-entrar: 40%;
     --scrim: rgb(0 0 0 / 0.62);
   }
 }
@@ -237,6 +247,8 @@
   --cat-pizarra: #94a3b8;
   --cat-piedra: #a8a29e;
   --cat-verde: #34d399;
+  --shot-entrar: url("/screenshots/entrar-oscuro.jpg");
+  --velo-entrar: 40%;
   --scrim: rgb(0 0 0 / 0.62);
 }
 
@@ -554,5 +566,36 @@ textarea,
     animation: none;
     opacity: 1;
     transform: none;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Fondo de /entrar: el resumen de verdad, difuminado detrás de la tarjeta.
+--------------------------------------------------------------------------- */
+@layer components {
+  .fondo-entrar {
+    background-image: var(--shot-entrar);
+    background-size: cover;
+    background-position: top center;
+    /* El desenfoque va acá y no en un velo encima: así la captura se lee
+       como textura y nunca compite con el texto de la tarjeta. El `scale`
+       evita que el desenfoque deje los bordes transparentes. */
+    filter: blur(2px) saturate(0.9);
+    scale: 1.04;
+  }
+
+  /* El velo. La fuerza cambia con el tema (`--velo-entrar`) porque no es
+     la misma tarea: sobre la captura clara hay que bajar el contraste, y
+     sobre la oscura un velo igual de fuerte la deja en negro y el fondo
+     deja de reconocerse como la app. Los extremos van opacos para que la
+     imagen se funda con la página en vez de cortarse contra el borde. */
+  .velo-entrar {
+    background-image: linear-gradient(
+      to bottom,
+      var(--ground) 0%,
+      color-mix(in srgb, var(--ground) var(--velo-entrar), transparent) 30%,
+      color-mix(in srgb, var(--ground) var(--velo-entrar), transparent) 68%,
+      var(--ground) 100%
+    );
   }
 }

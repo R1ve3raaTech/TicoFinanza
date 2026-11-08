@@ -1840,3 +1840,53 @@ de nada.
 con Playwright: la pantalla de error muestra el texto nuevo con el correo y
 el botón de reintentar, y el 404 sigue respondiendo 404 con su propio
 texto.
+
+## Dónde quedamos (2026-11-08, rediseño de /entrar)
+
+Camil pidió cambiarle la estructura. Se le propusieron tres (una columna
+centrada, asimétrica 40/60, y el producto de fondo) y eligió **el producto
+de fondo**.
+
+**Lo que estaba mal**: dos mitades exactas, las dos oscuras, separadas por
+una línea — ninguna mandaba, y en una página cuyo único trabajo es que
+toques un botón, no saber dónde mirar es el problema más caro. La mitad
+derecha se había vuelto una landing metida en media pantalla (titular,
+bajada, maqueta y cuatro bloques de texto, que ya se salían). Y la izquierda
+tenía cinco textos para un solo botón.
+
+**Lo que hay ahora**: una captura de verdad del resumen a pantalla completa,
+difuminada y con velo, y una tarjeta opaca flotando encima con la marca, el
+titular, una línea, la casilla y el botón. Se fueron los tres bloques de
+"puntos" y el aviso de "solo usamos tu nombre" (la política de privacidad
+está enlazada ahí mismo).
+
+- **La captura es de verdad, no una maqueta dibujada a mano.** La anterior
+  (`HeroMockup`) mostraba números inventados y, peor, **todavía dibujaba el
+  rail lateral que ya no existe**: lo que se prometía no era lo que se
+  abría. Se regeneraron `entrar-oscuro.jpg`, `entrar-claro.jpg` y de paso
+  `dashboard.png` (la de la landing, que estaba igual de vieja).
+- **Hay una captura por tema y se eligen con una variable de CSS**
+  (`--shot-entrar`), no con dos `<img>` y `display:none`: el navegador baja
+  **solo** la URL que la variable resuelve. Está comprobado en la QA
+  mirando los pedidos de red — en oscuro nunca se pide la clara ni al
+  revés. Con dos `<img>` se bajarían las dos. Tampoco sirve `dark:` de
+  Tailwind acá: en este proyecto el tema también se fuerza por clase
+  (`.dark`/`.light`) y esa variante solo mira `prefers-color-scheme`.
+- **La fuerza del velo cambia con el tema** (`--velo-entrar`: 72 % en claro,
+  40 % en oscuro). No es la misma tarea: sobre la captura clara hay que
+  bajar el contraste, y sobre la oscura un velo igual de fuerte la deja en
+  negro y el fondo deja de reconocerse como la app. Primera versión: el
+  mismo velo para los dos, y en oscuro la captura desaparecía.
+- **En teléfono no hay fondo.** Una captura de escritorio reducida a 390px
+  no se lee, y así la página pesa menos justo donde la conexión es peor.
+  Comprobado: a 390 y 360 no se pide ninguna imagen.
+- Las capturas son **JPEG de calidad 72** (~75 KB cada una) y no PNG: van
+  difuminadas detrás de una tarjeta, no hacen falta a pleno detalle.
+- La casilla de términos **se queda** (consentimiento explícito, decisión
+  del 2026-11-02) y sigue bloqueando el botón.
+
+**Estado**: `npm test` (178), `eslint`, `tsc` y `npm run build` limpios. QA
+con Playwright en 1440/1024/768 y 390/360, en los dos temas: **46
+comprobaciones** — sin desborde, que se baje solo la captura del tema y
+ninguna en teléfono, que la tarjeta sea opaca (el texto nunca se lee sobre
+la imagen), y que sin marcar la casilla avise y no entre.
