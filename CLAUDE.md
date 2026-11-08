@@ -1801,3 +1801,42 @@ pantalla.
 **Estado**: `npm test` (178, 4 nuevas sobre el reconocimiento del error),
 `eslint`, `tsc` y `npm run build` limpios. QA con Playwright a 1440 y 390:
 6 comprobaciones.
+
+## Dónde quedamos (2026-11-08) — REGLA DE MENSAJES DE ERROR
+
+Camil corrió la 0025 (ya no queda ninguna migración pendiente) y pidió que
+cualquier error, salvo el 404, diga lo mismo: *"Ups, hubo un error al hacer
+esto. Reintentalo, y si no funciona, comunicate con el equipo de TicoFinanza
+(info@ticofinanza.com)."*
+
+**La regla (en `lib/errors.ts`, que es donde vive el texto):**
+
+- **Si la persona puede arreglarlo** —un monto en cero, dos cuentas iguales,
+  un código vencido, una categoría repetida, una foto de más de 5 MB— el
+  mensaje **sigue diciendo qué corregir**. Cambiarlos por "ups" convertiría
+  un formulario que se arregla solo en uno que no se sabe por qué no pasa.
+  Quedaron ~20 así.
+- **Si se rompió algo de la app** —la base, la red, un permiso— va el
+  mensaje único. Se reemplazaron **49 mensajes** repartidos en 12 archivos
+  ("No se pudo guardar el gasto fijo. Intentá de nuevo.", "No se pudieron
+  copiar los presupuestos.", y así).
+- **El motivo real va al registro del servidor** (`logFailure`), no a la
+  pantalla. Unificar los mensajes sin esto sería cambiar un error confuso
+  por uno invisible, que es exactamente lo que pasó con el guardado de
+  categorías. En Vercel → Logs quedan con el prefijo `[TicoFinanza]`.
+- **Tres mensajes de "a medias" se quedan como están** ("Se marcó como
+  pagado, pero no se pudo registrar el movimiento", y dos parecidos):
+  avisan de que una parte sí ocurrió. Taparlos con "ups" escondería que el
+  estado quedó por la mitad, y eso es peor que un mensaje largo.
+- **El 404 no se toca**: tiene su propia pantalla, que explica que el enlace
+  está viejo y ofrece a dónde ir.
+
+Las dos pantallas de error (`app/error.tsx` y `app/global-error.tsx`) usan
+el mismo texto. La global lo lleva escrito a mano, sin tokens ni
+componentes: se dibuja cuando se rompió el layout raíz y no puede depender
+de nada.
+
+**Estado**: `npm test` (178), `eslint`, `tsc` y `npm run build` limpios. QA
+con Playwright: la pantalla de error muestra el texto nuevo con el correo y
+el botón de reintentar, y el 404 sigue respondiendo 404 con su propio
+texto.

@@ -6,6 +6,7 @@ import { monthKey } from "@/lib/fixedExpenses";
 import { ownsRow } from "@/lib/supabase/ownership";
 import { createClient } from "@/lib/supabase/server";
 import type { FixedExpenseStatus } from "@/lib/types";
+import { GENERIC_ERROR } from "@/lib/errors";
 
 function revalidateFixed() {
   revalidatePath("/dashboard");
@@ -78,7 +79,7 @@ export async function createFixedExpense(input: FixedExpenseInput) {
   const invalid = validate(input);
   if (invalid) return { error: invalid };
   if (!(await ownsRow(supabase, "accounts", input.accountId))) {
-    return { error: "Esa cuenta no existe o no es tuya." };
+    return { error: GENERIC_ERROR };
   }
 
   const { error } = await supabase.from("fixed_expenses").insert({
@@ -92,7 +93,7 @@ export async function createFixedExpense(input: FixedExpenseInput) {
     ...statusFields(input.status),
   });
 
-  if (error) return { error: "No se pudo guardar el gasto fijo. Intentá de nuevo." };
+  if (error) return { error: GENERIC_ERROR };
 
   revalidateFixed();
   return { error: null };
@@ -104,7 +105,7 @@ export async function updateFixedExpense(id: string, input: FixedExpenseInput) {
   const invalid = validate(input);
   if (invalid) return { error: invalid };
   if (!(await ownsRow(supabase, "accounts", input.accountId))) {
-    return { error: "Esa cuenta no existe o no es tuya." };
+    return { error: GENERIC_ERROR };
   }
 
   const { error } = await supabase
@@ -120,7 +121,7 @@ export async function updateFixedExpense(id: string, input: FixedExpenseInput) {
     .eq("id", id)
     .eq("user_id", user.id);
 
-  if (error) return { error: "No se pudo guardar el cambio. Intentá de nuevo." };
+  if (error) return { error: GENERIC_ERROR };
 
   // Editar el gasto y pasarlo a pendiente deja el movimiento generado
   // colgado, descontando plata de un pago que ya no está marcado. Misma
@@ -162,7 +163,7 @@ export async function setFixedExpenseStatus(
     .eq("user_id", user.id)
     .maybeSingle();
 
-  if (!expense) return { error: "Ese gasto fijo no existe o no es tuyo." };
+  if (!expense) return { error: GENERIC_ERROR };
 
   const month = monthKey();
 
@@ -184,7 +185,7 @@ export async function setFixedExpenseStatus(
     )
     .select("id");
 
-  if (error) return { error: "No se pudo cambiar el estado. Intentá de nuevo." };
+  if (error) return { error: GENERIC_ERROR };
 
   // Ya estaba en ese estado: no hay nada que registrar ni que deshacer.
   if (!transitioned || transitioned.length === 0) {
@@ -197,7 +198,7 @@ export async function setFixedExpenseStatus(
       options.accountId !== undefined ? options.accountId : (expense.account_id as string | null);
 
     if (!(await ownsRow(supabase, "accounts", accountId))) {
-      return { error: "Esa cuenta no existe o no es tuya." };
+      return { error: GENERIC_ERROR };
     }
 
     const { error: movementError } = await supabase.from("transactions").insert({
@@ -238,7 +239,7 @@ export async function deleteFixedExpense(id: string) {
     .eq("id", id)
     .eq("user_id", user.id);
 
-  if (error) return { error: "Hubo un error. Volvé a intentarlo." };
+  if (error) return { error: GENERIC_ERROR };
 
   revalidateFixed();
   return { error: null };

@@ -9,6 +9,7 @@ import { WRONG_SESSION } from "@/lib/offline";
 import { ownsRow } from "@/lib/supabase/ownership";
 import { createClient } from "@/lib/supabase/server";
 import type { AccountType, TransactionType } from "@/lib/types";
+import { GENERIC_ERROR } from "@/lib/errors";
 
 /** Pantallas que muestran movimientos o saldos y hay que refrescar. */
 function revalidateMovements() {
@@ -26,7 +27,7 @@ async function requireUser() {
   return { supabase, user };
 }
 
-const UNKNOWN_ACCOUNT = "Esa cuenta no existe o no es tuya.";
+const UNKNOWN_ACCOUNT = GENERIC_ERROR;
 
 // ---------------------------------------------------------------------------
 // Movimientos
@@ -65,7 +66,7 @@ function validate(input: MovementInput): string | null {
     return "El monto debe ser mayor a cero.";
   }
   if (Number.isNaN(new Date(input.transactionDate).getTime())) {
-    return "La fecha no es válida.";
+    return GENERIC_ERROR;
   }
   return null;
 }
@@ -127,7 +128,7 @@ export async function addTransaction(input: MovementInput) {
     revalidateMovements();
     return { error: null };
   }
-  if (error) return { error: "No se pudo guardar el movimiento. Intentá de nuevo." };
+  if (error) return { error: GENERIC_ERROR };
 
   revalidateMovements();
   return { error: null };
@@ -170,7 +171,7 @@ export async function updateTransaction(id: string, input: MovementInput) {
     .eq("id", id)
     .eq("user_id", user.id);
 
-  if (error) return { error: "No se pudo guardar el cambio. Intentá de nuevo." };
+  if (error) return { error: GENERIC_ERROR };
 
   if (current?.receipt_url && current.receipt_url !== nextReceipt) {
     await removeReceipts(supabase, [current.receipt_url]);
@@ -196,7 +197,7 @@ export async function deleteTransaction(id: string) {
     .eq("id", id)
     .eq("user_id", user.id);
 
-  if (error) return { error: "Hubo un error. Volvé a intentarlo." };
+  if (error) return { error: GENERIC_ERROR };
 
   await removeReceipts(supabase, [current?.receipt_url]);
 
@@ -220,7 +221,7 @@ export async function deleteTransactions(ids: string[]) {
     .in("id", ids)
     .eq("user_id", user.id);
 
-  if (error) return { error: "Hubo un error. Volvé a intentarlo." };
+  if (error) return { error: GENERIC_ERROR };
 
   await removeReceipts(supabase, (current ?? []).map((row) => row.receipt_url));
 
@@ -244,7 +245,7 @@ export async function getReceiptUrl(path: string) {
     .from(RECEIPTS_BUCKET)
     .createSignedUrl(path, 60 * 10);
 
-  if (error || !data) return { url: null, error: "No se pudo abrir el comprobante." };
+  if (error || !data) return { url: null, error: GENERIC_ERROR };
   return { url: data.signedUrl, error: null };
 }
 
@@ -292,7 +293,7 @@ export async function createAccount(input: AccountInput) {
     currency: "CRC",
   });
 
-  if (error) return { error: "No se pudo crear la cuenta. Intentá de nuevo." };
+  if (error) return { error: GENERIC_ERROR };
 
   revalidateMovements();
   return { error: null };
@@ -314,7 +315,7 @@ export async function updateAccount(id: string, input: AccountInput) {
     .eq("user_id", user.id)
     .maybeSingle();
 
-  if (!current) return { error: "Esa cuenta no existe o no es tuya." };
+  if (!current) return { error: GENERIC_ERROR };
 
   // Si entra un movimiento justo entre esta lectura y la escritura, el
   // ajuste queda corrido por ese monto. Con un solo usuario por cuenta la
@@ -332,7 +333,7 @@ export async function updateAccount(id: string, input: AccountInput) {
     .eq("id", id)
     .eq("user_id", user.id);
 
-  if (error) return { error: "No se pudo guardar el cambio. Intentá de nuevo." };
+  if (error) return { error: GENERIC_ERROR };
 
   revalidateMovements();
   return { error: null };
@@ -348,7 +349,7 @@ export async function deleteAccount(id: string) {
 
   const { error } = await supabase.from("accounts").delete().eq("id", id).eq("user_id", user.id);
 
-  if (error) return { error: "No se pudo eliminar la cuenta." };
+  if (error) return { error: GENERIC_ERROR };
 
   revalidateMovements();
   return { error: null };
@@ -379,7 +380,7 @@ export async function createTransfer(input: TransferInput) {
     return { error: "El origen y el destino tienen que ser cuentas distintas." };
   }
   if (Number.isNaN(new Date(input.transferDate).getTime())) {
-    return { error: "La fecha no es válida." };
+    return { error: GENERIC_ERROR };
   }
 
   const [ownsFrom, ownsTo] = await Promise.all([
@@ -397,7 +398,7 @@ export async function createTransfer(input: TransferInput) {
     transfer_date: new Date(input.transferDate).toISOString(),
   });
 
-  if (error) return { error: "No se pudo guardar la transferencia. Intentá de nuevo." };
+  if (error) return { error: GENERIC_ERROR };
 
   revalidateMovements();
   return { error: null };
@@ -408,7 +409,7 @@ export async function deleteTransfer(id: string) {
 
   const { error } = await supabase.from("transfers").delete().eq("id", id).eq("user_id", user.id);
 
-  if (error) return { error: "Hubo un error. Volvé a intentarlo." };
+  if (error) return { error: GENERIC_ERROR };
 
   revalidateMovements();
   return { error: null };

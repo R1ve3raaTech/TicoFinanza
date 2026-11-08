@@ -13,6 +13,7 @@ import { isMissingColumnError } from "@/lib/supabase/errors";
 import { isSymbolName } from "@/lib/materialSymbols";
 import { RECEIPTS_BUCKET } from "@/lib/receipts";
 import type { Theme, TransactionType } from "@/lib/types";
+import { GENERIC_ERROR, logFailure } from "@/lib/errors";
 
 async function requireUser() {
   const supabase = await createClient();
@@ -47,7 +48,7 @@ export async function updateProfile(input: {
     })
     .eq("id", user.id);
 
-  if (error) return { error: "No se pudo guardar el perfil. Intentá de nuevo." };
+  if (error) return { error: GENERIC_ERROR };
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/ajustes");
   return { error: null };
@@ -61,7 +62,7 @@ export async function updateTheme(theme: Theme) {
     { onConflict: "user_id" }
   );
 
-  if (error) return { error: "No se pudo guardar la preferencia." };
+  if (error) return { error: GENERIC_ERROR };
   revalidatePath("/dashboard/ajustes");
   return { error: null };
 }
@@ -90,7 +91,7 @@ export async function addCategory(name: string, type: TransactionType) {
 
   if (error) {
     return {
-      error: error.code === "23505" ? "Esa categoría ya existe." : "No se pudo agregar.",
+      error: error.code === "23505" ? "Esa categoría ya existe." : GENERIC_ERROR,
       name: null,
     };
   }
@@ -128,7 +129,7 @@ export async function updateCategory(
     .eq("id", id)
     .eq("user_id", user.id)
     .maybeSingle();
-  if (!current) return { error: "Esa categoría ya no existe." };
+  if (!current) return { error: GENERIC_ERROR };
 
   // Las demás del mismo tipo, sin contar esta: renombrar a lo que ya se
   // llama no es un choque consigo misma.
@@ -142,8 +143,8 @@ export async function updateCategory(
   const clash = categoryClash(trimmed, current.type, (others ?? []).map((c) => c.name));
   if (clash) return { error: clash };
 
-  if (input.icon && !isSymbolName(input.icon)) return { error: "Ese ícono no existe." };
-  if (input.color && !isCategoryTone(input.color)) return { error: "Ese color no existe." };
+  if (input.icon && !isSymbolName(input.icon)) return { error: GENERIC_ERROR };
+  if (input.color && !isCategoryTone(input.color)) return { error: GENERIC_ERROR };
 
   const { error } = await supabase
     .from("user_categories")
@@ -152,17 +153,14 @@ export async function updateCategory(
     .eq("user_id", user.id);
 
   if (error) {
-    // El caso de la migración sin correr llega como PGRST204 ("no está en el
-    // caché de esquema"), no como el 42703 de Postgres: ver lib/supabase/errors.
-    if (isMissingColumnError(error)) {
-      return {
-        error:
-          "Falta correr la migración 0025 en Supabase para poder guardar el ícono y el color.",
-      };
-    }
-    // El código va en el mensaje: un "no se pudo" a secas no deja a nadie
-    // —ni a quien lo lee ni a quien lo arregla— con nada en la mano.
-    return { error: `No se pudo guardar la categoría (${error.code ?? "sin código"}).` };
+    // El motivo de verdad va al registro del servidor y no a la pantalla:
+    // "falta correr la migración 0025" o un código de PostgREST no le dicen
+    // nada a quien está usando la app, y acá sí se pueden leer.
+    logFailure(
+      isMissingColumnError(error) ? "updateCategory: falta una columna (migración sin correr)" : "updateCategory",
+      error
+    );
+    return { error: GENERIC_ERROR };
   }
 
   // Los movimientos guardan la categoría como texto, así que renombrarla no
@@ -202,7 +200,7 @@ export async function deleteAllTransactions() {
 
   const { error } = await supabase.from("transactions").delete().eq("user_id", user.id);
 
-  if (error) return { error: "Hubo un error. Volvé a intentarlo." };
+  if (error) return { error: GENERIC_ERROR };
 
   const paths = (withReceipts ?? [])
     .map((row) => row.receipt_url)
@@ -258,7 +256,7 @@ export async function confirmAccountDeletion(code: string) {
   if (!result.ok) return { error: result.error };
 
   const { error: deleteError } = await admin.auth.admin.deleteUser(user.id);
-  if (deleteError) return { error: "No se pudo eliminar la cuenta. Intentá de nuevo." };
+  if (deleteError) return { error: GENERIC_ERROR };
 
   await supabase.auth.signOut();
   return { error: null };
@@ -290,7 +288,7 @@ export async function subscribeToPush(subscription: {
     { onConflict: "endpoint" }
   );
 
-  if (error) return { error: "No se pudieron activar los recordatorios." };
+  if (error) return { error: GENERIC_ERROR };
 
   revalidatePath("/dashboard/ajustes");
   return { error: null };
@@ -306,7 +304,7 @@ export async function unsubscribeFromPush(endpoint: string) {
     .eq("endpoint", endpoint)
     .eq("user_id", user.id);
 
-  if (error) return { error: "No se pudieron desactivar los recordatorios." };
+  if (error) return { error: GENERIC_ERROR };
 
   revalidatePath("/dashboard/ajustes");
   return { error: null };
@@ -320,7 +318,7 @@ export async function setRemindersEnabled(enabled: boolean) {
     { onConflict: "user_id" }
   );
 
-  if (error) return { error: "No se pudo guardar la preferencia." };
+  if (error) return { error: GENERIC_ERROR };
 
   revalidatePath("/dashboard/ajustes");
   return { error: null };

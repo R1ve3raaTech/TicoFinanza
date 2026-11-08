@@ -4,6 +4,7 @@ import { pushConfigured, sendPushToUser } from "@/lib/push/send";
 import { dueReminders } from "@/lib/reminders";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { FixedExpense } from "@/lib/types";
+import { GENERIC_ERROR } from "@/lib/errors";
 
 /**
  * Recordatorios de gastos fijos. Lo llama el cron de Vercel una vez por día
@@ -48,7 +49,7 @@ export async function GET(request: NextRequest) {
     .eq("reminders_enabled", true);
 
   if (settingsError) {
-    return NextResponse.json({ error: "No se pudieron leer los ajustes" }, { status: 500 });
+    return NextResponse.json({ error: GENERIC_ERROR }, { status: 500 });
   }
 
   const userIds = (settings ?? []).map((row) => row.user_id);
@@ -62,7 +63,7 @@ export async function GET(request: NextRequest) {
     .in("user_id", userIds);
 
   if (expensesError) {
-    return NextResponse.json({ error: "No se pudieron leer los gastos fijos" }, { status: 500 });
+    return NextResponse.json({ error: GENERIC_ERROR }, { status: 500 });
   }
 
   const byUser = new Map<string, FixedExpense[]>();

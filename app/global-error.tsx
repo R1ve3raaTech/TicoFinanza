@@ -31,8 +31,23 @@ export default function GlobalError({
             fontFamily: "system-ui, sans-serif",
           }}
         >
-          <p style={{ fontSize: "0.9375rem", fontWeight: 600, margin: 0 }}>Hubo un error.</p>
-          <p style={{ fontSize: "0.875rem", color: "#a1a1a8", margin: 0 }}>Volvé a intentarlo.</p>
+          {/* Sin tokens ni componentes: esta pantalla se dibuja cuando se
+              rompió el layout raíz, así que no puede depender de nada. */}
+          <p style={{ fontSize: "0.9375rem", fontWeight: 600, margin: 0 }}>
+            Ups, hubo un error al hacer esto.
+          </p>
+          <p
+            style={{
+              fontSize: "0.875rem",
+              color: "#a1a1a8",
+              margin: 0,
+              maxWidth: "34rem",
+              lineHeight: 1.6,
+            }}
+          >
+            Reintentalo, y si no funciona, comunicate con el equipo de TicoFinanza
+            (info@ticofinanza.com).
+          </p>
           <button
             onClick={() => reset()}
             style={{

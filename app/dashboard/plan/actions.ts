@@ -7,6 +7,7 @@ import { nextCycleDate } from "@/lib/goals";
 import { ownsRow } from "@/lib/supabase/ownership";
 import { createClient } from "@/lib/supabase/server";
 import type { DebtType, GoalColor, GoalRecurrence, SavingsGoal } from "@/lib/types";
+import { GENERIC_ERROR } from "@/lib/errors";
 
 function revalidatePlan() {
   revalidatePath("/dashboard/plan");
@@ -45,7 +46,7 @@ export async function setBudget(input: {
   if (!Number.isFinite(input.monthlyLimit) || input.monthlyLimit <= 0) {
     return { error: "El tope debe ser mayor a cero." };
   }
-  if (!MONTH_PATTERN.test(input.monthYear)) return { error: "El mes no es válido." };
+  if (!MONTH_PATTERN.test(input.monthYear)) return { error: GENERIC_ERROR };
 
   const { error } = await supabase.from("budgets").upsert(
     {
@@ -57,7 +58,7 @@ export async function setBudget(input: {
     { onConflict: "user_id,category_name,month_year" }
   );
 
-  if (error) return { error: "No se pudo guardar el presupuesto. Intentá de nuevo." };
+  if (error) return { error: GENERIC_ERROR };
 
   revalidatePlan();
   return { error: null };
@@ -68,7 +69,7 @@ export async function deleteBudget(id: string) {
 
   const { error } = await supabase.from("budgets").delete().eq("id", id).eq("user_id", user.id);
 
-  if (error) return { error: "No se pudo eliminar el presupuesto." };
+  if (error) return { error: GENERIC_ERROR };
 
   revalidatePlan();
   return { error: null };
@@ -82,7 +83,7 @@ export async function deleteBudget(id: string) {
 export async function copyBudgetsFromPreviousMonth(monthYear: string) {
   const { supabase, user } = await requireUser();
 
-  if (!MONTH_PATTERN.test(monthYear)) return { error: "El mes no es válido.", copied: 0 };
+  if (!MONTH_PATTERN.test(monthYear)) return { error: GENERIC_ERROR, copied: 0 };
 
   const [year, month] = monthYear.split("-").map(Number);
   const previous = new Date(Date.UTC(year, month - 2, 1));
@@ -114,7 +115,7 @@ export async function copyBudgetsFromPreviousMonth(monthYear: string) {
   if (rows.length === 0) return { error: null, copied: 0 };
 
   const { error } = await supabase.from("budgets").insert(rows);
-  if (error) return { error: "No se pudieron copiar los presupuestos.", copied: 0 };
+  if (error) return { error: GENERIC_ERROR, copied: 0 };
 
   revalidatePlan();
   return { error: null, copied: rows.length };
@@ -163,7 +164,7 @@ export async function createGoal(input: GoalInput) {
     recurrence: input.recurrence,
   });
 
-  if (error) return { error: "No se pudo crear la meta. Intentá de nuevo." };
+  if (error) return { error: GENERIC_ERROR };
 
   revalidatePlan();
   return { error: null };
@@ -188,7 +189,7 @@ export async function updateGoal(id: string, input: GoalInput) {
     .eq("id", id)
     .eq("user_id", user.id);
 
-  if (error) return { error: "No se pudo guardar el cambio. Intentá de nuevo." };
+  if (error) return { error: GENERIC_ERROR };
 
   revalidatePlan();
   return { error: null };
@@ -204,7 +205,7 @@ export async function deleteGoal(id: string) {
     .eq("id", id)
     .eq("user_id", user.id);
 
-  if (error) return { error: "No se pudo eliminar la meta." };
+  if (error) return { error: GENERIC_ERROR };
 
   revalidatePlan();
   return { error: null };
@@ -242,7 +243,7 @@ export async function completeGoalCycle(input: {
     return { error: "El monto del pago debe ser mayor a cero." };
   }
   if (!(await ownsRow(supabase, "accounts", input.accountId))) {
-    return { error: "Esa cuenta no existe o no es tuya." };
+    return { error: GENERIC_ERROR };
   }
 
   const { data: row } = await supabase
@@ -253,9 +254,9 @@ export async function completeGoalCycle(input: {
     .maybeSingle();
 
   const goal = row as SavingsGoal | null;
-  if (!goal) return { error: "Esa meta no existe o no es tuya." };
+  if (!goal) return { error: GENERIC_ERROR };
   if (goal.recurrence !== "anual" || !goal.target_date) {
-    return { error: "Solo las metas anuales arrancan un ciclo nuevo." };
+    return { error: GENERIC_ERROR };
   }
 
   // El salto de ciclo va primero y condicionado al estado que se leyó: así
@@ -274,7 +275,7 @@ export async function completeGoalCycle(input: {
     .eq("target_date", goal.target_date)
     .select("id");
 
-  if (rollError) return { error: "No se pudo arrancar el ciclo nuevo. Intentá de nuevo." };
+  if (rollError) return { error: GENERIC_ERROR };
   if (!rolled || rolled.length === 0) {
     revalidatePlan();
     return { error: null };
@@ -340,8 +341,8 @@ export async function contributeToGoal(input: {
     ownsRow(supabase, "savings_goals", input.goalId),
     ownsRow(supabase, "accounts", input.accountId),
   ]);
-  if (!ownsGoal) return { error: "Esa meta no existe o no es tuya." };
-  if (!ownsAccount) return { error: "Esa cuenta no existe o no es tuya." };
+  if (!ownsGoal) return { error: GENERIC_ERROR };
+  if (!ownsAccount) return { error: GENERIC_ERROR };
 
   const { error } = await supabase.from("goal_contributions").insert({
     user_id: user.id,
@@ -350,7 +351,7 @@ export async function contributeToGoal(input: {
     amount: input.amount,
   });
 
-  if (error) return { error: "No se pudo guardar el abono. Intentá de nuevo." };
+  if (error) return { error: GENERIC_ERROR };
 
   revalidatePlan();
   return { error: null };
@@ -366,7 +367,7 @@ export async function deleteContribution(id: string) {
     .eq("id", id)
     .eq("user_id", user.id);
 
-  if (error) return { error: "No se pudo deshacer el abono." };
+  if (error) return { error: GENERIC_ERROR };
 
   revalidatePlan();
   return { error: null };
@@ -390,7 +391,7 @@ function validateDebt(input: DebtInput): string | null {
     return "El monto debe ser mayor a cero.";
   }
   if (input.dueDate && Number.isNaN(new Date(input.dueDate).getTime())) {
-    return "La fecha no es válida.";
+    return GENERIC_ERROR;
   }
   return null;
 }
@@ -411,7 +412,7 @@ export async function createDebt(input: DebtInput) {
     notes: input.notes.trim() || null,
   });
 
-  if (error) return { error: "No se pudo guardar la deuda. Intentá de nuevo." };
+  if (error) return { error: GENERIC_ERROR };
 
   revalidatePlan();
   return { error: null };
@@ -435,7 +436,7 @@ export async function updateDebt(id: string, input: DebtInput) {
     .eq("id", id)
     .eq("user_id", user.id);
 
-  if (error) return { error: "No se pudo guardar el cambio. Intentá de nuevo." };
+  if (error) return { error: GENERIC_ERROR };
 
   revalidatePlan();
   return { error: null };
@@ -451,7 +452,7 @@ export async function deleteDebt(id: string) {
 
   const { error } = await supabase.from("debts").delete().eq("id", id).eq("user_id", user.id);
 
-  if (error) return { error: "No se pudo eliminar la deuda." };
+  if (error) return { error: GENERIC_ERROR };
 
   revalidatePlan();
   return { error: null };
@@ -480,14 +481,14 @@ export async function settleDebt(input: {
     .eq("user_id", user.id)
     .maybeSingle();
 
-  if (!debt) return { error: "Esa deuda no existe o no es tuya." };
+  if (!debt) return { error: GENERIC_ERROR };
   if (debt.status === "pagado") return { error: "Esa deuda ya estaba saldada." };
 
   let transactionId: string | null = null;
 
   if (input.register) {
     if (!(await ownsRow(supabase, "accounts", input.accountId))) {
-      return { error: "Esa cuenta no existe o no es tuya." };
+      return { error: GENERIC_ERROR };
     }
 
     const income = settlementType(debt.type as DebtType) === "INCOME";
@@ -509,7 +510,7 @@ export async function settleDebt(input: {
       .single();
 
     if (movementError || !created) {
-      return { error: "No se pudo registrar el movimiento. Intentá de nuevo." };
+      return { error: GENERIC_ERROR };
     }
     transactionId = created.id;
   }
@@ -530,7 +531,7 @@ export async function settleDebt(input: {
     if (transactionId) {
       await supabase.from("transactions").delete().eq("id", transactionId).eq("user_id", user.id);
     }
-    return { error: "No se pudo saldar la deuda. Intentá de nuevo." };
+    return { error: GENERIC_ERROR };
   }
 
   revalidatePlan();
@@ -554,7 +555,7 @@ export async function reopenDebt(id: string) {
     .eq("user_id", user.id)
     .maybeSingle();
 
-  if (!debt) return { error: "Esa deuda no existe o no es tuya." };
+  if (!debt) return { error: GENERIC_ERROR };
 
   const { error } = await supabase
     .from("debts")
@@ -562,7 +563,7 @@ export async function reopenDebt(id: string) {
     .eq("id", id)
     .eq("user_id", user.id);
 
-  if (error) return { error: "No se pudo reabrir la deuda." };
+  if (error) return { error: GENERIC_ERROR };
 
   if (debt.settled_transaction_id) {
     await supabase

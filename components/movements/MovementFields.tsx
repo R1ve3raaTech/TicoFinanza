@@ -10,6 +10,7 @@ import { handleAmountChange } from "@/components/ui/MoneyInput";
 import { Segmented } from "@/components/ui/Segmented";
 import { ToggleChip } from "@/components/ui/ToggleChip";
 import type { TransactionType } from "@/lib/types";
+import { GENERIC_ERROR } from "@/lib/errors";
 
 /** Piezas compartidas por el formulario de movimiento y el de gasto fijo. */
 
@@ -168,7 +169,7 @@ export function CategoryPicker({
     startTransition(async () => {
       const result = await addCategory(name, createType);
       if (result.error || !result.name) {
-        setError(result.error ?? "No se pudo agregar.");
+        setError(result.error ?? GENERIC_ERROR);
         return;
       }
       setJustAdded((list) => [...list, result.name]);

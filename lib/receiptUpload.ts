@@ -4,6 +4,7 @@ import {
   receiptPath,
   validateReceiptFile,
 } from "./receipts";
+import { GENERIC_ERROR } from "@/lib/errors";
 
 /**
  * Subida de comprobantes desde el navegador, directo a Supabase Storage.
@@ -89,7 +90,7 @@ export async function uploadReceipt(file: File): Promise<UploadResult> {
     upsert: false,
   });
 
-  if (error) return { path: null, error: "No se pudo subir el comprobante. Intentá de nuevo." };
+  if (error) return { path: null, error: GENERIC_ERROR };
   return { path, error: null };
 }
 

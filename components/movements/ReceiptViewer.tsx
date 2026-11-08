@@ -7,6 +7,7 @@ import { Button, buttonClass } from "@/components/ui/Button";
 import { Dialog } from "@/components/ui/Dialog";
 import { FormError } from "@/components/ui/Field";
 import { isPdfReceipt } from "@/lib/receipts";
+import { GENERIC_ERROR } from "@/lib/errors";
 
 /**
  * Visor del comprobante de un movimiento.
@@ -43,7 +44,7 @@ export function ReceiptViewer({
       setResult({
         path,
         url: response.url,
-        error: response.url ? null : (response.error ?? "No se pudo abrir el comprobante."),
+        error: response.url ? null : (response.error ?? GENERIC_ERROR),
       });
     });
     return () => {

@@ -2,6 +2,7 @@ import "server-only";
 import { createHmac, randomInt, timingSafeEqual } from "crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { DELETION_EMAIL_FROM, getResend } from "@/lib/email/resend";
+import { GENERIC_ERROR } from "@/lib/errors";
 
 const CODE_LENGTH = 8;
 const CODE_TTL_MINUTES = 10;
@@ -62,7 +63,7 @@ export async function issueDeletionCode(
     .from("account_deletion_codes")
     .insert({ user_id: userId, code_hash: codeHash, expires_at: expiresAt });
 
-  if (insertError) return { error: "No se pudo generar el código. Intentá de nuevo." };
+  if (insertError) return { error: GENERIC_ERROR };
 
   try {
     await getResend().emails.send({
@@ -73,7 +74,7 @@ export async function issueDeletionCode(
       text: `Tu código para eliminar permanentemente tu cuenta de TicoFinanza es: ${code}\n\nExpira en ${CODE_TTL_MINUTES} minutos. Si no pediste esto, ignorá este correo — tu cuenta sigue segura.`,
     });
   } catch {
-    return { error: "No se pudo enviar el correo. Intentá de nuevo." };
+    return { error: GENERIC_ERROR };
   }
 
   return { error: null };

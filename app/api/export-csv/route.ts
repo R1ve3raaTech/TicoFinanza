@@ -4,6 +4,7 @@ import { endOfDayISO, startOfDayISO } from "@/lib/dateRange";
 import { CR_TZ } from "@/lib/fixedExpenses";
 import { createClient } from "@/lib/supabase/server";
 import type { Account, Transaction, Transfer } from "@/lib/types";
+import { GENERIC_ERROR } from "@/lib/errors";
 
 const DAY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -71,7 +72,7 @@ export async function GET(request: NextRequest) {
   ]);
 
   if (error) {
-    return NextResponse.json({ error: "No se pudieron leer los movimientos." }, { status: 500 });
+    return NextResponse.json({ error: GENERIC_ERROR }, { status: 500 });
   }
 
   const names = accountNames((accounts ?? []) as Account[]);

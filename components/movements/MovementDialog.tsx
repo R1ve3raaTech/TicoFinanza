@@ -13,6 +13,7 @@ import { Dialog } from "@/components/ui/Dialog";
 import { Field, FormError, inputClass } from "@/components/ui/Field";
 import { Money } from "@/components/ui/Money";
 import { expenseCategories, incomeCategories } from "@/lib/categories";
+import { GENERIC_ERROR } from "@/lib/errors";
 import { monthKey } from "@/lib/fixedExpenses";
 import { isFrameworkNavigation, isNetworkFailure, localId } from "@/lib/offline";
 import { deleteReceiptFile } from "@/lib/receiptUpload";
@@ -248,7 +249,7 @@ export function MovementDialog({
           onClose();
           return;
         }
-        setError("No se pudo guardar. Revisá la conexión e intentá de nuevo.");
+        setError(GENERIC_ERROR);
         return;
       }
 

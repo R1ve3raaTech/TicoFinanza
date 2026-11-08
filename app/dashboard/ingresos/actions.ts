@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { monthKey } from "@/lib/fixedExpenses";
 import { ownsRow } from "@/lib/supabase/ownership";
 import { createClient } from "@/lib/supabase/server";
+import { GENERIC_ERROR } from "@/lib/errors";
 
 function revalidateIncomes() {
   revalidatePath("/dashboard");
@@ -53,7 +54,7 @@ export async function createFixedIncome(input: FixedIncomeInput) {
   const invalid = validate(input);
   if (invalid) return { error: invalid };
   if (!(await ownsRow(supabase, "accounts", input.accountId))) {
-    return { error: "Esa cuenta no existe o no es tuya." };
+    return { error: GENERIC_ERROR };
   }
 
   const { error } = await supabase.from("fixed_incomes").insert({
@@ -67,7 +68,7 @@ export async function createFixedIncome(input: FixedIncomeInput) {
     account_id: input.accountId,
   });
 
-  if (error) return { error: "No se pudo guardar el ingreso. Intentá de nuevo." };
+  if (error) return { error: GENERIC_ERROR };
 
   revalidateIncomes();
   return { error: null };
@@ -79,7 +80,7 @@ export async function updateFixedIncome(id: string, input: FixedIncomeInput) {
   const invalid = validate(input);
   if (invalid) return { error: invalid };
   if (!(await ownsRow(supabase, "accounts", input.accountId))) {
-    return { error: "Esa cuenta no existe o no es tuya." };
+    return { error: GENERIC_ERROR };
   }
 
   const { error } = await supabase
@@ -95,7 +96,7 @@ export async function updateFixedIncome(id: string, input: FixedIncomeInput) {
     .eq("id", id)
     .eq("user_id", user.id);
 
-  if (error) return { error: "No se pudo guardar el cambio. Intentá de nuevo." };
+  if (error) return { error: GENERIC_ERROR };
 
   revalidateIncomes();
   return { error: null };
@@ -110,7 +111,7 @@ export async function deleteFixedIncome(id: string) {
     .eq("id", id)
     .eq("user_id", user.id);
 
-  if (error) return { error: "No se pudo eliminar el ingreso." };
+  if (error) return { error: GENERIC_ERROR };
 
   revalidateIncomes();
   return { error: null };
@@ -143,7 +144,7 @@ export async function confirmFixedIncome(input: {
     .eq("user_id", user.id)
     .maybeSingle();
 
-  if (!income) return { error: "Ese ingreso no existe o no es tuyo." };
+  if (!income) return { error: GENERIC_ERROR };
 
   const amount = input.amount ?? Number(income.amount);
   if (!Number.isFinite(amount) || amount <= 0) {
@@ -153,7 +154,7 @@ export async function confirmFixedIncome(input: {
   const accountId =
     input.accountId !== undefined ? input.accountId : (income.account_id as string | null);
   if (!(await ownsRow(supabase, "accounts", accountId))) {
-    return { error: "Esa cuenta no existe o no es tuya." };
+    return { error: GENERIC_ERROR };
   }
 
   const month = monthKey();
@@ -166,7 +167,7 @@ export async function confirmFixedIncome(input: {
     .or(`status.neq.CONFIRMED,status_month.is.null,status_month.neq.${month}`)
     .select("id");
 
-  if (error) return { error: "No se pudo confirmar el ingreso. Intentá de nuevo." };
+  if (error) return { error: GENERIC_ERROR };
   if (!transitioned || transitioned.length === 0) {
     // Ya estaba confirmado este mes: no se registra otra vez.
     revalidateIncomes();
@@ -203,7 +204,7 @@ export async function unconfirmFixedIncome(id: string) {
     .eq("id", id)
     .eq("user_id", user.id);
 
-  if (error) return { error: "No se pudo deshacer. Intentá de nuevo." };
+  if (error) return { error: GENERIC_ERROR };
 
   const [year, month] = monthKey().split("-").map(Number);
   const monthStart = new Date(Date.UTC(year, month - 1, 1)).toISOString();
