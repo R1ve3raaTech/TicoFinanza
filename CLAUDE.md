@@ -1580,3 +1580,62 @@ quedar es de las cosas a mirar en producción.
 **Estado**: `npm test` (160, 4 nuevas sobre los choques de nombre),
 `eslint`, `tsc` y `npm run build` limpios. QA con Playwright a 1440 claro y
 390 oscuro: 20 comprobaciones, todas OK.
+
+## Dónde quedamos (2026-11-07, quinta parte)
+
+**Ajustes dejó de ser una pantalla y pasó a ser un diálogo.** Lo pidió
+Camil. No es un lugar donde uno *esté*: se entra a cambiar una cosa y se
+sale, y como pantalla obligaba a abandonar lo que estabas viendo.
+
+- `components/settings/SettingsDialog.tsx` (el diálogo, con pestañas) y
+  `SettingsEntry.tsx` (el provider y el botón). Se borraron `SettingsView`,
+  `SettingsIndex` y `sections.ts`; de `SettingsSection.tsx` quedó solo
+  `SettingsRow`.
+- **El provider envuelve al shell, no al contenido**: el botón que lo abre
+  vive en las dos píldoras de navegación, y `AppShell` las dibuja FUERA de
+  sus children. Adentro, el contexto no les llegaría.
+- **Siete pestañas, una a la vez** (Perfil · Categorías · Apariencia ·
+  Recordatorios · Datos · Guía · Cuenta). Apiladas con scroll habría sido la
+  misma pantalla de antes metida en una caja más chica. Abre en Perfil.
+- **Ajustes sale de `NAV_ITEMS`** y las dos píldoras dibujan su botón
+  aparte: es una acción, no un destino, así que no se marca como sección
+  activa. **No se puede sacar de la barra de teléfono**: ahí no hay menú de
+  cuenta, y sin ese botón el perfil y el cierre de sesión quedarían
+  inalcanzables.
+- Los datos los carga el layout de /dashboard, dos consultas chicas más
+  (categorías y cuántos movimientos) en el mismo `Promise.all`. A cambio el
+  diálogo abre lleno y sin espera desde cualquier pantalla.
+- **Un solo manejador de clic cierra el diálogo cuando se toca cualquier
+  enlace de adentro** (`closest("a[href]")`): el diálogo vive en el layout,
+  así que sin eso se quedaba abierto encima del reporte.
+- `/dashboard/ajustes` **se queda como redirección**, no se borra: hay tres
+  formas de llegar con un enlace viejo —un marcador, la pantalla guardada en
+  el caché sin conexión, y el "volver" del reporte en una pestaña vieja— y
+  las tres darían 404.
+- El "volver" del reporte ahora va al resumen.
+- **`VERSION` del Service Worker a `v3`**: sin eso, quien tuviera
+  `/dashboard/ajustes` en el caché seguiría abriendo la pantalla vieja sin
+  señal.
+
+**El perfil se guarda solo** (`ProfileSettings`). Antes tenía su botón
+"Guardar cambios", que dentro de un diálogo compite con el de cerrar: uno
+escribe el nombre, le da a "Listo" y no sabe cuál de los dos guardaba.
+
+- Cada campo se guarda **al salir de él**, y solo si cambió de verdad
+  (`savedRef` guarda lo último confirmado): pasar el foco por un campo sin
+  tocarlo no dispara ninguna escritura. Comprobado en la QA — si escribiera,
+  la acción redirige a `/entrar` en la vista de prueba y se nota.
+- El botón "Listo" del diálogo manda lo pendiente antes de cerrar
+  (`flushRef`), y **si el servidor rechaza no cierra**: vuelve a la pestaña
+  de Perfil para que el error se vea.
+- Un nombre vacío no se manda: dejaría la app saludando a nadie.
+- La línea de acuse ("Guardando…" / "Guardado" / "Se guarda solo al salir de
+  cada campo") no es decorativa: guardar en silencio es indistinguible de no
+  guardar.
+
+**Estado**: `npm test` (160), `eslint`, `tsc` y `npm run build` limpios. QA
+con Playwright a 1440 claro y 390 oscuro: 41 comprobaciones — que no quede
+ningún enlace a la pantalla vieja, los cuatro destinos, el botón que se
+anuncia como diálogo, las siete pestañas, el perfil con foto/nombre/fecha,
+que salir de un campo sin tocarlo no guarde, el cambio de pestaña, que
+"Listo" cierre sin navegar, y que la ruta vieja no dé 404.

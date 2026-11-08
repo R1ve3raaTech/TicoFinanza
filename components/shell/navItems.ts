@@ -1,6 +1,5 @@
 import {
   ArrowsLeftRight,
-  GearSix,
   Receipt,
   SquaresFour,
   Target,
@@ -28,8 +27,13 @@ export const NAV_ITEMS: NavItem[] = [
     match: "/movimientos",
   },
   { href: "/dashboard/plan", label: "Plan", icon: Target, match: "/plan" },
-  { href: "/dashboard/ajustes", label: "Ajustes", icon: GearSix, match: "/ajustes" },
 ];
+
+/**
+ * Ajustes NO está en esta lista: dejó de ser una pantalla y pasó a ser un
+ * diálogo (components/settings/SettingsEntry.tsx). Las dos píldoras dibujan
+ * su botón aparte, después de estos cuatro destinos.
+ */
 
 /** Se compara por el final de la ruta y no por igualdad exacta, para que las
  *  secciones sigan marcadas si algún día tienen subrutas. */

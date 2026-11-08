@@ -2,16 +2,25 @@ import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
 import { OfflineBanner } from "@/components/offline/OfflineBanner";
 import { QueueOwnerProvider } from "@/components/offline/QueueOwner";
+import { SettingsEntryProvider } from "@/components/settings/SettingsEntry";
 import { AppShell } from "@/components/shell/AppShell";
 import { IdleLogout } from "@/components/shell/IdleLogout";
 import { ThemeSync } from "@/components/ThemeSync";
-import { resolveAvatarUrl, resolveFirstName } from "@/lib/profile";
+import { resolveAvatarUrl, resolveDisplayName, resolveFirstName } from "@/lib/profile";
 import { createClient } from "@/lib/supabase/server";
+import type { UserCategory } from "@/lib/types";
 
 /**
- * Shell compartido por /dashboard y sus secciones (fijos, movimientos, ajustes):
- * rail en tablet/escritorio y pestañas abajo en teléfono (ver AppShell).
- * Comprueba el usuario en servidor antes de mostrar el área protegida.
+ * Shell compartido por /dashboard y sus secciones (fijos, movimientos, plan):
+ * píldora arriba en tablet/escritorio y píldora abajo en teléfono (ver
+ * AppShell). Comprueba el usuario en servidor antes de mostrar el área
+ * protegida.
+ *
+ * Acá también se cargan los datos de Ajustes, que dejó de ser una pantalla y
+ * pasó a ser un diálogo que se abre desde cualquier sección. Son dos
+ * consultas chicas más (las categorías propias y cuántos movimientos hay)
+ * contra las dos que ya había, todas en paralelo: a cambio, el diálogo abre
+ * lleno y sin espera desde cualquier pantalla.
  */
 const STAMP = new Intl.DateTimeFormat("es-CR", {
   day: "numeric",
@@ -42,37 +51,68 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   } = await supabase.auth.getUser();
   if (!user) redirect("/entrar");
 
-  let firstName: string | undefined;
-  let avatarUrl: string | undefined;
-  let dbTheme: "dark" | "light" | "system" = "system";
-
-  if (user) {
-    const [{ data: profile }, { data: settings }] = await Promise.all([
-      supabase.from("profiles").select("full_name, avatar_url").eq("id", user.id).maybeSingle(),
-      supabase.from("user_settings").select("theme").eq("user_id", user.id).maybeSingle(),
+  const [{ data: profile }, { data: settings }, { data: categories }, { count: transactionCount }] =
+    await Promise.all([
+      supabase
+        .from("profiles")
+        .select("full_name, avatar_url, birth_date")
+        .eq("id", user.id)
+        .maybeSingle(),
+      supabase
+        .from("user_settings")
+        .select("theme, reminders_enabled")
+        .eq("user_id", user.id)
+        .maybeSingle(),
+      supabase
+        .from("user_categories")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: true }),
+      supabase
+        .from("transactions")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id),
     ]);
-    firstName = resolveFirstName(user, profile?.full_name);
-    avatarUrl = resolveAvatarUrl(user, profile?.avatar_url);
-    dbTheme = settings?.theme ?? "system";
-  }
+
+  const firstName = resolveFirstName(user, profile?.full_name);
+  const avatarUrl = resolveAvatarUrl(user, profile?.avatar_url);
+  const dbTheme = settings?.theme ?? "system";
 
   const stamp = renderedStamp();
 
   return (
-    <AppShell name={firstName} email={user?.email ?? undefined} avatarUrl={avatarUrl}>
-      <ThemeSync dbTheme={dbTheme} />
-      {/* Solo dentro del área con sesión: afuera no hay nada que cerrar. */}
-      <IdleLogout />
-      {/* De quién es lo que quedó sin enviar. IndexedDB es del origen y
-          sobrevive al cierre de sesión, así que la cola se filtra por el
-          usuario de la sesión (ver components/offline/QueueOwner.tsx). */}
-      <QueueOwnerProvider userId={user.id} renderedAtMs={stamp.ms}>
-        {/* La hora se arma acá, al generar la pantalla, y queda escrita en
-            el HTML: cuando ese HTML sale del caché sin señal, el aviso
-            dice de cuándo son los datos de verdad. */}
-        <OfflineBanner renderedAt={stamp.label} />
-        {children}
-      </QueueOwnerProvider>
-    </AppShell>
+    // El provider de ajustes envuelve al shell y no al contenido: el botón
+    // que abre el diálogo vive en las dos píldoras de navegación, que
+    // AppShell dibuja FUERA de sus children. Adentro, el contexto no les
+    // llegaría.
+    <SettingsEntryProvider
+      data={{
+        userId: user.id,
+        email: user.email ?? "",
+        fullName: resolveDisplayName(user, profile?.full_name) ?? "",
+        birthDate: profile?.birth_date ?? null,
+        avatarUrl: avatarUrl ?? null,
+        categories: (categories ?? []) as UserCategory[],
+        theme: dbTheme,
+        remindersEnabled: settings?.reminders_enabled ?? false,
+        transactionCount: transactionCount ?? 0,
+      }}
+    >
+      <AppShell name={firstName} email={user?.email ?? undefined} avatarUrl={avatarUrl}>
+        <ThemeSync dbTheme={dbTheme} />
+        {/* Solo dentro del área con sesión: afuera no hay nada que cerrar. */}
+        <IdleLogout />
+        {/* De quién es lo que quedó sin enviar. IndexedDB es del origen y
+            sobrevive al cierre de sesión, así que la cola se filtra por el
+            usuario de la sesión (ver components/offline/QueueOwner.tsx). */}
+        <QueueOwnerProvider userId={user.id} renderedAtMs={stamp.ms}>
+          {/* La hora se arma acá, al generar la pantalla, y queda escrita en
+              el HTML: cuando ese HTML sale del caché sin señal, el aviso
+              dice de cuándo son los datos de verdad. */}
+          <OfflineBanner renderedAt={stamp.label} />
+          {children}
+        </QueueOwnerProvider>
+      </AppShell>
+    </SettingsEntryProvider>
   );
 }

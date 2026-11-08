@@ -145,14 +145,15 @@ export function MonthlyReport({
 
       {/* Todo el cromo de navegación va dentro de `reporte-no-imprimir`:
           en el papel sobra, y el encabezado pegajoso saldría pisando la
-          primera hoja. */}
+          primera hoja. El volver apunta al resumen y no a Ajustes —de donde
+          se llega— porque Ajustes dejó de ser una pantalla. */}
       <div className="reporte-no-imprimir">
         <Link
-          href="/dashboard/ajustes"
+          href="/dashboard"
           className="-ml-2 inline-flex items-center gap-1.5 rounded-control px-2 py-1.5 text-meta text-ink-3 transition-colors duration-150 hover:bg-surface-hover hover:text-ink"
         >
           <ArrowLeft size={14} weight="bold" aria-hidden />
-          Ajustes
+          Resumen
         </Link>
       </div>
 

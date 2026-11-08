@@ -1,38 +1,4 @@
 import type { ReactNode } from "react";
-import type { SettingsSectionId } from "./sections";
-
-/**
- * Sección de Ajustes: título, una línea de contexto y filas separadas por
- * líneas finas — como los ajustes de una app nativa. Reemplaza la pila de
- * tarjetas con ícono en círculo que había antes.
- */
-export function SettingsSection({
-  id,
-  title,
-  description,
-  children,
-}: {
-  id: SettingsSectionId;
-  title: string;
-  description?: ReactNode;
-  children: ReactNode;
-}) {
-  return (
-    <section
-      id={id}
-      aria-labelledby={`${id}-titulo`}
-      // Deja lugar para lo que queda fijo arriba al saltar desde el índice:
-      // encabezado + índice en teléfono, solo el índice en tablet.
-      className="scroll-mt-28 pb-7 md:scroll-mt-16 md:pb-9 lg:scroll-mt-10"
-    >
-      <h2 id={`${id}-titulo`} className="text-heading text-ink">
-        {title}
-      </h2>
-      {description && <p className="mt-0.5 max-w-[62ch] text-sm text-ink-3">{description}</p>}
-      <div className="mt-3 border-t border-line">{children}</div>
-    </section>
-  );
-}
 
 /**
  * Fila de ajuste.

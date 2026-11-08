@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
 import { BrandMark } from "@/components/brand/BrandMark";
+import { SettingsNavButton } from "@/components/settings/SettingsEntry";
 import { NAV_ITEMS, isNavActive } from "./navItems";
 import { UserMenu } from "./UserMenu";
 
@@ -101,6 +102,11 @@ export function TopNav({
               </li>
             );
           })}
+          {/* Ajustes abre un diálogo, así que es un botón suelto y no una
+              entrada de la lista: no es un destino y no se marca activo. */}
+          <li>
+            <SettingsNavButton variant="top" />
+          </li>
         </ul>
 
         <span aria-hidden className="mx-1 h-6 w-px shrink-0 bg-line" />

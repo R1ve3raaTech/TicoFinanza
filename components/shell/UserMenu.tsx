@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useId, useRef, useState } from "react";
-import Link from "next/link";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { CaretUpDown, DownloadSimple, SignOut, UserCircle } from "@phosphor-icons/react";
 import { SignOutDialog } from "@/components/dashboard/SignOutButton";
 import { useInstallApp } from "@/components/InstallAppButton";
+import { useSettingsEntry } from "@/components/settings/SettingsEntry";
 import { Avatar } from "./Avatar";
 
 const ITEM =
@@ -30,6 +30,7 @@ export function UserMenu({
   avatarUrl?: string;
 }) {
   const reduce = useReducedMotion();
+  const settings = useSettingsEntry();
   const [open, setOpen] = useState(false);
   const [confirmingSignOut, setConfirmingSignOut] = useState(false);
   const { visible: canInstall, install, hint } = useInstallApp();
@@ -114,15 +115,20 @@ export function UserMenu({
               <p className="truncate text-label text-ink">{displayName}</p>
               {email && <p className="truncate text-micro text-ink-3">{email}</p>}
             </div>
-            <Link
-              href="/dashboard/ajustes"
-              role="menuitem"
-              onClick={() => setOpen(false)}
-              className={ITEM}
-            >
-              <UserCircle size={16} />
-              Perfil y ajustes
-            </Link>
+            {settings && (
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  setOpen(false);
+                  settings.open();
+                }}
+                className={ITEM}
+              >
+                <UserCircle size={16} />
+                Perfil y ajustes
+              </button>
+            )}
             {canInstall && (
               <button
                 type="button"

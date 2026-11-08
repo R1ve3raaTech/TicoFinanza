@@ -17,7 +17,7 @@ import {
  * tres aclaraciones que de verdad hacen falta se juntaron abajo, donde se
  * leen de corrido.
  */
-const SECTIONS: { icon: Icon; title: string; href: string; what: string }[] = [
+const SECTIONS: { icon: Icon; title: string; href: string | null; what: string }[] = [
   {
     icon: SquaresFour,
     title: "Resumen",
@@ -45,8 +45,9 @@ const SECTIONS: { icon: Icon; title: string; href: string; what: string }[] = [
   {
     icon: GearSix,
     title: "Ajustes",
-    href: "/dashboard/ajustes",
-    what: "Tu perfil, tus categorías, el tema y los recordatorios.",
+    // Sin href: es este mismo diálogo, no una pantalla a la que ir.
+    href: null,
+    what: "Tu perfil, tus categorías, el tema y los recordatorios. Es esta misma ventana.",
   },
 ];
 
@@ -66,12 +67,16 @@ export function AppGuide() {
           <li key={title} className="flex gap-2.5">
             <Icon size={15} aria-hidden className="mt-0.5 shrink-0 text-ink-3" />
             <div className="min-w-0">
-              <Link
-                href={href}
-                className="text-label text-ink underline-offset-4 hover:text-accent hover:underline"
-              >
-                {title}
-              </Link>
+              {href ? (
+                <Link
+                  href={href}
+                  className="text-label text-ink underline-offset-4 hover:text-accent hover:underline"
+                >
+                  {title}
+                </Link>
+              ) : (
+                <span className="text-label text-ink">{title}</span>
+              )}
               <p className="mt-0.5 text-meta leading-relaxed text-ink-3">{what}</p>
             </div>
           </li>

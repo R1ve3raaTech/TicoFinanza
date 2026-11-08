@@ -12,7 +12,11 @@
 //
 // Subir VERSION invalida todo lo guardado. Hay que hacerlo cuando cambie
 // algo que deje el HTML viejo incompatible con el código nuevo.
-const VERSION = "v2";
+// v3 (2026-11-07): Ajustes dejó de ser pantalla y pasó a ser un diálogo.
+// Sin subir la versión, quien tuviera /dashboard/ajustes en el caché seguiría
+// abriendo la pantalla vieja sin señal, y las píldoras de navegación nuevas
+// convivirían con HTML guardado que todavía dibujaba el rail.
+const VERSION = "v3";
 const STATIC_CACHE = `tf-static-${VERSION}`;
 const PAGES_PREFIX = "tf-pages-";
 const OFFLINE_URL = "/sin-conexion";

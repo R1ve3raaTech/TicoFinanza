@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
+import { SettingsNavButton } from "@/components/settings/SettingsEntry";
 import { NAV_ITEMS, isNavActive } from "./navItems";
 
 /**
@@ -65,6 +66,12 @@ export function MobileTabBar() {
               </li>
             );
           })}
+          {/* Ajustes abre un diálogo. En teléfono no hay menú de cuenta, así
+              que este botón es la única puerta a la cuenta: sacarlo de la
+              barra dejaría el perfil y el cierre de sesión inalcanzables. */}
+          <li className="relative min-w-0 flex-1">
+            <SettingsNavButton variant="tab" />
+          </li>
         </ul>
       </nav>
     </div>

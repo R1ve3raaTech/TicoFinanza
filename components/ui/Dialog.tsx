@@ -14,6 +14,8 @@ const WIDTHS = {
   sm: "sm:max-w-[380px]",
   md: "sm:max-w-[440px]",
   lg: "sm:max-w-[520px]",
+  // Para el diálogo de ajustes, que es el único con pestañas adentro.
+  xl: "sm:max-w-[680px]",
 } as const;
 
 /**
