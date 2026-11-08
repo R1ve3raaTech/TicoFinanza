@@ -9,6 +9,7 @@ import { issueDeletionCode, verifyDeletionCode } from "@/lib/accountDeletion";
 import { sendPushToUser } from "@/lib/push/send";
 import { categoryClash } from "@/lib/categories";
 import { isCategoryTone } from "@/lib/categoryStyle";
+import { isMissingColumnError } from "@/lib/supabase/errors";
 import { isSymbolName } from "@/lib/materialSymbols";
 import { RECEIPTS_BUCKET } from "@/lib/receipts";
 import type { Theme, TransactionType } from "@/lib/types";
@@ -151,12 +152,17 @@ export async function updateCategory(
     .eq("user_id", user.id);
 
   if (error) {
-    return {
-      error:
-        error.code === "42703"
-          ? "Falta correr la migración 0025 en Supabase."
-          : "No se pudo guardar la categoría.",
-    };
+    // El caso de la migración sin correr llega como PGRST204 ("no está en el
+    // caché de esquema"), no como el 42703 de Postgres: ver lib/supabase/errors.
+    if (isMissingColumnError(error)) {
+      return {
+        error:
+          "Falta correr la migración 0025 en Supabase para poder guardar el ícono y el color.",
+      };
+    }
+    // El código va en el mensaje: un "no se pudo" a secas no deja a nadie
+    // —ni a quien lo lee ni a quien lo arregla— con nada en la mano.
+    return { error: `No se pudo guardar la categoría (${error.code ?? "sin código"}).` };
   }
 
   // Los movimientos guardan la categoría como texto, así que renombrarla no

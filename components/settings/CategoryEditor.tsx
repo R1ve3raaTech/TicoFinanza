@@ -54,6 +54,11 @@ export function CategoryEditor({
       const result = await updateCategory(category.id, { name, icon, color });
       if (result.error) {
         setError(result.error);
+        // Además del error en línea: el contenido del diálogo tiene scroll y
+        // el mensaje de abajo quedaba fuera de pantalla, así que tocar
+        // "Guardar" y que fallara se veía igual que tocar y que no pasara
+        // nada. El aviso flotante no se puede perder de vista.
+        toast.error(result.error);
         return;
       }
       toast.success(`"${name.trim()}" guardada`);
@@ -66,6 +71,8 @@ export function CategoryEditor({
       open={open}
       onClose={onClose}
       dismissible={!pending}
+      // Se abre encima del diálogo de ajustes: sin esto comparten capa.
+      layer="top"
       size="lg"
       title="Editar categoría"
       footer={

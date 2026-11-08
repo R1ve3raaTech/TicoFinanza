@@ -1763,3 +1763,41 @@ categoría entre sin scroll, que la fila de repetidos ofrezca lo que se
 repite y no lo que pasó una vez, que al tocar uno llene monto/detalle/
 categoría, y que la biblioteca traiga los 36 íconos y los 10 colores con el
 guardado ya marcado.
+
+## Dónde quedamos (2026-11-07, octava parte)
+
+Camil: "intenté editar y guardar una categoría y no me dejó". Dos defectos
+míos, los dos del mismo día:
+
+1. **El error se mostraba donde no se ve.** El `FormError` del editor está
+   al final de un diálogo con scroll, debajo de la grilla de 36 íconos: al
+   tocar "Guardar" y fallar, la pantalla se quedaba igual. Tocar y que
+   fallara era indistinguible de tocar y que no pasara nada. Ahora el error
+   **también sale como aviso flotante** (`toast`), que es fijo y no se puede
+   perder de vista.
+2. **El error de "falta la migración" estaba mal reconocido.** Se miraba
+   `42703`, el código de Postgres, pero al escribir desde la app el que
+   llega es **`PGRST204`** de PostgREST ("Could not find the 'icon' column …
+   in the schema cache"), porque rechaza el escrito antes de tocar la base.
+   O sea que el caso más probable caía en el mensaje genérico. Ahora lo
+   reconoce `isMissingColumnError()` (`lib/supabase/errors.ts`, con
+   pruebas), por código **y** por mensaje.
+
+De paso: el mensaje genérico ahora **lleva el código** del error
+(`No se pudo guardar la categoría (23505)`). Un "no se pudo" a secas no deja
+nada en la mano ni a quien lo lee ni a quien lo arregla.
+
+Y el editor pasó a `layer="top"`: se abre encima del diálogo de ajustes y
+compartían capa.
+
+**Lo que esta QA no cubría antes**: se probaba que la grilla de íconos y la
+de colores estuvieran, pero **nunca se tocaba "Guardar"**. Ahora sí: se
+comprueba que el editor quede por encima (z=70), que se pueda escribir el
+nombre con el otro diálogo abierto, y que el botón **llegue de verdad a la
+acción del servidor**. La causa de fondo sigue siendo que la migración 0025
+está sin correr — eso no se puede probar desde acá, pero ahora lo dice en
+pantalla.
+
+**Estado**: `npm test` (178, 4 nuevas sobre el reconocimiento del error),
+`eslint`, `tsc` y `npm run build` limpios. QA con Playwright a 1440 y 390:
+6 comprobaciones.
