@@ -47,7 +47,7 @@ const SECTIONS: { icon: Icon; title: string; href: string | null; what: string }
     title: "Ajustes",
     // Sin href: es este mismo diálogo, no una pantalla a la que ir.
     href: null,
-    what: "Tu perfil, tus categorías, el tema y los recordatorios. Es esta misma ventana.",
+    what: "Tu perfil, tus categorías, el tema y las notificaciones push.",
   },
 ];
 

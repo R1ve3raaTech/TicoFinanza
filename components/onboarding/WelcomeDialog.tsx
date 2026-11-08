@@ -27,33 +27,26 @@ const SECONDS = 10;
  * Que ya se vio se guarda en la cuenta y no en el navegador: instalar la
  * app en otro teléfono no tiene por qué volver a frenar a quien ya la
  * leyó.
+ *
+ * **Sale una sola vez, al registrarse, y no hay forma de volver a abrirla.**
+ * Hubo un botón "Ver la bienvenida" en Ajustes y era un enredo: la misma
+ * explicación en dos puertas distintas, una de ellas con un contador de
+ * diez segundos que no tenía ningún sentido para quien la abre a propósito.
+ * La guía a pedido vive en Ajustes → Guía, que es su lugar.
  */
-export function WelcomeDialog({
-  countdown = SECONDS,
-  onDone,
-}: {
-  /**
-   * Segundos antes de poder seguir. `0` la abre sin espera: es como se
-   * muestra desde Ajustes → Guía, donde quien la abrió ya sabe lo que está
-   * abriendo y frenarlo diez segundos sería un castigo.
-   */
-  countdown?: number;
-  /** Para quien la abrió a pedido y quiere enterarse de que se cerró. */
-  onDone?: () => void;
-} = {}) {
-  const [left, setLeft] = useState(countdown);
+export function WelcomeDialog() {
+  const [left, setLeft] = useState(SECONDS);
   const [open, setOpen] = useState(true);
   const [pending, startTransition] = useTransition();
 
   useEffect(() => {
-    if (countdown === 0) return;
     // El `setState` va dentro del tick y no en el cuerpo del efecto: en el
     // cuerpo sería un cambio de estado durante el propio efecto.
     const id = setInterval(() => {
       setLeft((seconds) => (seconds <= 1 ? 0 : seconds - 1));
     }, 1000);
     return () => clearInterval(id);
-  }, [countdown]);
+  }, []);
 
   const ready = left === 0;
 
@@ -62,7 +55,6 @@ export function WelcomeDialog({
     startTransition(async () => {
       await markOnboardingSeen();
     });
-    onDone?.();
   }
 
   return (

@@ -171,11 +171,20 @@ export async function updateCategory(
   if (input.icon && !isSymbolName(input.icon)) return { error: GENERIC_ERROR };
   if (input.color && !isCategoryTone(input.color)) return { error: GENERIC_ERROR };
 
-  const { error } = await supabase
+  // Se pide la fila escrita de vuelta a propósito. **Un UPDATE que no
+  // alcanza ninguna fila no es un error**: PostgREST contesta sin error y
+  // sin datos, así que sin este `.select()` la acción devolvía éxito y la
+  // app decía "guardada" sin haber guardado nada. Fue exactamente lo que
+  // pasó: `user_categories` se creó en la 0005 sin política de UPDATE
+  // (arreglado en la 0027), y RLS hacía que el UPDATE no tocara ninguna
+  // fila en silencio. Una acción no debe afirmar que guardó sin prueba.
+  const { data: saved, error } = await supabase
     .from("user_categories")
     .update({ name: trimmed, icon: input.icon, color: input.color })
     .eq("id", id)
-    .eq("user_id", user.id);
+    .eq("user_id", user.id)
+    .select("id")
+    .maybeSingle();
 
   if (error) {
     // El motivo de verdad va al registro del servidor y no a la pantalla:
@@ -186,6 +195,13 @@ export async function updateCategory(
       error
     );
     return { error: GENERIC_ERROR };
+  }
+
+  if (!saved) {
+    // La fila existe (se leyó más arriba, con la política de SELECT) y el
+    // UPDATE no tocó nada: lo que falta es el permiso de escritura.
+    logFailure("updateCategory: 0 filas afectadas (falta la política de UPDATE, migración 0027)", { id });
+    return { error: "No se guardó: falta correr la migración 0027 en Supabase." };
   }
 
   // Los movimientos guardan la categoría como texto, así que renombrarla no
@@ -201,7 +217,21 @@ export async function updateCategory(
 export async function deleteCategory(id: string) {
   const { supabase, user } = await requireUser();
 
-  await supabase.from("user_categories").delete().eq("id", id).eq("user_id", user.id);
+  // Igual que en updateCategory: se pide la fila de vuelta para no decir
+  // "eliminada" cuando no se eliminó nada.
+  const { data: removed, error } = await supabase
+    .from("user_categories")
+    .delete()
+    .eq("id", id)
+    .eq("user_id", user.id)
+    .select("id")
+    .maybeSingle();
+
+  if (error || !removed) {
+    logFailure("deleteCategory", error ?? { id, filas: 0 });
+    return { error: GENERIC_ERROR };
+  }
+
   revalidatePath("/dashboard/ajustes");
   revalidatePath("/dashboard/movimientos");
   revalidatePath("/dashboard/fijos");
@@ -288,7 +318,7 @@ export async function confirmAccountDeletion(code: string) {
 }
 
 // ---------------------------------------------------------------------------
-// Recordatorios push
+// Notificaciones push
 // ---------------------------------------------------------------------------
 
 /**
@@ -363,7 +393,7 @@ export async function sendTestReminder() {
 
   const admin = createAdminClient();
   const { sent } = await sendPushToUser(admin, user.id, {
-    title: "Recordatorios activados",
+    title: "Notificaciones activadas",
     body: "Así te vamos a avisar un día antes de cada gasto fijo.",
     url: "/dashboard/fijos",
     tag: "prueba",
@@ -372,7 +402,7 @@ export async function sendTestReminder() {
   if (sent === 0) {
     return {
       error:
-        "No se pudo mandar el aviso de prueba. Revisá que los recordatorios estén activados en este dispositivo.",
+        "No se pudo mandar el aviso de prueba. Revisá que las notificaciones estén activadas en este dispositivo.",
     };
   }
   return { error: null };

@@ -2076,3 +2076,75 @@ vuelva a abrir al segundo toque, que el formulario quede centrado y sin
 tocar el borde, que la confirmación de cerrar sesión se abra por encima de
 Ajustes (z=70) y que **cerrar sesión llegue de verdad a /entrar**, y que la
 bienvenida a pedido traiga el contador.
+
+## Dónde quedamos (2026-11-08, quinta parte)
+
+### ⚠️ HAY UNA MIGRACIÓN SIN CORRER: `0027_user_categories_update_policy.sql`
+
+**Es la causa del bug que reportó Camil** ("edito el ícono, me dice guardado
+y no guarda nada"). Hasta que no se corra, editar una categoría propia sigue
+sin funcionar — pero ahora la app **lo dice** en vez de mentir.
+
+**El bug: `user_categories` nunca tuvo política de UPDATE.** La tabla se creó
+en la 0005 con SELECT, INSERT y DELETE. Mientras una categoría no se pudo
+editar nadie lo notó; desde la 0025 (ícono y color propios) sí.
+
+Lo peligroso es cómo falla: **con RLS activo y sin política de UPDATE, un
+UPDATE no da error — simplemente no alcanza ninguna fila.** PostgREST
+contesta sin error, así que `updateCategory` devolvía éxito y la app decía
+"guardada". Un permiso que falta se veía exactamente igual que un guardado
+exitoso.
+
+Dos arreglos, y el segundo importa más que el primero:
+
+1. La migración 0027 agrega la política (`using` **y** `with check`: sin la
+   segunda, un UPDATE podría cambiar el `user_id` y regalarle la categoría a
+   otra cuenta).
+2. **`updateCategory` y `deleteCategory` ahora piden la fila de vuelta**
+   (`.select("id").maybeSingle()`) y tratan "cero filas" como fallo. La regla
+   general: *una acción no debe afirmar que guardó sin prueba de que guardó*.
+   Con cero filas, `updateCategory` dice que falta correr la 0027 — el único
+   caso posible, porque la fila ya se leyó con la política de SELECT.
+3. `lib/supabase/policies.test.ts` cruza **las tablas que el código actualiza
+   contra las políticas declaradas en las migraciones**. Comprobado que falla
+   si se quita la 0027. Las tres tablas que se escriben solo con la clave de
+   servicio (`account_deletion_codes`, `action_rate_limits`,
+   `push_reminders`) están en una lista aparte, con el motivo.
+
+**Ajustes: la guía y las categorías pasan a su propio diálogo**
+
+- `GuideDialog` — la guía era el único texto largo de Ajustes y estaba suelta
+  en el scroll: ocupaba más que todos los controles juntos y había que
+  pasarla para llegar a la zona de peligro.
+- `CategoryDialog` — reemplaza a `CategoryManager` + `CategoryEditor`, los dos
+  borrados. Antes las categorías eran una tira de chips diminutos dentro de
+  una fila de ajustes, y el editor se abría como un **tercer** diálogo encima.
+  Ahora hay una lista de verdad (marca, nombre, Editar, Borrar) y **el editor
+  es otra vista del mismo panel, no otro diálogo**: con tres ventanas apiladas
+  no se sabe cuál cierra cuál. Se vuelve con una flecha en el título.
+- El botón "Guardar" del editor **arranca apagado y se prende al cambiar
+  algo** (`dirty`): guardar lo mismo que ya estaba no es una acción.
+- **Orden nuevo de los bloques**, como lo pidió Camil: Perfil · Guía ·
+  Categorías · Apariencia · Notificaciones push · Datos · Cuenta · Zona de
+  peligro.
+- **"Recordatorios" pasa a llamarse "Notificaciones push"** en todo lo que se
+  ve (el bloque, los avisos, el push de prueba). La fila dice "En este
+  dispositivo", que es el dato que se confunde.
+
+**Se fue "Ver la bienvenida" de Ajustes.** Camil lo pidió expresamente y
+tenía razón: era la misma explicación en dos puertas, una de ellas con un
+contador de diez segundos que no tiene sentido para quien la abre a
+propósito. **La bienvenida sale una sola vez, al registrarse, y punto**;
+`WelcomeDialog` ya no acepta `countdown` ni `onDone`. La guía a pedido vive
+en Ajustes → Guía.
+
+**Estado**: `npm test` (185, 2 nuevas estructurales sobre las políticas),
+`eslint`, `tsc` y `npm run build` limpios. QA con Playwright contra el build
+de producción a 1440 oscuro y 390 claro: **59 comprobaciones** — el orden de
+los ocho bloques, que no quede rastro de "bienvenida" ni de "Recordatorios",
+que la guía y las categorías abran por encima (z=70) y cierren, la lista con
+sus tres filas y el cambio a ingresos, que **editar NO abra un tercer
+diálogo**, los 11 colores y los 37 íconos, Guardar apagado sin cambios y
+prendido al elegir color, la vista previa tomando el tono, el volver, y que
+Guardar **llegue de verdad a la acción del servidor**. Sin desborde ni
+errores de consola.

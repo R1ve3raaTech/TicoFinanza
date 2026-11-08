@@ -30,7 +30,7 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array<ArrayBuffer> {
 }
 
 /**
- * Interruptor de los recordatorios de gastos fijos.
+ * Interruptor de las notificaciones push de gastos fijos.
  *
  * Son dos cosas a la vez y por eso el estado no sale solo de la base: el
  * flag `reminders_enabled` dice si la persona los quiere (es de la cuenta),
@@ -79,7 +79,7 @@ export function RemindersSetting({ initialEnabled }: { initialEnabled: boolean }
 
   async function enable() {
     if (!publicKey) {
-      const message = "Los recordatorios todavía no están configurados en el servidor.";
+      const message = "Las notificaciones todavía no están configuradas en el servidor.";
       setError(message);
       toast.error(message);
       return;
@@ -116,7 +116,7 @@ export function RemindersSetting({ initialEnabled }: { initialEnabled: boolean }
 
     await setRemindersEnabled(true);
     setEnabled(true);
-    toast.success("Recordatorios activados");
+    toast.success("Notificaciones activadas");
   }
 
   async function disable() {
@@ -130,7 +130,7 @@ export function RemindersSetting({ initialEnabled }: { initialEnabled: boolean }
     // que uno espera, y si hay otro suscrito lo vuelve a prender desde ahí.
     await setRemindersEnabled(false);
     setEnabled(false);
-    toast.success("Recordatorios desactivados");
+    toast.success("Notificaciones desactivadas");
   }
 
   function toggle() {
@@ -141,7 +141,7 @@ export function RemindersSetting({ initialEnabled }: { initialEnabled: boolean }
         if (next) await enable();
         else await disable();
       } catch {
-        const message = "No se pudieron cambiar los recordatorios en este dispositivo.";
+        const message = "No se pudieron cambiar las notificaciones en este dispositivo.";
         setError(message);
         toast.error(message);
       }
@@ -171,10 +171,11 @@ export function RemindersSetting({ initialEnabled }: { initialEnabled: boolean }
 
   return (
     <>
-      <SettingsRow
-        inline
-        label="Recordatorios en este dispositivo"
-      >
+      {/* El bloque de Ajustes ya se llama "Notificaciones push": la fila
+          solo tiene que decir de qué dispositivo habla, que es el dato que
+          la gente confunde (activarlas en la compu no las manda al
+          teléfono). */}
+      <SettingsRow inline label="En este dispositivo">
         <span className="text-meta text-ink-3" aria-live="polite">
           {status}
         </span>
@@ -182,7 +183,7 @@ export function RemindersSetting({ initialEnabled }: { initialEnabled: boolean }
           checked={enabled}
           onChange={toggle}
           disabled={pending || !supported || !checked}
-          label="Recordatorios de gastos fijos en este dispositivo"
+          label="Notificaciones de gastos fijos en este dispositivo"
         />
       </SettingsRow>
 

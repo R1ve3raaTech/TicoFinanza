@@ -2,15 +2,14 @@
 
 import { useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { DownloadSimple, Printer } from "@phosphor-icons/react";
-import { WelcomeDialog } from "@/components/onboarding/WelcomeDialog";
+import { BookOpen, DownloadSimple, Printer, Tag } from "@phosphor-icons/react";
 import { Button, buttonClass } from "@/components/ui/Button";
 import { Dialog } from "@/components/ui/Dialog";
 import type { Theme, UserCategory } from "@/lib/types";
-import { AppGuide } from "./AppGuide";
-import { CategoryManager } from "./CategoryManager";
+import { CategoryDialog } from "./CategoryDialog";
 import { DangerZone } from "./DangerZone";
 import { DeleteAccountFlow } from "./DeleteAccountFlow";
+import { GuideDialog } from "./GuideDialog";
 import { ProfileSettings } from "./ProfileSettings";
 import { RemindersSetting } from "./RemindersSetting";
 import { SessionSettings } from "./SessionSettings";
@@ -60,13 +59,17 @@ function Bloque({
  * pantalla, además, obligaba a abandonar lo que estabas viendo y volver
  * después; como diálogo, lo de atrás sigue ahí.
  *
- * **Todo junto y con scroll, no en pestañas.** La primera versión tenía
- * siete pestañas y la mitad llevaban a un panel con una sola fila:
- * "Recordatorios" era un interruptor solo en medio de una pantalla vacía,
- * y "Apariencia" lo mismo. Repartir seis controles en siete pestañas hace
- * que cada una se vea vacía y que haya que tocar siete veces para ver lo
- * que entra de una pasada de scroll. Los bloques siguen separados con
- * título y línea: junto no es amontonado.
+ * **Todo junto y con scroll, no en pestañas.** Una versión tuvo siete
+ * pestañas y la mitad llevaban a un panel con una sola fila:
+ * "Recordatorios" era un interruptor solo en medio de una pantalla vacía.
+ * Repartir seis controles en siete pestañas hace que cada una se vea vacía
+ * y que haya que tocar siete veces para ver lo que entra de una pasada de
+ * scroll. Los bloques siguen separados con título y línea: junto no es
+ * amontonado.
+ *
+ * **Las dos cosas largas abren su propio diálogo**: la guía (el único texto
+ * de la pantalla) y las categorías (una lista que crece). Dentro del scroll
+ * se comían el espacio de los controles, que es a lo que uno viene.
  */
 export function SettingsDialog({
   open,
@@ -79,6 +82,7 @@ export function SettingsDialog({
 }) {
   const [closing, setClosing] = useState(false);
   const [guideOpen, setGuideOpen] = useState(false);
+  const [categoriesOpen, setCategoriesOpen] = useState(false);
   // Lo que el perfil deja acá para que "Guardar y salir" mande lo pendiente.
   const flushRef = useRef<(() => Promise<boolean>) | null>(null);
 
@@ -94,6 +98,8 @@ export function SettingsDialog({
       setClosing(false);
     }
   }
+
+  const categoryCount = data.categories.length;
 
   return (
     <>
@@ -111,7 +117,7 @@ export function SettingsDialog({
         {/* Cualquier enlace de adentro lleva a otra pantalla, y el diálogo
             vive en el layout: sin esto se quedaría abierto encima del
             reporte. Un solo manejador en lugar de pasarle `onClose` a los
-            seis o siete enlaces repartidos por los bloques. */}
+            enlaces repartidos por los bloques. */}
         <div
           onClick={(e) => {
             if ((e.target as HTMLElement).closest("a[href]")) onClose();
@@ -127,15 +133,34 @@ export function SettingsDialog({
             />
           </Bloque>
 
+          <Bloque title="Guía">
+            <SettingsRow inline label="Cómo funciona la app">
+              <Button variant="secondary" size="sm" onClick={() => setGuideOpen(true)}>
+                <BookOpen size={14} />
+                Ver guía
+              </Button>
+            </SettingsRow>
+          </Bloque>
+
           <Bloque title="Categorías">
-            <CategoryManager categories={data.categories} />
+            <SettingsRow inline label="Tus categorías">
+              <span className="text-meta text-ink-3">
+                {categoryCount === 0
+                  ? "Ninguna propia"
+                  : `${categoryCount} ${categoryCount === 1 ? "propia" : "propias"}`}
+              </span>
+              <Button variant="secondary" size="sm" onClick={() => setCategoriesOpen(true)}>
+                <Tag size={14} />
+                Administrar
+              </Button>
+            </SettingsRow>
           </Bloque>
 
           <Bloque title="Apariencia">
             <ThemeSetting initial={data.theme} />
           </Bloque>
 
-          <Bloque title="Recordatorios">
+          <Bloque title="Notificaciones push">
             <RemindersSetting initialEnabled={data.remindersEnabled} />
           </Bloque>
 
@@ -162,20 +187,6 @@ export function SettingsDialog({
             </SettingsRow>
           </Bloque>
 
-          <Bloque title="Guía">
-            <SettingsRow inline label="Cómo funciona la app">
-              {/* Exactamente lo que ve quien se registra, contador
-                  incluido: una versión recortada no sirve para comprobar
-                  que la bienvenida funciona. */}
-              <Button variant="secondary" size="sm" onClick={() => setGuideOpen(true)}>
-                Ver la bienvenida
-              </Button>
-            </SettingsRow>
-            <div className="pt-4">
-              <AppGuide />
-            </div>
-          </Bloque>
-
           <Bloque title="Cuenta">
             <SessionSettings email={data.email} />
           </Bloque>
@@ -199,7 +210,12 @@ export function SettingsDialog({
         </div>
       </Dialog>
 
-      {guideOpen && <WelcomeDialog onDone={() => setGuideOpen(false)} />}
+      <GuideDialog open={guideOpen} onClose={() => setGuideOpen(false)} />
+      <CategoryDialog
+        open={categoriesOpen}
+        onClose={() => setCategoriesOpen(false)}
+        categories={data.categories}
+      />
     </>
   );
 }
