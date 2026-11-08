@@ -71,7 +71,6 @@ export function PlanView({
     <main id="contenido" className="mx-auto w-full max-w-[1180px] px-4 pb-12 md:px-8 xl:px-12">
       <PageHeader
         title="Plan"
-        meta="Lo que te proponés: topes de gasto del mes, metas de ahorro y las deudas con otras personas."
         mobileActions={<InstallAppButton />}
       />
 
@@ -128,8 +127,8 @@ export function PlanView({
               tone={budgets.limit - budgets.spent < 0 ? "expense" : "ink"}
               note={
                 budgets.over > 0
-                  ? `Ya te pasaste en ${budgets.over} categoría${budgets.over === 1 ? "" : "s"}. El tope se mide contra los movimientos y los gastos fijos de esa categoría.`
-                  : "Lo que podés seguir gastando sin pasarte de lo que vos mismo te pusiste."
+                  ? `Ya te pasaste en ${budgets.over} categoría${budgets.over === 1 ? "" : "s"}.`
+                  : "Lo que podés seguir gastando sin pasarte."
               }
               aside={
                 <>
@@ -163,7 +162,7 @@ export function PlanView({
               note={
                 goalsSum.saved >= goalsSum.target
                   ? "Ya juntaste todo lo que te propusiste."
-                  : `Te faltan ${Math.round(((goalsSum.target - goalsSum.saved) / goalsSum.target) * 100)} % para llegar a lo que te propusiste. Esta plata sigue en tus cuentas: apartarla es una marca, no un movimiento.`
+                  : `Te faltan ${Math.round(((goalsSum.target - goalsSum.saved) / goalsSum.target) * 100)} % para llegar.`
               }
               aside={
                 <LeadFigure label="Objetivo">
@@ -189,8 +188,8 @@ export function PlanView({
               tone={debts30.net < 0 ? "expense" : "ink"}
               note={
                 debts30.overdueCount > 0
-                  ? `${debts30.overdueCount} deuda${debts30.overdueCount === 1 ? " está vencida" : "s están vencidas"}. Una deuda no toca tus cuentas hasta que la saldás.`
-                  : "Una deuda no toca tus cuentas hasta que la saldás: prestar no es un gasto y que te deban no es un ingreso."
+                  ? `${debts30.overdueCount} deuda${debts30.overdueCount === 1 ? " está vencida" : "s están vencidas"}.`
+                  : "Ninguna está vencida."
               }
               aside={
                 <>

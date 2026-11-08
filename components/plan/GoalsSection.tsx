@@ -98,10 +98,8 @@ export function GoalsSection({
 
       {goals.length === 0 ? (
         <div className="border-t border-line py-8">
-          <p className="max-w-[54ch] text-sm leading-relaxed text-ink-2">
-            Apartá plata para algo concreto: el fondo de emergencia, un viaje. Si es algo que
-            se paga todos los años —el marchamo, el seguro— marcala como anual y la app lo
-            divide entre doce para que diciembre no sorprenda.
+          <p className="text-sm text-ink-2">
+            Apartá plata para algo concreto. Lo anual —marchamo, seguro— se divide entre doce.
           </p>
           <Button variant="secondary" className="mt-4" onClick={() => openGoal(null)}>
             <Plus size={15} weight="bold" />

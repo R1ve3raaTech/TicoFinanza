@@ -164,7 +164,7 @@ export function ProfileSettings({
         saveOnBlur();
       }}
     >
-      <SettingsRow label="Foto" description="JPG o PNG, hasta 5 MB.">
+      <SettingsRow label="Foto">
         <div className="flex items-center gap-3">
           <Avatar src={avatarUrl} name={fullName} size={40} />
           <Button
@@ -216,10 +216,10 @@ export function ProfileSettings({
         />
       </SettingsRow>
 
-      {/* Sin botón de guardar: lo hace el campo al salir de él, y el botón
-          del diálogo manda lo que quede pendiente. Esta línea es el acuse:
-          sin ella, guardar en silencio es indistinguible de no guardar. */}
-      <div className="flex min-h-[1.5rem] flex-wrap items-center gap-3 pt-3">
+      {/* Sin botón de guardar y sin explicar cómo guarda: lo dice el botón
+          del diálogo ("Guardar y salir"). Queda el acuse, y solo mientras
+          pasa algo: guardar en silencio es indistinguible de no guardar. */}
+      <div className="flex min-h-[1.25rem] flex-wrap items-center gap-3 pt-3">
         {error ? (
           <FormError>{error}</FormError>
         ) : pending ? (
@@ -229,9 +229,7 @@ export function ProfileSettings({
             <Check size={12} weight="bold" aria-hidden />
             Guardado
           </span>
-        ) : (
-          <span className="text-meta text-ink-3">Se guarda solo al salir de cada campo.</span>
-        )}
+        ) : null}
       </div>
     </form>
   );

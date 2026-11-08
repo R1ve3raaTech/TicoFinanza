@@ -85,11 +85,6 @@ export function FirstSteps({
           {done} de {steps.length} listos
         </span>
       </div>
-      <p className="mt-1 max-w-[60ch] text-sm leading-relaxed text-ink-2">
-        TicoFinanza no lee tus correos ni se conecta a tu banco: vos anotás lo que entra y lo que
-        sale, y la app lleva la cuenta.
-      </p>
-
       <ol className="mt-5 border-t border-line">
         {steps.map((step, index) => (
           <li

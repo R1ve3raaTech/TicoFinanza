@@ -36,10 +36,7 @@ export function ExpectedIncomes({
       <h2 id="por-confirmar-titulo" className="text-heading text-ink">
         {incomes.length === 1 ? "Un ingreso por confirmar" : "Ingresos por confirmar"}
       </h2>
-      <p className="mt-1 max-w-[56ch] text-sm leading-relaxed text-ink-2">
-        Ya pasó la fecha de pago. Confirmá lo que de verdad entró y el saldo de la cuenta se
-        actualiza.
-      </p>
+      <p className="mt-1 text-sm text-ink-2">Ya pasó la fecha de pago.</p>
 
       <ul className="mt-4 border-t border-line">
         {incomes.map((income, i) => (

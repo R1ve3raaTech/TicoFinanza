@@ -1639,3 +1639,47 @@ ningún enlace a la pantalla vieja, los cuatro destinos, el botón que se
 anuncia como diálogo, las siete pestañas, el perfil con foto/nombre/fecha,
 que salir de un campo sin tocarlo no guarde, el cambio de pestaña, que
 "Listo" cierre sin navegar, y que la ruta vieja no dé 404.
+
+## Dónde quedamos (2026-11-07, sexta parte) — REGLA DE COPY
+
+Camil: "no des muchas explicaciones con textos pequeños, se ve un poco
+improfesional e innecesario". **Esto reemplaza la decisión de la nota del
+2026-11-01 ("Explicaciones"), que iba en la dirección contraria**: ahí se
+habían agregado descripciones a cada sección y a cada fila. No volver a
+agregarlas.
+
+**La regla, de ahora en adelante:**
+
+- **Fuera**: todo texto chico que explique *cómo funciona la app* o *cómo
+  guarda* algo. Si el control se entiende por su rótulo, no lleva línea
+  debajo.
+- **Adentro**: lo que dice qué va a pasar con una acción que no se puede
+  deshacer (las descripciones de los diálogos de confirmación), y lo que es
+  **dato** y no explicación (el "12 % más que el mes pasado" de las
+  tarjetas, los rótulos de los gráficos, el aviso de datos viejos sin
+  señal).
+- Cuando un dato importante vivía en una explicación, se mete en el
+  **rótulo**: "Recordatorios de gastos fijos" + línea sobre que es por
+  dispositivo → **"Recordatorios en este dispositivo"**, sin línea.
+- Los estados vacíos se quedan con **una** frase y su botón: la pantalla no
+  tiene otra cosa que mostrar, pero no hacen falta tres renglones.
+
+**Lo que se tocó**: el diálogo de ajustes (su botón pasó a decir **"Guardar
+y salir"** y se fue el "Se guarda solo al salir de cada campo"), las filas
+de Apariencia, Recordatorios, Sesión, Datos y Zona de peligro, las líneas de
+contexto de Fijos/Movimientos/Plan, los párrafos de los encabezados de
+sección, la nota del gráfico de seis meses (de cuatro renglones a uno), la
+intro de "Empezá por acá", y los estados vacíos de cuentas, fijos,
+movimientos, ingresos fijos, topes, metas, deudas y aguinaldo.
+
+**Lo que NO se tocó, y por qué**: las descripciones de los diálogos
+destructivos (qué se borra exactamente y si se puede deshacer), el aviso del
+formulario cuando la fecha cae en otro mes (es el que evita el bug de
+"no se guardó" del 2026-11-02), y la pestaña **Guía** del diálogo de
+ajustes, que es texto explicativo a propósito y está detrás de su pestaña.
+
+**Estado**: `npm test` (160), `eslint`, `tsc` y `npm run build` limpios. QA
+con Playwright a 1440 claro y 390 oscuro: 20 comprobaciones, incluida una
+que recorre las seis pestañas de ajustes y **falla si queda algún párrafo de
+13px o menos con más de seis palabras** — así la regla queda comprobada y no
+solo escrita.

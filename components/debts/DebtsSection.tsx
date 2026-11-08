@@ -215,10 +215,7 @@ export function DebtsSection({
 
       {debts.length === 0 ? (
         <div className="border-t border-line py-8">
-          <p className="max-w-[54ch] text-sm leading-relaxed text-ink-2">
-            Anotá lo que te deben y lo que debés, con la fecha en la que quedaron. No cuenta como
-            ingreso ni como gasto hasta que se salda — prestar plata no es gastarla.
-          </p>
+          <p className="text-sm text-ink-2">Lo que te deben y lo que debés, con su fecha.</p>
           <div className="mt-4 flex flex-wrap gap-2">
             <Button variant="secondary" onClick={() => openDebt(null, "me_deben")}>
               <Plus size={15} weight="bold" />

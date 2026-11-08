@@ -55,9 +55,8 @@ export function AccountsPanel({ accounts }: { accounts: Account[] }) {
 
       {accounts.length === 0 ? (
         <div className="border-t border-line py-8">
-          <p className="max-w-[52ch] text-sm leading-relaxed text-ink-2">
-            Creá una billetera por cada lugar donde tenés plata —efectivo, la cuenta del banco, la
-            tarjeta— y cada movimiento va a saber de dónde salió.
+          <p className="text-sm text-ink-2">
+            Una billetera por cada lugar donde tenés plata: efectivo, banco, tarjeta.
           </p>
           <Button variant="secondary" className="mt-4" onClick={() => openAccount(null)}>
             <Plus size={15} weight="bold" />

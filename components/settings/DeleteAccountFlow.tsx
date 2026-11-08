@@ -77,11 +77,7 @@ export function DeleteAccountFlow({ email }: { email: string }) {
 
   return (
     <>
-      <SettingsRow
-        inline
-        label="Eliminar cuenta"
-        description="Borra tu cuenta y todos tus datos para siempre. No se puede deshacer."
-      >
+      <SettingsRow inline label="Eliminar cuenta">
         <Button
           variant="danger-ghost"
           size="sm"

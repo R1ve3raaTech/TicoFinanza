@@ -106,7 +106,7 @@ export function TransferDialog({
       onClose={onClose}
       dismissible={!pending}
       title="Transferencia entre cuentas"
-      description="Mover plata de una billetera a otra. No cuenta como ingreso ni como gasto."
+      description="No cuenta como ingreso ni como gasto."
       footer={
         <>
           <Button variant="secondary" onClick={onClose} disabled={pending}>
@@ -124,9 +124,8 @@ export function TransferDialog({
       }
     >
       {accounts.length < 2 ? (
-        <p className="py-4 text-sm leading-relaxed text-ink-2">
-          Para transferir hacen falta al menos dos cuentas. Creá otra billetera desde el resumen y
-          volvé acá.
+        <p className="py-4 text-sm text-ink-2">
+          Para transferir hacen falta al menos dos cuentas.
         </p>
       ) : (
         <form

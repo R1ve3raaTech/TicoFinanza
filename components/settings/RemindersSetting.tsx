@@ -173,8 +173,7 @@ export function RemindersSetting({ initialEnabled }: { initialEnabled: boolean }
     <>
       <SettingsRow
         inline
-        label="Recordatorios de gastos fijos"
-        description="Un aviso en este dispositivo dos días antes y un día antes de cada cobro agendado."
+        label="Recordatorios en este dispositivo"
       >
         <span className="text-meta text-ink-3" aria-live="polite">
           {status}
@@ -188,11 +187,7 @@ export function RemindersSetting({ initialEnabled }: { initialEnabled: boolean }
       </SettingsRow>
 
       {enabled && (
-        <SettingsRow
-          inline
-          label="Probar"
-          description="Manda un aviso ahora mismo, para ver que llegue de verdad."
-        >
+        <SettingsRow inline label="Probar">
           <Button variant="secondary" size="sm" onClick={test} disabled={pending}>
             <BellRinging size={14} />
             Mandar prueba

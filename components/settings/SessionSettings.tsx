@@ -20,11 +20,7 @@ export function SessionSettings({ email }: { email?: string }) {
           desaparecía entera cuando el navegador no ofrecía instalar (iOS
           siempre), y entonces no quedaba ningún lugar donde enterarse de
           que la app se puede tener con ícono propio. */}
-      <SettingsRow
-        inline
-        label="Instalar la app"
-        description="Con su propio ícono y sin la barra del navegador. En Android también hay archivo para instalar."
-      >
+      <SettingsRow inline label="Instalar la app">
         {visible ? (
           <Button variant="secondary" size="sm" onClick={install}>
             <DownloadSimple size={14} />

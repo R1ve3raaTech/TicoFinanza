@@ -55,7 +55,8 @@ export function MovementsView({
       <main id="contenido" className="mx-auto w-full max-w-[1180px] px-4 pb-12 md:px-8 xl:px-12">
         <PageHeader
           title="Movimientos"
-          meta={`Lo que entró y lo que salió, anotado uno por uno · ${periodLabel}`}
+          // Solo el período: qué es esta pantalla lo dice su nombre.
+          meta={periodLabel}
           actions={
             <>
               <a
@@ -96,9 +97,9 @@ export function MovementsView({
           tone={income - expense < 0 ? "expense" : "ink"}
           note={
             income === 0 && expense === 0
-              ? "No hay nada anotado en este período. Cambiá el filtro de arriba o registrá un movimiento."
+              ? "No hay nada anotado en este período."
               : income === 0
-                ? "Todo lo de este período son salidas: no hay ningún ingreso anotado."
+                ? "Todo lo de este período son salidas."
                 : income - expense < 0
                   ? "En este período salió más de lo que entró."
                   : "En este período entró más de lo que salió."

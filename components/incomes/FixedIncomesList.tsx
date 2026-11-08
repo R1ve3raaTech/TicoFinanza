@@ -82,10 +82,8 @@ export function FixedIncomesList({
 
       {incomes.length === 0 ? (
         <div className="border-t border-line py-8">
-          <p className="max-w-[54ch] text-sm leading-relaxed text-ink-2">
-            Anotá el salario, la quincena o lo que cobres todos los meses, con el día en que
-            entra. El día del pago te aparece acá para confirmarlo de un toque — no se registra
-            solo, para que un depósito atrasado no deje el saldo mintiendo.
+          <p className="text-sm text-ink-2">
+            El salario o la quincena, con el día en que entra.
           </p>
           <Button variant="secondary" className="mt-4" onClick={() => open(null)}>
             <Plus size={15} weight="bold" />

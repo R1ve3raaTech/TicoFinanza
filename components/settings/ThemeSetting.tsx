@@ -28,7 +28,7 @@ export function ThemeSetting({ initial }: { initial: Theme }) {
   }
 
   return (
-    <SettingsRow label="Tema" description="Cómo se ve la app en este dispositivo.">
+    <SettingsRow label="Tema">
       <Segmented
         ariaLabel="Tema"
         value={theme}

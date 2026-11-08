@@ -423,9 +423,8 @@ export function MovementList({
       {entries.length === 0 ? (
         <div className="mt-2 border-t border-line py-10">
           <p className="text-heading text-ink">Todavía no hay movimientos</p>
-          <p className="mt-1.5 max-w-[52ch] text-sm leading-relaxed text-ink-2">
-            Registrá un ingreso (salario, freelance) o un gasto para empezar. Los pagos que se
-            repiten todos los meses van en Fijos, no acá.
+          <p className="mt-1.5 text-sm text-ink-2">
+            Los pagos que se repiten todos los meses van en Fijos.
           </p>
           <div className="mt-5">
             {/* Sin variante primaria: la acción primaria de la pantalla ya

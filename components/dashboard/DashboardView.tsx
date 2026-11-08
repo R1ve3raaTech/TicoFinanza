@@ -176,10 +176,11 @@ export function DashboardView({
                   </div>
                   <div className="border-t border-line pt-5">
                     <IncomeExpenseChart data={months} size="lg" />
-                    <p className="mt-4 max-w-[52ch] text-meta leading-relaxed text-ink-3">
-                      Movimientos registrados mes a mes. Los gastos fijos no entran acá, ni
-                      siquiera los que marcaste pagados: son un plan mensual y ya suman en las
-                      tarjetas de arriba. Contarlos dos veces sería peor que no mostrarlos.
+                    {/* Una línea y no un párrafo: lo único que hay que
+                        saber es que los fijos no están, porque ya suman en
+                        las tarjetas de arriba. */}
+                    <p className="mt-4 text-meta text-ink-3">
+                      Los gastos fijos no entran en este gráfico.
                     </p>
                   </div>
                 </section>

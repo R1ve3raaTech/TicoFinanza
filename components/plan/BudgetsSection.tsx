@@ -88,9 +88,8 @@ export function BudgetsSection({
 
       {progress.length === 0 ? (
         <div className="border-t border-line py-8">
-          <p className="max-w-[54ch] text-sm leading-relaxed text-ink-2">
-            Poné un tope mensual a las categorías que se te van de las manos. La app compara lo
-            que llevás gastado contra ese número y te avisa antes de pasarte, no después.
+          <p className="text-sm text-ink-2">
+            Un tope mensual para las categorías que se te van de las manos.
           </p>
           <div className="mt-4 flex flex-wrap gap-2">
             <Button variant="secondary" onClick={() => openDialog(null)}>

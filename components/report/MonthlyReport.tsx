@@ -329,9 +329,8 @@ export function MonthlyReport({
               </tr>
             </tbody>
           </table>
-          <p className="reporte-apagado mt-2 max-w-[62ch] text-meta leading-relaxed text-ink-3">
-            Los saldos son los de hoy, no los del cierre del mes: la app guarda el saldo actual de
-            cada cuenta, no una foto por mes.
+          <p className="reporte-apagado mt-2 text-meta text-ink-3">
+            Saldos de hoy, no del cierre del mes.
           </p>
         </div>
       )}

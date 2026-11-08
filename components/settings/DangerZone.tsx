@@ -45,11 +45,9 @@ export function DangerZone({ transactionCount }: { transactionCount: number }) {
 
   return (
     <>
-      <SettingsRow
-        inline
-        label="Eliminar movimientos"
-        description="Borra todos tus ingresos y gastos registrados. Los gastos fijos no se tocan."
-      >
+      {/* Qué borra exactamente lo dice el diálogo de confirmación, que es
+          donde hay que saberlo. */}
+      <SettingsRow inline label="Eliminar movimientos">
         <Button
           variant="danger-ghost"
           size="sm"

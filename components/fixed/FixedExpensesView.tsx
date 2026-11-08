@@ -56,11 +56,7 @@ export function FixedExpensesView({
       <main id="contenido" className="mx-auto w-full max-w-[1180px] px-4 pb-12 md:px-8 xl:px-12">
         <PageHeader
           title="Fijos"
-          meta={
-            tab === "gastos"
-              ? `Lo que se cobra todos los meses, con su día. Marcás pagado y en ${monthLabel} vuelve a empezar.`
-              : "Lo que entra todos los meses. El día del pago lo confirmás de un toque, no se registra solo."
-          }
+          meta={tab === "gastos" ? "Lo que se cobra todos los meses" : "Lo que entra todos los meses"}
           actions={tab === "gastos" ? <AddFixedExpenseButton /> : undefined}
           mobileActions={
             <>
@@ -99,9 +95,9 @@ export function FixedExpensesView({
               value={incomes30.expected}
               note={
                 incomes.length === 0
-                  ? "Todavía no anotaste ningún ingreso fijo. Con el salario cargado, el resumen puede decirte cómo vas a cerrar el mes."
+                  ? "Todavía no anotaste ningún ingreso fijo."
                   : incomes30.pending > 0
-                    ? "Lo que ya entró y lo que falta por confirmar. Un ingreso no se registra solo al llegar la fecha: lo confirmás vos, por si vino distinto."
+                    ? "Lo que ya entró y lo que falta por confirmar."
                     : "Todo lo del mes ya entró y quedó confirmado."
               }
               aside={
@@ -133,9 +129,9 @@ export function FixedExpensesView({
           value={-totals.total}
           note={
             expenses.length === 0
-              ? "Cargá los pagos que se repiten todos los meses y la app sabe de antemano qué se te viene, en vez de enterarse cuando ya salió la plata."
+              ? "Todavía no anotaste ningún gasto fijo."
               : pendingCount === 0
-                ? "Todo pagado este mes. El día 1 vuelven a arrancar en pendiente, solos."
+                ? "Todo pagado este mes."
                 : `Te faltan ${pendingCount} pago${pendingCount === 1 ? "" : "s"} por hacer este mes.`
           }
           aside={

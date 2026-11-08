@@ -81,10 +81,8 @@ export function FixedExpensesList({
       {expenses.length === 0 ? (
         <div className="mt-2 border-t border-line py-10">
           <p className="text-heading text-ink">Todavía no hay gastos fijos</p>
-          <p className="mt-1.5 max-w-[52ch] text-sm leading-relaxed text-ink-2">
-            Agregá los pagos que se repiten todos los meses —alquiler, agua, luz, internet,
-            gimnasio, suscripciones— con su día de cobro. Aparecen en Próximos pagos, ordenados
-            por el que vence primero.
+          <p className="mt-1.5 text-sm text-ink-2">
+            Alquiler, agua, luz, internet, suscripciones: con su día de cobro.
           </p>
           <div className="mt-5">
             <AddFixedExpenseButton variant="secondary" label="Agregar el primero" />

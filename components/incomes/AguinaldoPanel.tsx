@@ -50,11 +50,9 @@ export function AguinaldoPanel({ data }: { data: Aguinaldo }) {
 
       <div className="border-t border-line pt-4">
         {empty ? (
-          <p className="max-w-[58ch] text-sm leading-relaxed text-ink-2">
-            Todavía no hay salario anotado en esta ventana. El aguinaldo se calcula sobre lo
-            ganado entre el 1.º de diciembre y el 30 de noviembre, dividido entre doce, y cuenta
-            solo lo que registrés en la categoría <span className="text-ink">Salario</span>: lo
-            de por fuera de planilla no genera aguinaldo.
+          <p className="max-w-[58ch] text-sm text-ink-2">
+            Todavía no hay salario anotado en esta ventana. Cuenta solo la categoría{" "}
+            <span className="text-ink">Salario</span>.
           </p>
         ) : (
           <>

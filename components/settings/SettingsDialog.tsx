@@ -95,7 +95,7 @@ export function SettingsDialog({
       title="Ajustes"
       footer={
         <Button variant="primary" onClick={done} disabled={closing}>
-          {closing ? "Guardando..." : "Listo"}
+          {closing ? "Guardando..." : "Guardar y salir"}
         </Button>
       }
     >
@@ -146,15 +146,9 @@ export function SettingsDialog({
           )}
 
           {tab === "categorias" && (
-            <>
-              <p className="pb-3 text-sm leading-relaxed text-ink-2">
-                Se suman a las que trae la app. También se pueden crear desde el formulario, al
-                anotar un movimiento.
-              </p>
-              <div className="border-t border-line">
-                <CategoryManager categories={data.categories} />
-              </div>
-            </>
+            <div className="border-t border-line">
+              <CategoryManager categories={data.categories} />
+            </div>
           )}
 
           {tab === "apariencia" && (
@@ -164,24 +158,14 @@ export function SettingsDialog({
           )}
 
           {tab === "recordatorios" && (
-            <>
-              <p className="pb-3 text-sm leading-relaxed text-ink-2">
-                Avisos de los cobros que se vienen. Se activan por dispositivo: el teléfono y la
-                compu se piden por separado.
-              </p>
-              <div className="border-t border-line">
-                <RemindersSetting initialEnabled={data.remindersEnabled} />
-              </div>
-            </>
+            <div className="border-t border-line">
+              <RemindersSetting initialEnabled={data.remindersEnabled} />
+            </div>
           )}
 
           {tab === "datos" && (
             <div className="border-t border-line">
-              <SettingsRow
-                inline
-                label="Exportar movimientos"
-                description="Un CSV con tus ingresos, gastos y transferencias, para abrir en Excel o Google Sheets."
-              >
+              <SettingsRow inline label="Exportar movimientos">
                 <a
                   href="/api/export-csv"
                   download
@@ -192,11 +176,7 @@ export function SettingsDialog({
                 </a>
               </SettingsRow>
 
-              <SettingsRow
-                inline
-                label="Reporte mensual"
-                description="El mes en una hoja: resumen, desglose por categoría y el detalle de cada movimiento. Se imprime o se guarda como PDF desde el navegador."
-              >
+              <SettingsRow inline label="Reporte mensual">
                 <Link
                   href="/dashboard/reporte"
                   className={buttonClass({ variant: "secondary", size: "sm" })}
@@ -219,10 +199,7 @@ export function SettingsDialog({
               {/* Lo destructivo va al final y separado: que comparta lugar
                   con algo inofensivo es justo cómo alguien borra su cuenta
                   sin querer. */}
-              <h3 className="pb-0.5 pt-6 text-heading text-ink">Zona de peligro</h3>
-              <p className="pb-3 text-sm text-ink-3">
-                Acciones permanentes. Cada una pide confirmación.
-              </p>
+              <h3 className="pb-3 pt-6 text-heading text-ink">Zona de peligro</h3>
               <div className="border-t border-line">
                 <DangerZone transactionCount={data.transactionCount} />
                 <DeleteAccountFlow email={data.email} />
