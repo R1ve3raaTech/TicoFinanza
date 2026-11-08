@@ -52,6 +52,8 @@ export function DashboardView({
   isEmpty,
   hasFixed,
   hasMovement,
+  hasFixedIncome,
+  hasBudget,
 }: {
   summary: MonthSummary;
   /** Gasto variable de este mes contra el pasado, al mismo día. */
@@ -77,6 +79,10 @@ export function DashboardView({
   isEmpty: boolean;
   hasFixed: boolean;
   hasMovement: boolean;
+  /** Ya cargó al menos un ingreso fijo (el salario, la quincena). */
+  hasFixedIncome: boolean;
+  /** Ya puso al menos un tope este mes. */
+  hasBudget: boolean;
 }) {
   const monthExpenses = summary.fixedExpenses + summary.variableExpenses;
 
@@ -131,6 +137,8 @@ export function DashboardView({
             hasAccount={accounts.length > 0}
             hasFixed={hasFixed}
             hasMovement={hasMovement}
+            hasFixedIncome={hasFixedIncome}
+            hasBudget={hasBudget}
           />
 
           <ExpectedIncomes incomes={toConfirm} accounts={accounts} />

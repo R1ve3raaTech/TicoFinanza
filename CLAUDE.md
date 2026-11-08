@@ -1890,3 +1890,64 @@ con Playwright en 1440/1024/768 y 390/360, en los dos temas: **46
 comprobaciones** — sin desborde, que se baje solo la captura del tema y
 ninguna en teléfono, que la tarjeta sea opaca (el texto nunca se lee sobre
 la imagen), y que sin marcar la casilla avise y no entre.
+
+## Dónde quedamos (2026-11-08, bienvenida y primeros pasos)
+
+### ⚠️ MIGRACIÓN SIN CORRER: `0026_onboarding.sql`
+
+Agrega `user_settings.onboarding_seen`. **Segura de correr y segura de NO
+correr**: sin ella la guía de bienvenida simplemente no sale y nada más
+cambia. La comprobación es `settings?.onboarding_seen === false` y no
+`!settings?.onboarding_seen` justamente por eso: sin la columna el valor es
+`undefined`, y con la negación le trabaría la pantalla diez segundos a
+todo el mundo en cada carga. Ante la duda, no molesta.
+
+La migración marca como vista la guía a **las cuentas que ya existen**: es
+para quien se acaba de registrar, no para interrumpir a quien lleva meses
+anotando. Para verla vos (o volver a probarla):
+
+```sql
+update public.user_settings set onboarding_seen = false where user_id = auth.uid();
+```
+
+**La guía de bienvenida** (`components/onboarding/WelcomeDialog.tsx`), en el
+layout de /dashboard, con el contenido de `AppGuide` — una sola fuente, la
+misma que vive en Ajustes → Guía.
+
+- **El contador de diez segundos es lo que la hace servir.** Un diálogo que
+  se puede cerrar al instante se cierra al instante, y entonces la guía no
+  la lee nadie. Mientras corre **no hay salida**: ni X, ni Escape, ni clic
+  afuera (`dismissible={!ready}`), porque dejar cualquiera de las tres
+  abiertas vuelve el contador un adorno. Comprobado las tres en la QA.
+- El `setState` del contador va **dentro del tick** del `setInterval`, no en
+  el cuerpo del efecto: en el cuerpo sería un cambio de estado durante el
+  propio efecto y lo marca el lint.
+- Que ya se vio se guarda **en la cuenta, no en el navegador**: con
+  localStorage, instalar la app en otro teléfono volvería a frenar diez
+  segundos a alguien que ya la leyó.
+- `markOnboardingSeen` es `upsert`: la fila de ajustes puede no existir
+  todavía. Si falla **no devuelve error a la pantalla** —lo peor que pasa es
+  que la guía vuelva a salir— porque dejar a alguien atrapado en un diálogo
+  sin salida por un fallo de red sería mucho peor. El motivo va al registro.
+
+**"Empezá por acá" pasa de tres pasos a cinco**: se agregaron *cargá tu
+ingreso fijo* y *poné un tope*.
+
+- La nota del 2026-11-01 decía tres **y la razón sigue siendo válida**: un
+  paso que no se puede terminar deja el panel para siempre. Por eso los dos
+  que entran son configuración de una vez (como los gastos fijos) y no
+  "usá esta función": **una meta de ahorro sigue afuera**.
+- El ingreso fijo además completa el saldo proyectado: sin él la app sabe
+  lo que vas a pagar pero no lo que va a entrar.
+- El tope necesita saber si ya hay alguno: es un conteo con `head: true` en
+  el mismo `Promise.all` del resumen, no trae filas.
+- Los dos pasos nuevos son enlaces a su pantalla y no diálogos: el
+  formulario de ingreso fijo y el de topes viven en Fijos y en Plan, y
+  montarlos en el resumen sería tener el mismo formulario en dos lados.
+
+**Estado**: `npm test` (178), `eslint`, `tsc` y `npm run build` limpios. QA
+con Playwright a 1440 oscuro y 390 claro: **36 comprobaciones** — que la
+guía salga sola, que el botón arranque deshabilitado con el contador, que
+Escape y el clic afuera no la cierren, que el contador baje, que al llegar
+a cero aparezca la X y el botón diga "Empezar", que cerrar llame a la
+acción, y que los primeros pasos sean cinco con un solo botón celeste.

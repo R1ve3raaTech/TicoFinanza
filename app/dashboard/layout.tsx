@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
 import { OfflineBanner } from "@/components/offline/OfflineBanner";
+import { WelcomeDialog } from "@/components/onboarding/WelcomeDialog";
 import { QueueOwnerProvider } from "@/components/offline/QueueOwner";
 import { SettingsEntryProvider } from "@/components/settings/SettingsEntry";
 import { CategoryStyleProvider } from "@/components/ui/CategoryStyle";
@@ -61,7 +62,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
         .maybeSingle(),
       supabase
         .from("user_settings")
-        .select("theme, reminders_enabled")
+        .select("theme, reminders_enabled, onboarding_seen")
         .eq("user_id", user.id)
         .maybeSingle(),
       supabase
@@ -78,6 +79,15 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   const firstName = resolveFirstName(user, profile?.full_name);
   const avatarUrl = resolveAvatarUrl(user, profile?.avatar_url);
   const dbTheme = settings?.theme ?? "system";
+  /**
+   * La guía de bienvenida sale una sola vez, a quien se acaba de registrar.
+   *
+   * `=== false` y no `!settings?.onboarding_seen`: mientras la migración
+   * 0026 no esté corrida la columna no viene y el valor es `undefined`, y
+   * con la negación eso saldría como "no la vio" y le trabaría la pantalla
+   * diez segundos a todo el mundo en cada carga. Ante la duda, no molesta.
+   */
+  const showWelcome = settings?.onboarding_seen === false;
 
   const stamp = renderedStamp();
 
@@ -115,6 +125,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
                 el HTML: cuando ese HTML sale del caché sin señal, el aviso
                 dice de cuándo son los datos de verdad. */}
             <OfflineBanner renderedAt={stamp.label} />
+            {showWelcome && <WelcomeDialog />}
             {children}
           </QueueOwnerProvider>
         </AppShell>

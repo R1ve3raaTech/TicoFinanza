@@ -50,6 +50,7 @@ export default async function DashboardPage() {
     { data: accounts },
     { data: recent },
     { data: incomes },
+    { count: budgetCount },
   ] = await Promise.all([
       // Seis meses de historial: alcanza para el gráfico, y de paso trae el
       // mes en curso para los totales y el desglose por categoría.
@@ -86,6 +87,13 @@ export default async function DashboardPage() {
         .order("transaction_date", { ascending: false })
         .limit(80),
       supabase.from("fixed_incomes").select("*").eq("user_id", user.id),
+      // Solo para saber si ya hay algún tope puesto, que es uno de los
+      // primeros pasos. Es un conteo con `head`, no trae filas.
+      supabase
+        .from("budgets")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .eq("month_year", monthKeyOf(dayKey())),
     ]);
 
   const history = (movements ?? []) as Pick<
@@ -163,6 +171,8 @@ export default async function DashboardPage() {
       isEmpty={history.length === 0 && fixed.length === 0}
       hasFixed={fixed.length > 0}
       hasMovement={history.length > 0}
+      hasFixedIncome={fixedIncomes.length > 0}
+      hasBudget={(budgetCount ?? 0) > 0}
     />
   );
 }

@@ -67,6 +67,31 @@ export async function updateTheme(theme: Theme) {
   return { error: null };
 }
 
+/**
+ * Marcar la guía de bienvenida como vista.
+ *
+ * Es `upsert` y no `update` porque la fila de ajustes puede no existir
+ * todavía: alguien que se acaba de registrar y no tocó el tema ni los
+ * recordatorios no tiene ninguna.
+ *
+ * Si falla no devuelve error a la pantalla: lo peor que pasa es que la
+ * guía vuelva a salir la próxima vez, y eso es mejor que dejar a alguien
+ * atrapado en un diálogo que no se puede cerrar por un fallo de red. El
+ * motivo queda en el registro del servidor.
+ */
+export async function markOnboardingSeen() {
+  const { supabase, user } = await requireUser();
+
+  const { error } = await supabase.from("user_settings").upsert(
+    { user_id: user.id, onboarding_seen: true, updated_at: new Date().toISOString() },
+    { onConflict: "user_id" }
+  );
+
+  if (error) logFailure("markOnboardingSeen", error);
+  revalidatePath("/dashboard");
+  return { error: null };
+}
+
 export async function addCategory(name: string, type: TransactionType) {
   const { supabase, user } = await requireUser();
 

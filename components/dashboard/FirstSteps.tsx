@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
+import Link from "next/link";
 import { Check, Plus } from "@phosphor-icons/react";
 import { AccountDialog } from "@/components/accounts/AccountDialog";
 import { AddFixedExpenseButton } from "@/components/fixed/FixedExpenseEntry";
 import { AddMovementButton } from "@/components/movements/MovementEntry";
-import { Button } from "@/components/ui/Button";
+import { Button, buttonClass } from "@/components/ui/Button";
 
 interface Step {
   title: string;
@@ -15,7 +16,7 @@ interface Step {
 }
 
 /**
- * Los tres pasos que dejan la app funcionando, con el estado real de la
+ * Los cinco pasos que dejan la app funcionando, con el estado real de la
  * cuenta.
  *
  * Reemplaza al "Empezá por acá" de antes, que eran dos tarjetas fijas: no
@@ -24,18 +25,29 @@ interface Step {
  * botón celeste está únicamente en el siguiente que falta — que además es
  * cómo se respeta la regla de una sola acción primaria por pantalla.
  *
- * Son tres y no cuatro a propósito: presupuestos y metas son opcionales, y
- * si estuvieran en la lista el panel no desaparecería nunca para quien no
- * los quiere usar. Esos se explican en Ajustes → Guía.
+ * **Los cinco se pueden terminar, y eso es lo que decide cuáles entran.**
+ * Eran tres porque presupuestos y metas son opcionales y, en la lista, el
+ * panel no desaparecería nunca para quien no los usa. Los dos que se
+ * agregaron no tienen ese problema: el ingreso fijo y el primer tope son
+ * configuración de una vez, como los gastos fijos. Una meta de ahorro
+ * sigue afuera por la misma razón de antes.
+ *
+ * El ingreso fijo además completa el saldo proyectado del resumen: sin él
+ * la app sabe lo que vas a pagar pero no lo que va a entrar, y la
+ * proyección queda a medias.
  */
 export function FirstSteps({
   hasAccount,
   hasFixed,
   hasMovement,
+  hasFixedIncome,
+  hasBudget,
 }: {
   hasAccount: boolean;
   hasFixed: boolean;
   hasMovement: boolean;
+  hasFixedIncome: boolean;
+  hasBudget: boolean;
 }) {
   const [accountOpen, setAccountOpen] = useState(false);
 
@@ -66,6 +78,34 @@ export function FirstSteps({
       body: "El salario, lo del freelance, el súper, la gasolina. Con su categoría, para ver después en qué se te va la plata.",
       done: hasMovement,
       action: (primary) => <AddMovementButton variant={primary ? "primary" : "secondary"} />,
+    },
+    {
+      title: "Cargá tu ingreso fijo",
+      body: "El salario o la quincena, con el día en que entra. Con esto el resumen puede decirte cómo vas a cerrar el mes, no solo cómo venís.",
+      done: hasFixedIncome,
+      action: (primary) => (
+        <Link
+          href="/dashboard/fijos?ver=ingresos"
+          className={buttonClass({ variant: primary ? "primary" : "secondary", size: "sm" })}
+        >
+          <Plus size={14} weight="bold" />
+          Nuevo ingreso
+        </Link>
+      ),
+    },
+    {
+      title: "Poné un tope",
+      body: "Un límite mensual a la categoría que se te va de las manos. La app lo compara con lo que llevás gastado y te avisa antes de pasarte.",
+      done: hasBudget,
+      action: (primary) => (
+        <Link
+          href="/dashboard/plan"
+          className={buttonClass({ variant: primary ? "primary" : "secondary", size: "sm" })}
+        >
+          <Plus size={14} weight="bold" />
+          Nuevo tope
+        </Link>
+      ),
     },
   ];
 
