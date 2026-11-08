@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
-import { Plus } from "@phosphor-icons/react";
+import { AddMovementTabButton } from "@/components/movements/MovementEntry";
 import { SettingsNavButton } from "@/components/settings/SettingsEntry";
 import { NAV_ITEMS, isNavActive } from "./navItems";
 
@@ -74,24 +74,16 @@ export function MobileTabBar() {
             <SettingsNavButton variant="tab" />
           </li>
 
-          {/* Anotar, al alcance del pulgar.
-              Era el botón de la esquina de arriba a la derecha, que en un
-              teléfono grande es justo el punto más lejano del dedo, y es la
-              acción que más se repite en el día.
+          {/* Anotar, al alcance del pulgar: era el botón de la esquina
+              de arriba a la derecha, que en un teléfono grande es el punto
+              más lejano del dedo y es la acción que más se repite.
 
-              Es un enlace a Movimientos con `?nuevo=gasto` —el mismo camino
-              que usan los accesos rápidos del ícono de la app— y no una
-              llamada al formulario: el formulario lo monta cada pantalla,
-              y la barra vive fuera de ellas. De paso, al guardar quedás en
-              la lista, que es donde se ve lo que acabás de anotar. */}
+              Abre el formulario encima de donde estés. Antes era un enlace
+              a `/dashboard/movimientos?nuevo=gasto` y tenía un fallo tonto:
+              en cuanto la URL ya traía ese parámetro, volver a tocarlo
+              navegaba al mismo sitio y no pasaba nada. */}
           <li className="relative shrink-0 self-center pl-1">
-            <Link
-              href="/dashboard/movimientos?nuevo=gasto"
-              aria-label="Anotar un gasto o un ingreso"
-              className="flex h-11 w-11 items-center justify-center rounded-full bg-accent text-on-accent transition-transform duration-150 active:scale-[0.92] motion-reduce:transition-none motion-reduce:active:scale-100"
-            >
-              <Plus size={20} weight="bold" aria-hidden />
-            </Link>
+            <AddMovementTabButton />
           </li>
         </ul>
       </nav>

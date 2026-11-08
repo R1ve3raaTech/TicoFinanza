@@ -13,7 +13,6 @@ import { greeting, monthHeadline } from "@/lib/greeting";
 import { compareMonths } from "@/lib/comparison";
 import { expectedIncomes, incomeTotals } from "@/lib/fixedIncomes";
 import { categorySpending, monthSummary, monthlyTotals } from "@/lib/insights";
-import type { RecentMovement } from "@/lib/quickEntry";
 import { resolveFirstName } from "@/lib/profile";
 import { createClient } from "@/lib/supabase/server";
 import type {
@@ -48,7 +47,6 @@ export default async function DashboardPage() {
     { data: expenses },
     { data: categories },
     { data: accounts },
-    { data: recent },
     { data: incomes },
     { count: budgetCount },
   ] = await Promise.all([
@@ -77,15 +75,6 @@ export default async function DashboardPage() {
         .select("*")
         .eq("user_id", user.id)
         .order("created_at", { ascending: true }),
-      // Para sugerir categoría y cuenta al escribir una descripción. Es una
-      // lista corta y con pocas columnas: solo alimenta el autocompletado.
-      supabase
-        .from("transactions")
-        .select("description, category, account_id, transaction_date, amount, type")
-        .eq("user_id", user.id)
-        .not("description", "is", null)
-        .order("transaction_date", { ascending: false })
-        .limit(80),
       supabase.from("fixed_incomes").select("*").eq("user_id", user.id),
       // Solo para saber si ya hay algún tope puesto, que es uno de los
       // primeros pasos. Es un conteo con `head`, no trae filas.
@@ -160,7 +149,6 @@ export default async function DashboardPage() {
       categorySlices={slices}
       months={monthlyTotals(history, 6)}
       customCategories={(categories ?? []) as UserCategory[]}
-      recent={(recent ?? []) as RecentMovement[]}
       toConfirm={toConfirm}
       pendingIncome={incomes30.pending}
       todayKey={todayKey}

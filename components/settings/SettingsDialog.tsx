@@ -45,8 +45,8 @@ function Bloque({
   danger?: boolean;
 }) {
   return (
-    <section className={danger ? "pt-9" : "pt-7 first:pt-0"}>
-      <h3 className={`pb-3 text-heading ${danger ? "text-expense" : "text-ink"}`}>{title}</h3>
+    <section className={danger ? "pt-7" : "pt-5 first:pt-0"}>
+      <h3 className={`pb-2 text-heading ${danger ? "text-expense" : "text-ink"}`}>{title}</h3>
       <div className="border-t border-line">{children}</div>
     </section>
   );
@@ -164,8 +164,9 @@ export function SettingsDialog({
 
           <Bloque title="Guía">
             <SettingsRow inline label="Cómo funciona la app">
-              {/* La misma bienvenida que ve quien se registra, a pedido y
-                  sin el contador: acá nadie necesita que lo frenen. */}
+              {/* Exactamente lo que ve quien se registra, contador
+                  incluido: una versión recortada no sirve para comprobar
+                  que la bienvenida funciona. */}
               <Button variant="secondary" size="sm" onClick={() => setGuideOpen(true)}>
                 Ver la bienvenida
               </Button>
@@ -187,7 +188,7 @@ export function SettingsDialog({
             <DeleteAccountFlow email={data.email} />
           </Bloque>
 
-          <p className="flex gap-4 pt-6 text-meta text-ink-3">
+          <p className="flex gap-4 pt-5 text-meta text-ink-3">
             <Link href="/privacidad" className="underline-offset-4 hover:text-ink hover:underline">
               Política de privacidad
             </Link>
@@ -198,7 +199,7 @@ export function SettingsDialog({
         </div>
       </Dialog>
 
-      {guideOpen && <WelcomeDialog countdown={0} onDone={() => setGuideOpen(false)} />}
+      {guideOpen && <WelcomeDialog onDone={() => setGuideOpen(false)} />}
     </>
   );
 }

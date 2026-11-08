@@ -5,7 +5,7 @@ import { CategoryDonut } from "@/components/charts/CategoryDonut";
 import { IncomeExpenseChart } from "@/components/charts/IncomeExpenseChart";
 import { FixedExpenseEntryProvider } from "@/components/fixed/FixedExpenseEntry";
 import { InstallAppButton } from "@/components/InstallAppButton";
-import { AddMovementButton, MovementEntryProvider } from "@/components/movements/MovementEntry";
+import { AddMovementButton } from "@/components/movements/MovementEntry";
 import { PageHeader } from "@/components/shell/PageHeader";
 import type { Comparison } from "@/lib/comparison";
 import type { ExpectedIncome } from "@/lib/fixedIncomes";
@@ -13,7 +13,6 @@ import type { UpcomingPayment } from "@/lib/fixedExpenses";
 import type { MonthHeadline } from "@/lib/greeting";
 import { totalBalance } from "@/lib/accounts";
 import type { CategorySlice, MonthSummary, MonthTotal } from "@/lib/insights";
-import type { RecentMovement } from "@/lib/quickEntry";
 import type { Account, UserCategory } from "@/lib/types";
 import { FirstSteps } from "./FirstSteps";
 import { ExpectedIncomes } from "./ExpectedIncomes";
@@ -41,7 +40,6 @@ export function DashboardView({
   categorySlices,
   months,
   customCategories,
-  recent = [],
   toConfirm = [],
   pendingIncome = 0,
   todayKey,
@@ -63,8 +61,6 @@ export function DashboardView({
   categorySlices: CategorySlice[];
   months: MonthTotal[];
   customCategories: UserCategory[];
-  /** Movimientos recientes, para sugerir categoría y cuenta al escribir. */
-  recent?: RecentMovement[];
   /** Ingresos fijos cuya fecha ya pasó y siguen sin confirmar. */
   toConfirm?: ExpectedIncome[];
   /** Ingresos fijos del mes que todavía no entraron. */
@@ -92,11 +88,7 @@ export function DashboardView({
       accounts={accounts}
       todayKey={todayKey}
     >
-      <MovementEntryProvider
-        customCategories={customCategories}
-        accounts={accounts}
-        recent={recent}
-      >
+      <>
         <main id="contenido" className="mx-auto w-full max-w-[1180px] px-4 pb-12 md:px-8 xl:px-12">
           <PageHeader
             title="Resumen"
@@ -197,7 +189,7 @@ export function DashboardView({
             </>
           )}
         </main>
-      </MovementEntryProvider>
+      </>
     </FixedExpenseEntryProvider>
   );
 }

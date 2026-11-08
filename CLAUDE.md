@@ -2007,3 +2007,72 @@ con Playwright: 20 comprobaciones del diálogo de ajustes (sin pestañas, los
 ocho bloques en orden, cada uno con su línea, que el diálogo se desplace,
 que se llegue a la zona de peligro, y la bienvenida a pedido sin contador) y
 8 del centrado de Plan a 1520 y 1920 en las tres pestañas.
+
+## Dónde quedamos (2026-11-08, cuarta parte) — TRES BUGS REALES
+
+Camil reportó que no podía cerrar sesión, que el "+" de la barra no hacía
+nada y que la bienvenida nunca le salía pese a haber corrido la 0026. Los
+tres eran bugs míos, los tres del mismo día.
+
+**1. Cerrar sesión se colgaba.** En `SignOutDialog`, `await endSession()`
+estaba **fuera** del `try`: si la limpieza fallaba, el error escapaba de la
+transición y el botón se quedaba en "Cerrando..." para siempre, sin cerrar
+sesión y sin decir nada. Y peor: `endSession` podía **no contestar nunca**
+—IndexedDB no siempre falla, a veces se queda sin resolver ni rechazar: una
+apertura bloqueada por otra pestaña, una base en mal estado—. Ahora la
+llamada va dentro del `try` y cada paso de la limpieza tiene tope de 1,5 s
+(`conTope` en `lib/pageCache.ts`). De paso, `SignOutDialog` pasó a
+`layer="top"`: se abre dentro del diálogo de ajustes y compartían capa.
+
+**2. El "+" de la píldora de teléfono no hacía nada.** Era un enlace a
+`/dashboard/movimientos?nuevo=gasto`, y **en cuanto la URL ya traía ese
+parámetro, volver a tocarlo navegaba al mismo sitio y no pasaba nada**. Por
+eso "funcionaba" solo la primera vez y solo viniendo de otra pantalla.
+
+La causa de fondo era de arquitectura: `MovementEntryProvider` lo montaban
+el resumen y la lista por separado, así que la barra —que AppShell dibuja
+fuera de los children— no tenía a quién pedirle que abriera el formulario.
+**Ahora el provider vive en el layout de /dashboard** y el "+" es un botón
+que abre el formulario encima de donde estés, sin navegar.
+
+- El parámetro `?nuevo=` lo lee el propio provider con `useSearchParams()`:
+  un layout no recibe los parámetros de la URL. Los accesos rápidos del
+  ícono siguen funcionando igual.
+- Las consultas de `accounts` y `recent` se mudaron al layout; el resumen y
+  la lista dejaron de pedirlas por su cuenta, así que **no hay consultas de
+  más**: las mismas, en otro lugar.
+
+**3. La bienvenida no le salía a nadie.** `handle_new_user` crea el perfil y
+una cuenta de efectivo pero **no crea la fila de `user_settings`** —esa
+aparece recién cuando alguien toca el tema o los recordatorios—. Con
+`settings?.onboarding_seen === false`, una cuenta sin fila daba `undefined`,
+no entraba por ningún lado, y la guía no le salía **justamente a quien está
+hecha**. La regla vive ahora en `lib/onboarding.ts` con pruebas, y separa
+los tres casos: sin fila → se muestra (y `markOnboardingSeen` la crea al
+cerrar); con fila en `false` → se muestra; con fila y sin la columna
+(migración sin correr) → no se muestra.
+
+**Y "Ver la bienvenida" ahora trae el contador.** La había puesto sin espera
+"porque quien la abre ya sabe lo que abre", y así no servía para lo único
+que se necesitaba: comprobar que la bienvenida funciona. Una versión
+recortada de algo no sirve para verificar ese algo.
+
+**Además, lo que pidió en el mismo mensaje:**
+
+- **Los diálogos van centrados también en teléfono.** Eran una hoja que
+  subía desde abajo.
+- **Ajustes más compacto**: filas de `py-3` a `py-2.5`, columna de rótulo de
+  200px a 160px, y menos aire entre bloques.
+- **El correo de bienvenida se rehizo**: el ícono de verdad de la app
+  (`<img>` con URL absoluta — un correo no resuelve rutas relativas y ni
+  Gmail ni Outlook dibujan SVG) en vez de las iniciales "TF" hechas con CSS,
+  los pasos actualizados a los de hoy, y **se fue la firma "— Camil"**:
+  ahora dice "El equipo de TicoFinanza".
+
+**Estado**: `npm test` (183, 5 nuevas sobre cuándo sale la bienvenida),
+`eslint`, `tsc` y `npm run build` limpios. QA con Playwright a 390 y 1440:
+**16 comprobaciones** — que el "+" sea un botón, que abra sin navegar, que
+vuelva a abrir al segundo toque, que el formulario quede centrado y sin
+tocar el borde, que la confirmación de cerrar sesión se abra por encima de
+Ajustes (z=70) y que **cerrar sesión llegue de verdad a /entrar**, y que la
+bienvenida a pedido traiga el contador.

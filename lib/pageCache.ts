@@ -125,21 +125,36 @@ export async function markSessionActive(userId: string, renderedAtMs: number): P
  * no estaba activo todavía, el mensaje se perdía en silencio y las
  * pantallas quedaban guardadas creyendo que se habían borrado.
  */
+/** Tope para cada paso de la limpieza, en milisegundos. */
+const CLEANUP_TIMEOUT_MS = 1500;
+
+/**
+ * Corre algo con tope de tiempo. No cancela nada —no se puede cancelar una
+ * petición de IndexedDB— pero deja de esperarla.
+ *
+ * Hace falta porque IndexedDB **no siempre falla: a veces no contesta**. Una
+ * petición de apertura bloqueada por otra pestaña, o una base en mal estado,
+ * se queda sin resolver ni rechazar para siempre. Sin este tope, cerrar
+ * sesión se quedaba colgado en "Cerrando..." sin error y sin salir.
+ */
+function conTope<T>(promesa: Promise<T>): Promise<T | undefined> {
+  return Promise.race([
+    promesa.catch(() => undefined),
+    new Promise<undefined>((resolve) => setTimeout(() => resolve(undefined), CLEANUP_TIMEOUT_MS)),
+  ]);
+}
+
 export async function endSession(): Promise<void> {
   if (typeof indexedDB !== "undefined") {
-    try {
-      await write(null);
-    } catch {
-      // Sigue el borrado del caché aunque la marca no se pueda tocar.
-    }
+    // Sigue el borrado del caché aunque la marca no se pueda tocar.
+    await conTope(write(null));
   }
   if (typeof caches === "undefined") return;
-  try {
-    const names = await caches.keys();
-    await Promise.all(
+  // Que no se pueda limpiar no debe impedir cerrar sesión.
+  const names = (await conTope(caches.keys())) ?? [];
+  await conTope(
+    Promise.all(
       names.filter((name) => name.startsWith(PAGES_PREFIX)).map((name) => caches.delete(name))
-    );
-  } catch {
-    // Que no se pueda limpiar no debe impedir cerrar sesión.
-  }
+    )
+  );
 }

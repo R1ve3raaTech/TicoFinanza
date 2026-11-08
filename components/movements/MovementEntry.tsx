@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useState, type ReactNode } from "react";
+import { useSearchParams } from "next/navigation";
 import { Plus } from "@phosphor-icons/react";
 import { Button, type ButtonVariant } from "@/components/ui/Button";
 import type { RecentMovement } from "@/lib/quickEntry";
@@ -22,6 +23,14 @@ const MovementEntryContext = createContext<MovementEntryApi | null>(null);
  * (encabezado, estado vacío, barra de teléfono, cada fila de la lista) pero
  * el formulario es uno solo.
  *
+ * **Vive en el layout de /dashboard**, no en cada pantalla. Antes lo
+ * montaban el resumen y la lista de movimientos por separado, así que el
+ * "+" de la barra de abajo no tenía a quién pedirle que abriera el
+ * formulario: era un enlace a `/dashboard/movimientos?nuevo=gasto`, y en
+ * cuanto la URL ya traía ese parámetro, volver a tocarlo navegaba al mismo
+ * sitio y no pasaba nada. Desde el layout, el botón abre el formulario
+ * encima de la pantalla en la que estés, sin navegar.
+ *
  * Cada apertura lo remonta con una `key` nueva: arranca limpio, o con el
  * movimiento a editar, sin resetear estado a mano al cerrar.
  *
@@ -35,23 +44,30 @@ export function MovementEntryProvider({
   customCategories,
   accounts = [],
   recent = [],
-  autoOpen = null,
   children,
 }: {
   customCategories: UserCategory[];
   accounts?: Account[];
   /** Movimientos recientes, para sugerir categoría y cuenta al escribir. */
   recent?: RecentMovement[];
-  /**
-   * Abrir el formulario solo al entrar, con esta pestaña marcada.
-   *
-   * Es lo que usan los accesos rápidos del ícono de la app: quien los
-   * toca ya dijo qué quiere anotar, y pedirle un toque más para abrir el
-   * formulario desperdiciaría justamente lo que el atajo ahorra.
-   */
-  autoOpen?: TransactionType | null;
   children: ReactNode;
 }) {
+  /**
+   * Abrir el formulario solo al entrar, con la pestaña que diga la URL.
+   *
+   * Lo usan los accesos rápidos del ícono de la app
+   * (`/dashboard/movimientos?nuevo=gasto`): quien los toca ya dijo qué
+   * quiere anotar, y pedirle un toque más desperdiciaría lo que el atajo
+   * ahorra.
+   *
+   * El parámetro se lee acá y no se recibe por props porque este provider
+   * vive en el layout, y un layout no recibe los parámetros de la URL.
+   * Cualquier valor que no sea "gasto" o "ingreso" se ignora: un parámetro
+   * raro no debería abrir un formulario a medias.
+   */
+  const nuevo = useSearchParams().get("nuevo");
+  const autoOpen: TransactionType | null =
+    nuevo === "gasto" ? "EXPENSE" : nuevo === "ingreso" ? "INCOME" : null;
   const [open, setOpen] = useState(Boolean(autoOpen));
   const [editing, setEditing] = useState<Transaction | null>(null);
   const [kind, setKind] = useState<"MOVEMENT" | "TRANSFER">("MOVEMENT");
@@ -155,5 +171,27 @@ export function AddMovementButton({
       <Plus size={15} weight="bold" />
       Registrar movimiento
     </Button>
+  );
+}
+
+/**
+ * El "+" de la píldora de teléfono.
+ *
+ * Devuelve null fuera del provider (una vista de prueba, por ejemplo) en
+ * vez de tirar: la barra es la misma en todas las pantallas con sesión.
+ */
+export function AddMovementTabButton() {
+  const api = useContext(MovementEntryContext);
+  if (!api) return null;
+
+  return (
+    <button
+      type="button"
+      onClick={api.create}
+      aria-label="Anotar un gasto o un ingreso"
+      className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-full bg-accent text-on-accent transition-transform duration-150 active:scale-[0.92] motion-reduce:transition-none motion-reduce:active:scale-100"
+    >
+      <Plus size={20} weight="bold" aria-hidden />
+    </button>
   );
 }

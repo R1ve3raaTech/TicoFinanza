@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
 import { OfflineBanner } from "@/components/offline/OfflineBanner";
+import { MovementEntryProvider } from "@/components/movements/MovementEntry";
 import { WelcomeDialog } from "@/components/onboarding/WelcomeDialog";
 import { QueueOwnerProvider } from "@/components/offline/QueueOwner";
 import { SettingsEntryProvider } from "@/components/settings/SettingsEntry";
@@ -9,8 +10,10 @@ import { AppShell } from "@/components/shell/AppShell";
 import { IdleLogout } from "@/components/shell/IdleLogout";
 import { ThemeSync } from "@/components/ThemeSync";
 import { resolveAvatarUrl, resolveDisplayName, resolveFirstName } from "@/lib/profile";
+import { shouldShowWelcome } from "@/lib/onboarding";
 import { createClient } from "@/lib/supabase/server";
-import type { UserCategory } from "@/lib/types";
+import type { RecentMovement } from "@/lib/quickEntry";
+import type { Account, UserCategory } from "@/lib/types";
 
 /**
  * Shell compartido por /dashboard y sus secciones (fijos, movimientos, plan):
@@ -53,8 +56,14 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   } = await supabase.auth.getUser();
   if (!user) redirect("/entrar");
 
-  const [{ data: profile }, { data: settings }, { data: categories }, { count: transactionCount }] =
-    await Promise.all([
+  const [
+    { data: profile },
+    { data: settings },
+    { data: categories },
+    { count: transactionCount },
+    { data: accounts },
+    { data: recent },
+  ] = await Promise.all([
       supabase
         .from("profiles")
         .select("full_name, avatar_url, birth_date")
@@ -74,20 +83,27 @@ export default async function DashboardLayout({ children }: { children: ReactNod
         .from("transactions")
         .select("id", { count: "exact", head: true })
         .eq("user_id", user.id),
+      // Las dos que necesita el formulario de movimientos, que vive acá y
+      // no en cada pantalla (ver MovementEntryProvider).
+      supabase
+        .from("accounts")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: true }),
+      supabase
+        .from("transactions")
+        .select("description, category, account_id, transaction_date, amount, type")
+        .eq("user_id", user.id)
+        .not("description", "is", null)
+        .order("transaction_date", { ascending: false })
+        .limit(80),
     ]);
 
   const firstName = resolveFirstName(user, profile?.full_name);
   const avatarUrl = resolveAvatarUrl(user, profile?.avatar_url);
   const dbTheme = settings?.theme ?? "system";
-  /**
-   * La guía de bienvenida sale una sola vez, a quien se acaba de registrar.
-   *
-   * `=== false` y no `!settings?.onboarding_seen`: mientras la migración
-   * 0026 no esté corrida la columna no viene y el valor es `undefined`, y
-   * con la negación eso saldría como "no la vio" y le trabaría la pantalla
-   * diez segundos a todo el mundo en cada carga. Ante la duda, no molesta.
-   */
-  const showWelcome = settings?.onboarding_seen === false;
+  // Los tres casos y por qué, con pruebas, en lib/onboarding.ts.
+  const showWelcome = shouldShowWelcome(settings);
 
   const stamp = renderedStamp();
 
@@ -113,7 +129,15 @@ export default async function DashboardLayout({ children }: { children: ReactNod
           transactionCount: transactionCount ?? 0,
         }}
       >
-        <AppShell name={firstName} email={user?.email ?? undefined} avatarUrl={avatarUrl}>
+        {/* El formulario de movimientos vive acá y no en cada pantalla: el
+            "+" de la píldora de teléfono tiene que poder abrirlo desde
+            donde sea, y AppShell dibuja la píldora fuera de sus children. */}
+        <MovementEntryProvider
+          customCategories={(categories ?? []) as UserCategory[]}
+          accounts={(accounts ?? []) as Account[]}
+          recent={(recent ?? []) as RecentMovement[]}
+        >
+          <AppShell name={firstName} email={user?.email ?? undefined} avatarUrl={avatarUrl}>
           <ThemeSync dbTheme={dbTheme} />
           {/* Solo dentro del área con sesión: afuera no hay nada que cerrar. */}
           <IdleLogout />
@@ -128,7 +152,8 @@ export default async function DashboardLayout({ children }: { children: ReactNod
             {showWelcome && <WelcomeDialog />}
             {children}
           </QueueOwnerProvider>
-        </AppShell>
+          </AppShell>
+        </MovementEntryProvider>
       </SettingsEntryProvider>
     </CategoryStyleProvider>
   );

@@ -6,10 +6,10 @@ import { buttonClass } from "@/components/ui/Button";
 import { Money } from "@/components/ui/Money";
 import type { PeriodId } from "@/lib/dateRange";
 import type { LedgerEntry } from "@/lib/ledger";
-import type { Account, TransactionType, UserCategory } from "@/lib/types";
+import type { Account } from "@/lib/types";
 import { PendingMovements } from "@/components/offline/PendingMovements";
 import { DateRangeFilter } from "./DateRangeFilter";
-import { AddMovementButton, MovementEntryProvider } from "./MovementEntry";
+import { AddMovementButton } from "./MovementEntry";
 import { MovementList } from "./MovementList";
 import { TransferButton } from "./TransferButton";
 
@@ -20,17 +20,14 @@ import { TransferButton } from "./TransferButton";
 export function MovementsView({
   entries,
   accounts,
-  customCategories,
   income,
   expense,
   period,
   periodLabel,
   csvHref,
-  autoOpen = null,
 }: {
   entries: LedgerEntry[];
   accounts: Account[];
-  customCategories: UserCategory[];
   income: number;
   expense: number;
   /** El período activo, para marcar el chip correspondiente. */
@@ -39,19 +36,9 @@ export function MovementsView({
   periodLabel: string;
   /** Exportación con el mismo rango que se está viendo. */
   csvHref: string;
-  /** Abrir el formulario al entrar: lo usan los accesos rápidos del ícono. */
-  autoOpen?: TransactionType | null;
 }) {
   return (
-    <MovementEntryProvider
-      autoOpen={autoOpen}
-      customCategories={customCategories}
-      accounts={accounts}
-      recent={entries
-        .filter((e) => e.kind === "transaction")
-        .map((e) => (e.kind === "transaction" ? e.transaction : null))
-        .filter((t): t is NonNullable<typeof t> => t !== null)}
-    >
+    <>
       <main id="contenido" className="mx-auto w-full max-w-[1180px] px-4 pb-12 md:px-8 xl:px-12">
         <PageHeader
           title="Movimientos"
@@ -130,6 +117,6 @@ export function MovementsView({
           <MovementList title="Registrados" entries={entries} accounts={accounts} />
         </div>
       </main>
-    </MovementEntryProvider>
+    </>
   );
 }

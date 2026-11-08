@@ -38,7 +38,7 @@ export function SettingsRow({
 
   if (inline) {
     return (
-      <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 border-b border-line py-3">
+      <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-1.5 border-b border-line py-2.5">
         <div className="min-w-[12rem] flex-1">{text}</div>
         <div className="flex shrink-0 items-center gap-2">{children}</div>
       </div>
@@ -47,7 +47,7 @@ export function SettingsRow({
 
   return (
     <div
-      className={`flex flex-col gap-2 border-b border-line py-3 sm:grid sm:grid-cols-[200px_minmax(0,1fr)] sm:gap-8 ${
+      className={`flex flex-col gap-1.5 border-b border-line py-2.5 sm:grid sm:grid-cols-[160px_minmax(0,1fr)] sm:gap-6 ${
         alignTop ? "sm:items-start" : "sm:items-center"
       }`}
     >

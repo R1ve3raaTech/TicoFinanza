@@ -8,9 +8,7 @@ import { createClient } from "@/lib/supabase/server";
 import type {
   Account,
   Transaction,
-  TransactionType,
   Transfer,
-  UserCategory,
 } from "@/lib/types";
 
 export const metadata: Metadata = { title: "Movimientos" };
@@ -18,16 +16,15 @@ export const metadata: Metadata = { title: "Movimientos" };
 export default async function MovementsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ periodo?: string; from?: string; to?: string; nuevo?: string }>;
+  // `nuevo` lo lee el provider del layout, que es quien abre el
+  // formulario: un layout no recibe los parámetros de la URL.
+  searchParams: Promise<{ periodo?: string; from?: string; to?: string }>;
 }) {
-  const { periodo, from, to, nuevo } = await searchParams;
+  const { periodo, from, to } = await searchParams;
 
   // Los accesos rápidos del ícono de la app entran por acá
   // (ver `shortcuts` en app/manifest.ts). Cualquier otro valor se ignora:
   // un parámetro raro no debería abrir un formulario a medias.
-  const autoOpen: TransactionType | null =
-    nuevo === "gasto" ? "EXPENSE" : nuevo === "ingreso" ? "INCOME" : null;
-
   const supabase = await createClient();
   const {
     data: { user },
@@ -59,17 +56,12 @@ export default async function MovementsPage({
     transfersQuery = transfersQuery.lte("transfer_date", range.toISO);
   }
 
-  const [{ data }, { data: transfers }, { data: accounts }, { data: categories }] =
+  const [{ data }, { data: transfers }, { data: accounts }] =
     await Promise.all([
       movementsQuery,
       transfersQuery,
       supabase
         .from("accounts")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: true }),
-      supabase
-        .from("user_categories")
         .select("*")
         .eq("user_id", user.id)
         .order("created_at", { ascending: true }),
@@ -88,13 +80,11 @@ export default async function MovementsPage({
     <MovementsView
       entries={buildLedger(transactions, (transfers ?? []) as Transfer[])}
       accounts={(accounts ?? []) as Account[]}
-      customCategories={(categories ?? []) as UserCategory[]}
       income={income}
       expense={expense}
       period={range.id}
       periodLabel={range.label}
       csvHref={range.csvQuery ? `/api/export-csv?${range.csvQuery}` : "/api/export-csv"}
-      autoOpen={autoOpen}
     />
   );
 }

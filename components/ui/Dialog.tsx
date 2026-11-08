@@ -135,7 +135,9 @@ export function Dialog({
   return createPortal(
     <AnimatePresence>
       {open && (
-        <div className={`fixed inset-0 ${z} flex items-end justify-center sm:items-center sm:p-6`}>
+        // Centrado también en teléfono: era una hoja que subía desde abajo.
+        // El relleno lateral evita que la tarjeta toque los bordes a 360px.
+        <div className={`fixed inset-0 ${z} flex items-center justify-center p-3 sm:p-6`}>
           <motion.div
             aria-hidden
             initial={{ opacity: 0 }}
@@ -153,11 +155,11 @@ export function Dialog({
             aria-labelledby={titleId}
             aria-describedby={description ? descriptionId : undefined}
             tabIndex={-1}
-            initial={reduce ? { opacity: 0 } : { opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={reduce ? { opacity: 0 } : { opacity: 0, y: 8 }}
+            initial={reduce ? { opacity: 0 } : { opacity: 0, y: 12, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={reduce ? { opacity: 0 } : { opacity: 0, y: 8, scale: 0.98 }}
             transition={{ duration: 0.16, ease: [0.2, 0, 0, 1] }}
-            className={`relative flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-dialog border-t border-line bg-surface outline-none sm:rounded-dialog sm:border ${WIDTHS[size]}`}
+            className={`relative flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-dialog border border-line bg-surface outline-none ${WIDTHS[size]}`}
           >
             <div
               className={`flex shrink-0 items-start justify-between gap-4 px-5 pt-4 ${children ? "pb-3" : "pb-5"}`}
@@ -191,7 +193,7 @@ export function Dialog({
             )}
 
             {footer && (
-              <div className="flex shrink-0 gap-2 border-t border-line px-5 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:justify-end sm:pb-3 [&>*]:flex-1 sm:[&>*]:flex-none">
+              <div className="flex shrink-0 gap-2 border-t border-line px-5 py-3 sm:justify-end [&>*]:flex-1 sm:[&>*]:flex-none">
                 {footer}
               </div>
             )}

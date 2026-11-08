@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { signOut } from "@/app/dashboard/actions";
 import { Button } from "@/components/ui/Button";
+import { GENERIC_ERROR } from "@/lib/errors";
 import { endSession } from "@/lib/pageCache";
 import { Dialog } from "@/components/ui/Dialog";
 
@@ -17,6 +18,8 @@ export function SignOutDialog({ open, onClose }: { open: boolean; onClose: () =>
       open={open}
       onClose={onClose}
       role="alertdialog"
+      // Se abre dentro del diálogo de ajustes: sin esto comparten capa.
+      layer="top"
       size="sm"
       dismissible={!pending}
       title="¿Cerrar sesión?"
@@ -32,17 +35,21 @@ export function SignOutDialog({ open, onClose }: { open: boolean; onClose: () =>
             onClick={() =>
               startTransition(async () => {
                 setError("");
-                // Primero lo local, igual que en IdleLogout: la acción
-                // puede no llegar si no hay red, y las pantallas
-                // guardadas tienen que irse igual. Estaba después del
-                // `await signOut()`, o sea que un fallo de red dejaba
-                // todo guardado.
-                await endSession();
                 try {
+                  // Primero lo local, igual que en IdleLogout: la acción
+                  // puede no llegar si no hay red, y las pantallas
+                  // guardadas tienen que irse igual.
+                  //
+                  // Va DENTRO del try: estaba afuera, así que si la
+                  // limpieza fallaba, el error escapaba de la transición y
+                  // el botón se quedaba en "Cerrando..." para siempre, sin
+                  // cerrar sesión y sin decir nada. `endSession` además
+                  // tiene tope de tiempo propio (ver lib/pageCache.ts).
+                  await endSession();
                   const result = await signOut();
                   router.replace(result.destination);
                 } catch {
-                  setError("No pudimos conectar para cerrar sesión. Intentá de nuevo.");
+                  setError(GENERIC_ERROR);
                 }
               })
             }
