@@ -2350,6 +2350,30 @@ Quien llegue a `/bienvenida` desde un navegador va a la portada.
 - El bloque "Bloqueo" de Ajustes **solo se dibuja en modo APK**, entre
   "Datos" y "Cuenta" (es lo mismo que Cuenta: quién puede entrar).
 
+**Aflojar el cerrojo cuesta el PIN actual** (lo levantó la revisión
+automática de seguridad del commit, y tenía razón). Quitarlo, cambiarlo o
+bajar la exigencia se verifican **en el servidor** contra el hash antes de
+escribir nada. Sin eso había una escalada real: a quien le agarran el
+teléfono con la app ya abierta —justo el caso del que el cerrojo protege— le
+bastaba entrar a Ajustes y ponerlo en "Nunca" para convertir un rato de
+acceso prestado en acceso para siempre.
+
+- Qué cuenta como aflojar lo define `weakensLock()`, con su orden explícito
+  (`siempre > 1min > 5min > inicio > nunca`) y sus pruebas. **Apretarlo es
+  gratis**: si costara, el trámite empujaría a dejarlo flojo. Ojo que
+  `inicio` también afloja — deja de pedir al volver, así que con la app viva
+  en segundo plano el cerrojo no se vuelve a interponer.
+- Las comprobaciones **comparten la cuenta de intentos** con la pantalla de
+  cerrojo (misma acción `verify_app_pin`): con una cuenta propia, probar PIN
+  desde Ajustes sería la forma de esquivar el límite del cerrojo.
+- **Sin PIN puesto solo queda la huella, y eso es más débil**, porque un
+  control del lado del teléfono no se puede verificar desde el servidor. Es
+  lo que permite la plataforma sin un intercambio de llaves nativo; queda
+  anotado por si algún día se hace.
+- El PIN actual **no se comprueba en un viaje aparte**: viaja con la
+  operación. Comprobarlo antes sería un viaje de más y gastaría un intento
+  del límite por gusto.
+
 **Un falso positivo del lint, documentado en el código**: el arranque en frío
 llama a `runBiometrics()` desde un efecto y `react-hooks/set-state-in-effect`
 lo marca porque sigue la llamada hacia adentro. No lo es: lo primero que hace
@@ -2388,4 +2412,8 @@ casilla y que sin marcarla no entre, que quede la cookie y la raíz pase a ir
 al login, que el cerrojo no trabe a quien no tiene con qué abrir, que con PIN
 el contenido **no se vea ni se lea del DOM**, que los cinco dígitos lleguen a
 la acción del servidor, y el bloque de Ajustes con sus cinco opciones y el
-PIN en dos pasos.
+PIN en dos pasos. Más **13 comprobaciones** sobre la re-autenticación:
+que cambiar el PIN pida primero el actual, que ponerlo de cero no pida nada,
+que quitarlo lo exija, que apagar el cerrojo y bajarlo a "Solo al abrirla"
+abran el pedido de PIN, que cancelar deje el control como estaba, y que
+apretarlo pase derecho.

@@ -10,7 +10,7 @@ import { sendPushToUser } from "@/lib/push/send";
 import { categoryClash } from "@/lib/categories";
 import { isCategoryTone } from "@/lib/categoryStyle";
 import { isMissingColumnError } from "@/lib/supabase/errors";
-import { isValidPin, parseLockWhen, type AppLockWhen } from "@/lib/appLock";
+import { isValidPin, parseLockWhen, weakensLock, type AppLockWhen } from "@/lib/appLock";
 import { hashPin, verifyPin } from "@/lib/pin";
 import { isSymbolName } from "@/lib/materialSymbols";
 import { RECEIPTS_BUCKET } from "@/lib/receipts";
@@ -415,6 +415,14 @@ export async function sendTestReminder() {
 //
 // Solo gobierna el APK: en la web sigue el cierre de sesión por inactividad.
 // Ver lib/appMode.ts y lib/appLock.ts.
+//
+// **Aflojar el cerrojo cuesta el PIN actual.** Quitarlo, cambiarlo o bajar
+// la exigencia se verifican contra el hash guardado antes de escribir nada.
+// Sin eso había una escalada real: a quien le agarran el teléfono con la app
+// ya abierta —que es justo el caso del que el cerrojo protege— le bastaba
+// entrar a Ajustes y ponerlo en "Nunca" para convertir un rato de acceso
+// prestado en acceso para siempre. Apretarlo no pide nada: nadie se hace
+// daño poniéndose más estricto.
 // ---------------------------------------------------------------------------
 
 /** Mensaje único para todo lo que sale mal acá adentro, salvo lo corregible. */
@@ -423,12 +431,81 @@ function lockFailure(context: string, detail: unknown) {
   return { error: GENERIC_ERROR };
 }
 
-/** Poner o cambiar el PIN de cinco dígitos. */
-export async function setAppPin(pin: string) {
+/**
+ * Comprueba el PIN actual contra el hash guardado, bajo el mismo límite de
+ * intentos que la pantalla de cerrojo.
+ *
+ * **Comparte la cuenta de intentos a propósito** (misma acción
+ * `verify_app_pin`): si cada camino llevara la suya, probar PIN desde
+ * Ajustes sería la forma de esquivar el límite de la pantalla de cerrojo.
+ *
+ * Devuelve `null` si está bien, o el objeto de error listo para devolver.
+ */
+async function readPinHash(
+  supabase: Awaited<ReturnType<typeof requireUser>>["supabase"],
+  userId: string
+): Promise<{ hash: string | null } | { error: string }> {
+  const { data, error } = await supabase
+    .from("user_settings")
+    .select("app_lock_pin_hash")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error) {
+    logFailure("readPinHash", error);
+    return { error: GENERIC_ERROR };
+  }
+  return { hash: data?.app_lock_pin_hash ?? null };
+}
+
+/** Compara contra el hash guardado, gastando un intento del límite. */
+async function checkPin(
+  userId: string,
+  stored: string,
+  pin: string,
+  mismatch: string
+): Promise<{ error: string } | null> {
+  const admin = createAdminClient();
+  const rateLimit = await checkRateLimit(admin, userId, "verify_app_pin", {
+    maxCalls: 10,
+    windowSeconds: 300,
+  });
+  if (!rateLimit.allowed) {
+    return { error: `Demasiados intentos. Probá en ${Math.ceil(rateLimit.retryAfterSeconds! / 60)} min.` };
+  }
+  return (await verifyPin(pin, stored)) ? null : { error: mismatch };
+}
+
+async function requireCurrentPin(
+  supabase: Awaited<ReturnType<typeof requireUser>>["supabase"],
+  userId: string,
+  pin: string | undefined
+): Promise<{ error: string } | null> {
+  const read = await readPinHash(supabase, userId);
+  if ("error" in read) return read;
+
+  // Sin PIN puesto no hay nada que comprobar: lo que protege ese teléfono
+  // es la huella, y una huella no se puede verificar desde el servidor.
+  if (!read.hash) return null;
+
+  if (!pin) return { error: "Escribí tu PIN actual." };
+  return checkPin(userId, read.hash, pin, "El PIN actual no coincide.");
+}
+
+/**
+ * Poner o cambiar el PIN de cinco dígitos.
+ *
+ * Si ya hay uno puesto, hay que escribir el actual: cambiarlo es tan bueno
+ * como quitarlo para quien quiera dejarse una puerta abierta.
+ */
+export async function setAppPin(pin: string, currentPin?: string) {
   const { supabase, user } = await requireUser();
 
   // Corregible por la persona: el mensaje dice qué arreglar.
   if (!isValidPin(pin)) return { error: "El PIN son 5 dígitos." };
+
+  const denied = await requireCurrentPin(supabase, user.id, currentPin);
+  if (denied) return denied;
 
   const { error } = await supabase.from("user_settings").upsert(
     {
@@ -449,15 +526,12 @@ export async function setAppPin(pin: string) {
   return { error: null };
 }
 
-/**
- * Quitar el PIN.
- *
- * No pide el PIN actual: para llegar a Ajustes ya hubo que pasar el cerrojo
- * (o no había ninguno). Pedirlo otra vez acá sería un trámite que no agrega
- * nada, porque quien está adentro ya demostró que puede entrar.
- */
-export async function removeAppPin() {
+/** Quitar el PIN. Pide el actual: es el cambio que más afloja el cerrojo. */
+export async function removeAppPin(currentPin?: string) {
   const { supabase, user } = await requireUser();
+
+  const denied = await requireCurrentPin(supabase, user.id, currentPin);
+  if (denied) return denied;
 
   const { error } = await supabase
     .from("user_settings")
@@ -469,13 +543,33 @@ export async function removeAppPin() {
   return { error: null };
 }
 
-/** Cada cuánto se vuelve a pedir al volver a la app. */
-export async function setAppLockWhen(when: AppLockWhen) {
+/**
+ * Cada cuánto se vuelve a pedir al volver a la app.
+ *
+ * Pide el PIN **solo si el cambio afloja** (ver `weakensLock`). Ponerse más
+ * estricto no cuesta nada; si costara, el trámite empujaría a dejarlo flojo.
+ */
+export async function setAppLockWhen(when: AppLockWhen, currentPin?: string) {
   const { supabase, user } = await requireUser();
 
   // No se confía en lo que llega del navegador: un valor raro cae en el de
   // por defecto en vez de escribir algo que el check de la base rechace.
   const value = parseLockWhen(when);
+
+  const { data: current, error: readError } = await supabase
+    .from("user_settings")
+    .select("app_lock_when")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (readError && !isMissingColumnError(readError)) {
+    return lockFailure("setAppLockWhen: lectura", readError);
+  }
+
+  if (weakensLock(parseLockWhen(current?.app_lock_when), value)) {
+    const denied = await requireCurrentPin(supabase, user.id, currentPin);
+    if (denied) return denied;
+  }
 
   const { error } = await supabase.from("user_settings").upsert(
     { user_id: user.id, app_lock_when: value, updated_at: new Date().toISOString() },
@@ -508,29 +602,14 @@ export async function setAppLockWhen(when: AppLockWhen) {
 export async function verifyAppPin(pin: string) {
   const { supabase, user } = await requireUser();
 
-  const admin = createAdminClient();
-  const rateLimit = await checkRateLimit(admin, user.id, "verify_app_pin", {
-    maxCalls: 10,
-    windowSeconds: 300,
-  });
-  if (!rateLimit.allowed) {
-    return {
-      ok: false,
-      error: `Demasiados intentos. Probá en ${Math.ceil(rateLimit.retryAfterSeconds! / 60)} min.`,
-    };
-  }
+  const read = await readPinHash(supabase, user.id);
+  if ("error" in read) return { ok: false, error: read.error };
 
-  const { data, error } = await supabase
-    .from("user_settings")
-    .select("app_lock_pin_hash")
-    .eq("user_id", user.id)
-    .maybeSingle();
+  // Acá SÍ importa que no haya PIN, al revés que en requireCurrentPin: si
+  // alguien llegó a la pantalla de cerrojo sin tener uno puesto, contestar
+  // "abierto" sería decir que lo verificamos cuando no verificamos nada.
+  if (!read.hash) return { ok: false, error: "No tenés un PIN puesto." };
 
-  if (error) {
-    logFailure("verifyAppPin", error);
-    return { ok: false, error: GENERIC_ERROR };
-  }
-
-  const ok = await verifyPin(pin, data?.app_lock_pin_hash);
-  return ok ? { ok: true, error: null } : { ok: false, error: "PIN incorrecto." };
+  const denied = await checkPin(user.id, read.hash, pin, "PIN incorrecto.");
+  return denied ? { ok: false, error: denied.error } : { ok: true, error: null };
 }

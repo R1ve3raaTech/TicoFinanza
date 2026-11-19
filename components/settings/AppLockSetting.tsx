@@ -1,12 +1,19 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { removeAppPin, setAppLockWhen, setAppPin } from "@/app/dashboard/ajustes/actions";
 import { useToast } from "@/components/Toast";
 import { Button } from "@/components/ui/Button";
 import { Dialog } from "@/components/ui/Dialog";
 import { FormError, Select } from "@/components/ui/Field";
-import { cleanPinInput, isValidPin, LOCK_OPTIONS, type AppLockWhen } from "@/lib/appLock";
+import {
+  cleanPinInput,
+  isValidPin,
+  LOCK_OPTIONS,
+  weakensLock,
+  type AppLockWhen,
+} from "@/lib/appLock";
+import { unlockWithBiometrics } from "@/lib/native";
 import { SettingsRow } from "./SettingsSection";
 
 /**
@@ -20,25 +27,33 @@ import { SettingsRow } from "./SettingsSection";
  * registrada. Se guarda hasheado y **se verifica en el servidor**, que
  * lleva el límite de intentos: un hash mandado al navegador se prueba
  * contra las cien mil combinaciones de cinco dígitos en un suspiro.
+ *
+ * **Aflojar el cerrojo pide identificarse de nuevo.** El caso real es que
+ * te agarren el teléfono con la app ya abierta —justo de lo que el cerrojo
+ * protege— y desde acá lo apaguen: un rato de acceso prestado quedaría
+ * convertido en acceso para siempre. Con PIN puesto lo comprueba el
+ * servidor; sin PIN, lo único que hay es volver a pedir la huella, que es
+ * un control del lado del teléfono y por lo tanto más débil — es lo que
+ * permite la plataforma sin meter un intercambio de llaves nativo.
  */
-export function AppLockSetting({
-  lockWhen,
-  hasPin,
-}: {
-  lockWhen: AppLockWhen;
-  hasPin: boolean;
-}) {
+type Prompt =
+  | { kind: "cambiar" }
+  | { kind: "quitar" }
+  | { kind: "aflojar"; to: AppLockWhen };
+
+export function AppLockSetting({ lockWhen, hasPin }: { lockWhen: AppLockWhen; hasPin: boolean }) {
   const toast = useToast();
   const [when, setWhen] = useState<AppLockWhen>(lockWhen);
   const [pinSet, setPinSet] = useState(hasPin);
-  const [editing, setEditing] = useState(false);
+  const [prompt, setPrompt] = useState<Prompt | null>(null);
   const [pending, startTransition] = useTransition();
 
-  function changeWhen(value: AppLockWhen) {
+  /** Guarda el "cada cuánto". `currentPin` solo viaja si el cambio afloja. */
+  function applyWhen(value: AppLockWhen, currentPin?: string) {
     const previous = when;
     setWhen(value);
     startTransition(async () => {
-      const result = await setAppLockWhen(value);
+      const result = await setAppLockWhen(value, currentPin);
       if (result.error) {
         // Vuelve a lo que estaba: dejar el control mostrando algo que no se
         // guardó es la forma más rápida de creer que el cerrojo está puesto
@@ -49,16 +64,19 @@ export function AppLockSetting({
     });
   }
 
-  function remove() {
-    startTransition(async () => {
-      const result = await removeAppPin();
-      if (result.error) {
-        toast.error(result.error);
-        return;
-      }
-      setPinSet(false);
-      toast.success("PIN quitado");
-    });
+  async function changeWhen(value: AppLockWhen) {
+    if (!weakensLock(when, value)) {
+      applyWhen(value);
+      return;
+    }
+    if (pinSet) {
+      setPrompt({ kind: "aflojar", to: value });
+      return;
+    }
+    // Sin PIN, el único control posible es la huella de este teléfono.
+    const result = await unlockWithBiometrics("Confirmá para aflojar el cerrojo");
+    if (result === "cancelado") return;
+    applyWhen(value);
   }
 
   return (
@@ -68,7 +86,7 @@ export function AppLockSetting({
           id="app-lock-when"
           value={when}
           disabled={pending}
-          onChange={(e) => changeWhen(e.target.value as AppLockWhen)}
+          onChange={(e) => void changeWhen(e.target.value as AppLockWhen)}
           className="w-[11rem]"
         >
           {LOCK_OPTIONS.map((option) => (
@@ -81,111 +99,177 @@ export function AppLockSetting({
 
       <SettingsRow inline label="PIN de respaldo">
         <span className="text-meta text-ink-3">{pinSet ? "Puesto" : "Sin poner"}</span>
-        <Button variant="secondary" size="sm" onClick={() => setEditing(true)} disabled={pending}>
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={() => setPrompt({ kind: "cambiar" })}
+          disabled={pending}
+        >
           {pinSet ? "Cambiar" : "Poner PIN"}
         </Button>
         {pinSet && (
-          <Button variant="danger-ghost" size="sm" onClick={remove} disabled={pending}>
+          <Button
+            variant="danger-ghost"
+            size="sm"
+            onClick={() => setPrompt({ kind: "quitar" })}
+            disabled={pending}
+          >
             Quitar
           </Button>
         )}
       </SettingsRow>
 
-      <PinDialog
-        open={editing}
-        onClose={() => setEditing(false)}
-        onSaved={() => {
-          setPinSet(true);
-          setEditing(false);
-          toast.success("PIN guardado");
-        }}
-      />
+      {prompt && (
+        <PinFlow
+          prompt={prompt}
+          needsCurrent={pinSet}
+          onClose={() => setPrompt(null)}
+          onDone={(message, changed) => {
+            setPrompt(null);
+            if (changed === "puesto") setPinSet(true);
+            if (changed === "quitado") setPinSet(false);
+            toast.success(message);
+          }}
+          onWeaken={(to, currentPin) => {
+            setPrompt(null);
+            applyWhen(to, currentPin);
+          }}
+        />
+      )}
     </>
   );
 }
 
+/** Los pasos que hace falta recorrer según lo que se esté haciendo. */
+function stepsFor(prompt: Prompt, needsCurrent: boolean): ("actual" | "nuevo" | "repetir")[] {
+  if (prompt.kind === "cambiar") {
+    return needsCurrent ? ["actual", "nuevo", "repetir"] : ["nuevo", "repetir"];
+  }
+  return ["actual"];
+}
+
+const TITLES = {
+  actual: "Escribí tu PIN actual",
+  nuevo: "Elegí tu PIN",
+  repetir: "Repetilo",
+} as const;
+
 /**
- * Poner el PIN, en dos pasos.
+ * El diálogo del PIN, con los pasos que haga falta.
  *
- * Se pide dos veces porque un dígito mal tecleado acá es un cerrojo que no
- * abre después, y la persona no tendría forma de saber cuál puso. Hay
- * salida (la huella, y cerrar sesión), pero enterarse el día que la
- * necesitás es el peor momento.
+ * Al poner uno nuevo se pide dos veces: un dígito mal tecleado acá es un
+ * cerrojo que no abre después, y la persona no tendría forma de saber cuál
+ * puso. Hay salida (la huella, y cerrar sesión), pero enterarse el día que
+ * lo necesitás es el peor momento.
  */
-function PinDialog({
-  open,
+function PinFlow({
+  prompt,
+  needsCurrent,
   onClose,
-  onSaved,
+  onDone,
+  onWeaken,
 }: {
-  open: boolean;
+  prompt: Prompt;
+  needsCurrent: boolean;
   onClose: () => void;
-  onSaved: () => void;
+  onDone: (message: string, changed?: "puesto" | "quitado") => void;
+  onWeaken: (to: AppLockWhen, currentPin: string) => void;
 }) {
-  const [first, setFirst] = useState("");
-  const [second, setSecond] = useState("");
+  const steps = stepsFor(prompt, needsCurrent);
+  const [step, setStep] = useState(0);
+  const [current, setCurrent] = useState("");
+  const [fresh, setFresh] = useState("");
+  const [value, setValue] = useState("");
   const [error, setError] = useState("");
   const [pending, startTransition] = useTransition();
-  const secondRef = useRef<HTMLInputElement>(null);
 
-  const step = isValidPin(first) ? 2 : 1;
+  const which = steps[step];
 
-  function close() {
-    setFirst("");
-    setSecond("");
-    setError("");
-    onClose();
+  function advance(nextCurrent = current, nextFresh = fresh) {
+    setCurrent(nextCurrent);
+    setFresh(nextFresh);
+    setValue("");
+    setStep((s) => s + 1);
   }
 
-  function onFirst(raw: string) {
-    setFirst(cleanPinInput(raw));
-    setError("");
-    setSecond("");
-  }
-
-  function onSecond(raw: string) {
+  function onChange(raw: string) {
     const next = cleanPinInput(raw);
-    setSecond(next);
+    setValue(next);
     setError("");
     if (!isValidPin(next)) return;
-    if (next !== first) {
+
+    if (which === "actual") {
+      // El PIN actual no se comprueba acá: viaja con la operación y lo
+      // verifica el servidor. Comprobarlo aparte sería un viaje de más y
+      // gastaría un intento del límite por gusto.
+      if (prompt.kind === "cambiar") {
+        advance(next, "");
+        return;
+      }
+      if (prompt.kind === "aflojar") {
+        onWeaken(prompt.to, next);
+        return;
+      }
+      startTransition(async () => {
+        const result = await removeAppPin(next);
+        if (result.error) {
+          setValue("");
+          setError(result.error);
+          return;
+        }
+        onDone("PIN quitado", "quitado");
+      });
+      return;
+    }
+
+    if (which === "nuevo") {
+      advance(current, next);
+      return;
+    }
+
+    // "repetir"
+    if (next !== fresh) {
+      setValue("");
       setError("Los dos PIN no coinciden.");
-      setSecond("");
       return;
     }
     startTransition(async () => {
-      const result = await setAppPin(next);
+      const result = await setAppPin(next, needsCurrent ? current : undefined);
       if (result.error) {
+        setValue("");
         setError(result.error);
+        // Un PIN actual equivocado se descubre recién acá: se vuelve al
+        // principio, que es donde se puede corregir.
+        if (needsCurrent) setStep(0);
         return;
       }
-      setFirst("");
-      setSecond("");
-      onSaved();
+      onDone("PIN guardado", "puesto");
     });
   }
 
   return (
     <Dialog
-      open={open}
-      onClose={close}
+      open
+      onClose={onClose}
       layer="top"
       size="sm"
       dismissible={!pending}
-      title={step === 1 ? "Elegí tu PIN" : "Repetilo"}
+      title={TITLES[which]}
       footer={
-        <Button variant="secondary" onClick={close} disabled={pending}>
+        <Button variant="secondary" onClick={onClose} disabled={pending}>
           Cancelar
         </Button>
       }
     >
       <div className="flex flex-col gap-4">
         <PinBoxes
-          key={step}
-          value={step === 1 ? first : second}
-          onChange={step === 1 ? onFirst : onSecond}
-          inputRef={step === 2 ? secondRef : undefined}
+          // Remonta el campo en cada paso: si no, el valor anterior se
+          // quedaría escrito debajo del título nuevo.
+          key={`${which}-${step}`}
+          value={value}
+          onChange={onChange}
           disabled={pending}
-          label={step === 1 ? "PIN de cinco dígitos" : "Repetí el PIN"}
+          label={TITLES[which]}
         />
         <FormError>{error}</FormError>
       </div>
@@ -205,18 +289,15 @@ function PinBoxes({
   onChange,
   disabled,
   label,
-  inputRef,
 }: {
   value: string;
   onChange: (raw: string) => void;
   disabled?: boolean;
   label: string;
-  inputRef?: React.RefObject<HTMLInputElement | null>;
 }) {
   return (
     <div className="relative w-full">
       <input
-        ref={inputRef}
         data-autofocus=""
         value={value}
         onChange={(e) => onChange(e.target.value)}

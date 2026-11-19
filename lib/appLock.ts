@@ -62,6 +62,31 @@ export function shouldAskOnReturn(when: AppLockWhen, hiddenMs: number): boolean 
   }
 }
 
+/**
+ * Qué tan cerrado deja la app cada opción, para saber cuándo un cambio
+ * **afloja** el cerrojo.
+ *
+ * Hace falta porque aflojarlo tiene que costar el PIN. El caso real: te
+ * agarran el teléfono con la app recién usada —y por lo tanto abierta—, y
+ * desde Ajustes se pasa el cerrojo a "Nunca". Un rato de acceso prestado se
+ * convierte así en acceso para siempre. Apretarlo, en cambio, es gratis:
+ * nadie se hace daño poniéndose más estricto.
+ */
+const STRENGTH: Record<AppLockWhen, number> = {
+  siempre: 4,
+  "1min": 3,
+  "5min": 2,
+  // Deja de pedir al volver: con la app viva en segundo plano, el cerrojo
+  // no se vuelve a interponer. Por eso está apenas encima de apagarlo.
+  inicio: 1,
+  nunca: 0,
+};
+
+/** ¿Pasar de `from` a `to` deja la app menos protegida? */
+export function weakensLock(from: AppLockWhen, to: AppLockWhen): boolean {
+  return STRENGTH[to] < STRENGTH[from];
+}
+
 /** Dígitos exactos del PIN. Numérico para que salga el teclado de números. */
 export const PIN_LENGTH = 5;
 

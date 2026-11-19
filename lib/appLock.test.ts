@@ -6,6 +6,7 @@ import {
   lockEnabled,
   parseLockWhen,
   shouldAskOnReturn,
+  weakensLock,
 } from "./appLock";
 import { isAppUserAgent } from "./appMode";
 
@@ -85,4 +86,20 @@ test("lo tecleado y lo pegado se limpian igual", () => {
   assert.equal(cleanPinInput("123456789"), "12345");
   assert.equal(cleanPinInput("  1 2 3  "), "123");
   assert.equal(cleanPinInput("abc"), "");
+});
+
+test("aflojar el cerrojo se reconoce; apretarlo no cuenta", () => {
+  // Apagarlo es lo más flojo que hay.
+  assert.equal(weakensLock("siempre", "nunca"), true);
+  assert.equal(weakensLock("1min", "nunca"), true);
+  assert.equal(weakensLock("inicio", "nunca"), true);
+  // "Solo al abrirla" deja de pedir al volver: también afloja.
+  assert.equal(weakensLock("5min", "inicio"), true);
+  assert.equal(weakensLock("siempre", "5min"), true);
+  // Ponerse más estricto es gratis.
+  assert.equal(weakensLock("nunca", "siempre"), false);
+  assert.equal(weakensLock("5min", "1min"), false);
+  assert.equal(weakensLock("inicio", "5min"), false);
+  // Dejarlo igual no es un cambio.
+  assert.equal(weakensLock("1min", "1min"), false);
 });
