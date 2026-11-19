@@ -10,6 +10,8 @@ import { sendPushToUser } from "@/lib/push/send";
 import { categoryClash } from "@/lib/categories";
 import { isCategoryTone } from "@/lib/categoryStyle";
 import { isMissingColumnError } from "@/lib/supabase/errors";
+import { isValidPin, parseLockWhen, type AppLockWhen } from "@/lib/appLock";
+import { hashPin, verifyPin } from "@/lib/pin";
 import { isSymbolName } from "@/lib/materialSymbols";
 import { RECEIPTS_BUCKET } from "@/lib/receipts";
 import type { Theme, TransactionType } from "@/lib/types";
@@ -406,4 +408,129 @@ export async function sendTestReminder() {
     };
   }
   return { error: null };
+}
+
+// ---------------------------------------------------------------------------
+// Cerrojo de la app de Android (migración 0028)
+//
+// Solo gobierna el APK: en la web sigue el cierre de sesión por inactividad.
+// Ver lib/appMode.ts y lib/appLock.ts.
+// ---------------------------------------------------------------------------
+
+/** Mensaje único para todo lo que sale mal acá adentro, salvo lo corregible. */
+function lockFailure(context: string, detail: unknown) {
+  logFailure(context, detail);
+  return { error: GENERIC_ERROR };
+}
+
+/** Poner o cambiar el PIN de cinco dígitos. */
+export async function setAppPin(pin: string) {
+  const { supabase, user } = await requireUser();
+
+  // Corregible por la persona: el mensaje dice qué arreglar.
+  if (!isValidPin(pin)) return { error: "El PIN son 5 dígitos." };
+
+  const { error } = await supabase.from("user_settings").upsert(
+    {
+      user_id: user.id,
+      app_lock_pin_hash: await hashPin(pin),
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "user_id" }
+  );
+
+  if (error) {
+    return lockFailure(
+      isMissingColumnError(error) ? "setAppPin: falta correr la migración 0028" : "setAppPin",
+      error
+    );
+  }
+  revalidatePath("/dashboard");
+  return { error: null };
+}
+
+/**
+ * Quitar el PIN.
+ *
+ * No pide el PIN actual: para llegar a Ajustes ya hubo que pasar el cerrojo
+ * (o no había ninguno). Pedirlo otra vez acá sería un trámite que no agrega
+ * nada, porque quien está adentro ya demostró que puede entrar.
+ */
+export async function removeAppPin() {
+  const { supabase, user } = await requireUser();
+
+  const { error } = await supabase
+    .from("user_settings")
+    .update({ app_lock_pin_hash: null, updated_at: new Date().toISOString() })
+    .eq("user_id", user.id);
+
+  if (error) return lockFailure("removeAppPin", error);
+  revalidatePath("/dashboard");
+  return { error: null };
+}
+
+/** Cada cuánto se vuelve a pedir al volver a la app. */
+export async function setAppLockWhen(when: AppLockWhen) {
+  const { supabase, user } = await requireUser();
+
+  // No se confía en lo que llega del navegador: un valor raro cae en el de
+  // por defecto en vez de escribir algo que el check de la base rechace.
+  const value = parseLockWhen(when);
+
+  const { error } = await supabase.from("user_settings").upsert(
+    { user_id: user.id, app_lock_when: value, updated_at: new Date().toISOString() },
+    { onConflict: "user_id" }
+  );
+
+  if (error) {
+    return lockFailure(
+      isMissingColumnError(error) ? "setAppLockWhen: falta correr la migración 0028" : "setAppLockWhen",
+      error
+    );
+  }
+  revalidatePath("/dashboard");
+  return { error: null };
+}
+
+/**
+ * Abrir el cerrojo con el PIN.
+ *
+ * **Se verifica en el servidor y no en el teléfono.** Un hash mandado al
+ * navegador se prueba contra las cien mil combinaciones de cinco dígitos en
+ * un suspiro; acá no hay nada que probar sin pasar por el límite de
+ * intentos. La contra, y es real: sin señal el PIN no funciona. La huella
+ * sí, porque esa la resuelve Android sin salir del teléfono.
+ *
+ * Diez intentos cada cinco minutos. No bloquea la cuenta: la espera se
+ * vence sola, porque dejar a alguien afuera de sus propios datos por
+ * equivocarse es peor que el riesgo que evita.
+ */
+export async function verifyAppPin(pin: string) {
+  const { supabase, user } = await requireUser();
+
+  const admin = createAdminClient();
+  const rateLimit = await checkRateLimit(admin, user.id, "verify_app_pin", {
+    maxCalls: 10,
+    windowSeconds: 300,
+  });
+  if (!rateLimit.allowed) {
+    return {
+      ok: false,
+      error: `Demasiados intentos. Probá en ${Math.ceil(rateLimit.retryAfterSeconds! / 60)} min.`,
+    };
+  }
+
+  const { data, error } = await supabase
+    .from("user_settings")
+    .select("app_lock_pin_hash")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (error) {
+    logFailure("verifyAppPin", error);
+    return { ok: false, error: GENERIC_ERROR };
+  }
+
+  const ok = await verifyPin(pin, data?.app_lock_pin_hash);
+  return ok ? { ok: true, error: null } : { ok: false, error: "PIN incorrecto." };
 }

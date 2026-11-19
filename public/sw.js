@@ -16,7 +16,7 @@
 // Sin subir la versión, quien tuviera /dashboard/ajustes en el caché seguiría
 // abriendo la pantalla vieja sin señal, y las píldoras de navegación nuevas
 // convivirían con HTML guardado que todavía dibujaba el rail.
-const VERSION = "v4";
+const VERSION = "v5";
 const STATIC_CACHE = `tf-static-${VERSION}`;
 const PAGES_PREFIX = "tf-pages-";
 const OFFLINE_URL = "/sin-conexion";
@@ -123,13 +123,17 @@ function isImmutableAsset(url) {
 /**
  * Páginas que NO se guardan.
  *
- * `/entrar` y `/auth/*` deciden a dónde mandarte según la sesión: servir
- * una copia vieja puede dejarte mirando una pantalla de login cuando ya
- * entraste, o al revés. Y `/api/*` son datos, no pantallas.
+ * `/`, `/entrar`, `/bienvenida` y `/auth/*` deciden a dónde mandarte según
+ * la sesión —y, en la raíz, también según si esto es el APK o la web—:
+ * servir una copia vieja puede dejarte mirando una pantalla de login cuando
+ * ya entraste, o la portada dentro de la app. Y `/api/*` son datos, no
+ * pantallas.
  */
 function isUncacheablePage(url) {
   return (
+    url.pathname === "/" ||
     url.pathname === "/entrar" ||
+    url.pathname === "/bienvenida" ||
     url.pathname.startsWith("/auth/") ||
     url.pathname.startsWith("/api/")
   );

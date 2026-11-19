@@ -2261,3 +2261,131 @@ Sin desborde ni errores de consola.
 visiblemente** si ya hay otro escuchando — el viejo sigue sirviendo el build
 anterior y la QA prueba código que ya no existe. Hay que matar el proceso por
 PID (`netstat -ano | grep :3100`) antes de levantar el nuevo.
+
+## Dónde quedamos (2026-11-19, segunda parte) — modo APK
+
+### ⚠️ MIGRACIÓN SIN CORRER: `0028_app_lock.sql`
+
+Agrega `user_settings.app_lock_pin_hash` y `app_lock_when`. **Segura de
+correr y segura de NO correr**: sin ella el bloque "Bloqueo" de Ajustes no
+puede guardar nada y el cerrojo queda sin PIN, y nada más cambia. Por eso la
+consulta de ajustes del layout pasó a `select("*")` — **nombrar las columnas
+haría fallar la consulta entera, y con ella todo el dashboard**, en una base
+sin la migración.
+
+Camil pidió tres cosas para el APK de Capacitor, antes de armarlo: que pida
+datos biométricos sin tener que cerrar sesión a cada rato, una bienvenida
+deslizable que termine en el login con Google, y que **la portada no exista
+dentro del APK**. Todo esto es trabajo de la web, hecho antes del envoltorio.
+
+**Cómo sabe la web que está dentro del APK** (`lib/appMode.ts`)
+
+De esto cuelga todo lo demás, porque el APK y la web sirven **el mismo
+sitio**. La marca viaja en el identificador del navegador (`appendUserAgent`
+de Capacitor, que hay que poner igual en `capacitor.config.ts`). Se eligió
+eso y no una cookie ni un parámetro porque el encabezado llega en **toda**
+petición: el servidor decide antes de dibujar y nunca se ve la portada
+corrigiéndose sola. **No es un control de seguridad** — falsear el
+identificador solo te muestra la bienvenida en vez de la portada.
+
+El valor baja por contexto (`AppModeProvider`), nunca se lee
+`navigator.userAgent` en el cliente: eso sería un error de hidratación.
+
+**Qué cambia en modo APK**
+
+- `/` **no muestra la portada**: con sesión va al resumen; sin sesión, a
+  `/bienvenida` o a `/entrar` según la cookie `tf_intro`. La cookie es del
+  dispositivo y no de la cuenta porque se ve **antes** de que haya cuenta
+  (la guía de adentro, `onboarding_seen`, es otra cosa).
+- **No corre `IdleLogout`.** Un teléfono propio no es una compu prestada. En
+  la web se queda tal cual, a los 15 minutos.
+- **Corre el cerrojo** (`AppLockGate`), que es lo que lo reemplaza.
+
+**La bienvenida** (`/bienvenida` + `components/app/IntroCarousel.tsx`)
+
+Cuatro láminas más la de entrar, con deslizar, puntos y "Saltar". La entrada
+con Google va **en la última lámina y no en una pantalla aparte**: pasar las
+láminas y tener que tocar "Entrar" otra vez es un paso de más en algo que se
+hace una sola vez. Lleva el **mismo `GoogleSignIn`** que `/entrar`, con su
+casilla de términos: el consentimiento explícito fue una decisión tomada
+(2026-11-02) y una puerta de entrada nueva no puede saltárselo sin querer.
+Quien llegue a `/bienvenida` desde un navegador va a la portada.
+
+**El cerrojo** (`components/app/AppLockGate.tsx`)
+
+- **Es un cerrojo de pantalla, no cifrado**, y se le dijo así a Camil. Frena
+  a quien agarra el teléfono desbloqueado. Quien extraiga el almacenamiento
+  no pasa por acá; para eso habría que guardar la sesión en el almacén
+  seguro de Android y entregarla recién después de la huella.
+- **Si no hay con qué abrir, no se cierra**: sin huella registrada y sin PIN
+  puesto, deja pasar. Trabar a alguien afuera de sus propios datos es peor
+  que el riesgo. Y siempre hay un "Cerrar sesión" en la pantalla de cerrojo,
+  porque un PIN olvidado no puede ser el final del camino.
+- **El contenido bloqueado va con `hidden` (`display: none`), no con
+  `opacity-0`.** El primer intento usó opacidad y la QA leyó los montos del
+  DOM: estaban dibujados debajo, transparentes. Con `display: none` no se
+  dibuja ni sale en el árbol de accesibilidad, y el árbol de React sigue
+  montado, así que no se pierde lo que estuvieras escribiendo.
+- La cuenta del tiempo en segundo plano va contra el reloj (`visibilitychange`
+  + marca de tiempo), no contra un `setTimeout`: Android congela la app y un
+  temporizador se congelaría con ella.
+- `lib/native.ts` es **el único punto** donde la web le habla al envoltorio
+  nativo. Hoy contesta "no disponible" en todo y la app cae al PIN; el día
+  que se arme Capacitor hay un archivo que tocar, no quince componentes.
+  Distingue "canceló" de "no se puede" a propósito: si fuera un booleano,
+  cancelar se vería igual que un teléfono sin huella.
+
+**El PIN**
+
+- Cinco dígitos (decisión mía, avisada: con dígitos sale el teclado numérico).
+  Se guarda **hasheado con scrypt** (`lib/pin.ts`, sin dependencias nuevas) y
+  **se verifica en el servidor**, con el límite de intentos que ya existía
+  (10 cada 5 minutos). Un hash mandado al navegador se prueba contra las cien
+  mil combinaciones en un suspiro. **Contra conocida: sin señal el PIN no
+  funciona; la huella sí, porque la resuelve Android.**
+- Al ponerlo se pide dos veces: un dígito mal tecleado acá es un cerrojo que
+  no abre después, y enterarse el día que lo necesitás es el peor momento.
+- Quitarlo **no** pide el PIN actual: para llegar a Ajustes ya hubo que pasar
+  el cerrojo.
+- El bloque "Bloqueo" de Ajustes **solo se dibuja en modo APK**, entre
+  "Datos" y "Cuenta" (es lo mismo que Cuenta: quién puede entrar).
+
+**Un falso positivo del lint, documentado en el código**: el arranque en frío
+llama a `runBiometrics()` desde un efecto y `react-hooks/set-state-in-effect`
+lo marca porque sigue la llamada hacia adentro. No lo es: lo primero que hace
+es esperar al diálogo del sistema, así que el estado cambia en otro tick, por
+un gesto de la persona. Va con `eslint-disable-next-line` y su explicación.
+
+**Service Worker a `v5`**, y `/` y `/bienvenida` entran en la lista de
+páginas que **no** se guardan: deciden según la sesión y según si esto es el
+APK o la web, así que una copia vieja podría mostrar la portada dentro de la
+app.
+
+### Lo que falta, y es del día de Capacitor
+
+1. **La huella de verdad.** Se construyó todo lo que la rodea, pero no se
+   puede probar sin el APK. El plugin previsto es `capacitor-native-biometric`
+   y `lib/native.ts` ya está escrito contra su forma.
+2. **El login con Google no va a funcionar tal cual dentro del APK.** Google
+   bloquea su pantalla de inicio de sesión en vistas web embebidas
+   ("disallowed_useragent"); no es un bug nuestro y no se esquiva. La salida
+   sin navegador es el inicio de sesión nativo de Play Services. **Buena
+   noticia: la app ya entra con `signInWithIdToken`** (`app/auth/callback`),
+   no con el flujo alojado de Supabase, así que el plugin nativo devuelve
+   exactamente el `id_token` que ya sabemos canjear. Es un agregado, no una
+   reescritura.
+3. **Ocultar la app en la lista de recientes** (`FLAG_SECURE`): Android
+   muestra una miniatura de la última pantalla al cambiar de app, y eso el
+   cerrojo web no lo tapa. Es una bandera nativa.
+4. Lo ya anotado arriba: push a FCM y revisar el caché sin conexión.
+
+**Estado**: `npm test` (197, 12 nuevas sobre el modo APK y el cerrojo),
+`eslint`, `tsc` y `npm run build` limpios. QA con Playwright contra el build
+de producción a 390, falseando el identificador para entrar en modo APK: **35
+comprobaciones** — que la web no cambie, que la raíz del APK lleve a la
+bienvenida, las cinco láminas, "Saltar", que la última traiga Google con su
+casilla y que sin marcarla no entre, que quede la cookie y la raíz pase a ir
+al login, que el cerrojo no trabe a quien no tiene con qué abrir, que con PIN
+el contenido **no se vea ni se lea del DOM**, que los cinco dígitos lleguen a
+la acción del servidor, y el bloque de Ajustes con sus cinco opciones y el
+PIN en dos pasos.

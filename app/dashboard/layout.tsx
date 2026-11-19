@@ -1,5 +1,8 @@
 import type { ReactNode } from "react";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { AppLockGate } from "@/components/app/AppLockGate";
+import { AppModeProvider } from "@/components/app/AppModeProvider";
 import { OfflineBanner } from "@/components/offline/OfflineBanner";
 import { MovementEntryProvider } from "@/components/movements/MovementEntry";
 import { WelcomeDialog } from "@/components/onboarding/WelcomeDialog";
@@ -11,6 +14,8 @@ import { IdleLogout } from "@/components/shell/IdleLogout";
 import { ThemeSync } from "@/components/ThemeSync";
 import { resolveAvatarUrl, resolveDisplayName, resolveFirstName } from "@/lib/profile";
 import { shouldShowWelcome } from "@/lib/onboarding";
+import { isAppUserAgent } from "@/lib/appMode";
+import { parseLockWhen } from "@/lib/appLock";
 import { createClient } from "@/lib/supabase/server";
 import type { RecentMovement } from "@/lib/quickEntry";
 import type { Account, UserCategory } from "@/lib/types";
@@ -69,9 +74,12 @@ export default async function DashboardLayout({ children }: { children: ReactNod
         .select("full_name, avatar_url, birth_date")
         .eq("id", user.id)
         .maybeSingle(),
+      // `*` y no una lista de columnas: nombrar `app_lock_when` haría
+      // fallar la consulta entera —y con ella todo el dashboard— en una
+      // base donde la migración 0028 no se corrió todavía.
       supabase
         .from("user_settings")
-        .select("theme, reminders_enabled, onboarding_seen")
+        .select("*")
         .eq("user_id", user.id)
         .maybeSingle(),
       supabase
@@ -105,12 +113,22 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   // Los tres casos y por qué, con pruebas, en lib/onboarding.ts.
   const showWelcome = shouldShowWelcome(settings);
 
+  // El APK y la web sirven el mismo sitio, así que hay que distinguirlos:
+  // dentro del APK no corre el cierre por inactividad y sí el cerrojo con
+  // huella o PIN. Ver lib/appMode.ts.
+  const isApp = isAppUserAgent((await headers()).get("user-agent"));
+  const lockWhen = parseLockWhen(settings?.app_lock_when);
+  // Solo si HAY PIN, nunca el hash: mandarlo al navegador daría las cien
+  // mil combinaciones de cinco dígitos para probar sin límite de intentos.
+  const hasPin = Boolean(settings?.app_lock_pin_hash);
+
   const stamp = renderedStamp();
 
   return (
     // Los íconos y colores que el usuario le puso a sus categorías, para
     // todas las listas de adentro. Sale de las mismas categorías que ya se
     // consultan para el diálogo de ajustes: no hay consulta nueva.
+    <AppModeProvider isApp={isApp}>
     <CategoryStyleProvider categories={(categories ?? []) as UserCategory[]}>
       {/* El provider de ajustes envuelve al shell y no al contenido: el
           botón que abre el diálogo vive en las dos píldoras de navegación,
@@ -127,6 +145,8 @@ export default async function DashboardLayout({ children }: { children: ReactNod
           theme: dbTheme,
           remindersEnabled: settings?.reminders_enabled ?? false,
           transactionCount: transactionCount ?? 0,
+          lockWhen,
+          hasPin,
         }}
       >
         {/* El formulario de movimientos vive acá y no en cada pantalla: el
@@ -139,8 +159,10 @@ export default async function DashboardLayout({ children }: { children: ReactNod
         >
           <AppShell name={firstName} email={user?.email ?? undefined} avatarUrl={avatarUrl}>
           <ThemeSync dbTheme={dbTheme} />
-          {/* Solo dentro del área con sesión: afuera no hay nada que cerrar. */}
-          <IdleLogout />
+          {/* Solo dentro del área con sesión, y solo en la web: en el APK
+              la sesión se queda viva y lo que protege es el cerrojo con
+              huella o PIN. Un teléfono propio no es una compu prestada. */}
+          {!isApp && <IdleLogout />}
           {/* De quién es lo que quedó sin enviar. IndexedDB es del origen y
               sobrevive al cierre de sesión, así que la cola se filtra por el
               usuario de la sesión (ver components/offline/QueueOwner.tsx). */}
@@ -150,11 +172,18 @@ export default async function DashboardLayout({ children }: { children: ReactNod
                 dice de cuándo son los datos de verdad. */}
             <OfflineBanner renderedAt={stamp.label} />
             {showWelcome && <WelcomeDialog />}
-            {children}
+            {isApp ? (
+              <AppLockGate lockWhen={lockWhen} hasPin={hasPin}>
+                {children}
+              </AppLockGate>
+            ) : (
+              children
+            )}
           </QueueOwnerProvider>
           </AppShell>
         </MovementEntryProvider>
       </SettingsEntryProvider>
     </CategoryStyleProvider>
+    </AppModeProvider>
   );
 }

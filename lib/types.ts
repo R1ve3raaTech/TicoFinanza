@@ -113,6 +113,15 @@ export interface UserSettings {
    * `push_subscriptions`.
    */
   reminders_enabled: boolean;
+  /**
+   * Cerrojo del APK de Android (migración 0028). Las dos son opcionales
+   * porque se leen de forma tolerante: en una base sin esa migración
+   * llegan `undefined` y la app sigue andando sin cerrojo.
+   *
+   * `app_lock_pin_hash` es el HASH, nunca el PIN, y no sale del servidor.
+   */
+  app_lock_pin_hash?: string | null;
+  app_lock_when?: string | null;
   updated_at: string;
 }
 

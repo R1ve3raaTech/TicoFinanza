@@ -6,6 +6,9 @@ import { BookOpen, DownloadSimple, Printer, Tag } from "@phosphor-icons/react";
 import { Button, buttonClass } from "@/components/ui/Button";
 import { Dialog } from "@/components/ui/Dialog";
 import type { Theme, UserCategory } from "@/lib/types";
+import { useIsApp } from "@/components/app/AppModeProvider";
+import type { AppLockWhen } from "@/lib/appLock";
+import { AppLockSetting } from "./AppLockSetting";
 import { CategoryDialog } from "./CategoryDialog";
 import { DangerZone } from "./DangerZone";
 import { DeleteAccountFlow } from "./DeleteAccountFlow";
@@ -27,6 +30,9 @@ export interface SettingsData {
   /** Flag de la cuenta. Que ESTE navegador los reciba lo revisa el switch. */
   remindersEnabled: boolean;
   transactionCount: number;
+  /** Cerrojo del APK. En la web no se dibuja: ver lib/appMode.ts. */
+  lockWhen: AppLockWhen;
+  hasPin: boolean;
 }
 
 /**
@@ -80,6 +86,7 @@ export function SettingsDialog({
   onClose: () => void;
   data: SettingsData;
 }) {
+  const isApp = useIsApp();
   const [closing, setClosing] = useState(false);
   const [guideOpen, setGuideOpen] = useState(false);
   const [categoriesOpen, setCategoriesOpen] = useState(false);
@@ -186,6 +193,15 @@ export function SettingsDialog({
               </Link>
             </SettingsRow>
           </Bloque>
+
+          {/* Solo en el APK, y pegado a Cuenta porque es lo mismo: quién
+              puede entrar. En la web no hay cerrojo — ahí sigue el cierre
+              de sesión por inactividad. */}
+          {isApp && (
+            <Bloque title="Bloqueo">
+              <AppLockSetting lockWhen={data.lockWhen} hasPin={data.hasPin} />
+            </Bloque>
+          )}
 
           <Bloque title="Cuenta">
             <SessionSettings email={data.email} />
