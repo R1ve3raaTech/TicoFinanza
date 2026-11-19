@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { DashboardPreview } from "@/components/landing/DashboardPreview";
 import { Faq } from "@/components/landing/Faq";
 import { Features } from "@/components/landing/Features";
+import { AndroidInstall } from "@/components/landing/AndroidInstall";
 import { Footer } from "@/components/landing/Footer";
 import { Hero } from "@/components/landing/Hero";
 import { LandingSpine, SectionLabel, type SpineSection } from "@/components/landing/LandingSpine";
@@ -23,6 +24,7 @@ const SECTIONS: SpineSection[] = [
   { id: "funciones", label: "Qué obtenés" },
   { id: "seguridad", label: "Seguridad" },
   { id: "precio", label: "Precio" },
+  { id: "instalar", label: "Instalar" },
   { id: "preguntas", label: "Preguntas" },
 ];
 
@@ -34,7 +36,7 @@ const jsonLd = {
   "@type": "SoftwareApplication",
   name: "TicoFinanza",
   applicationCategory: "FinanceApplication",
-  operatingSystem: "Web, Android, iOS",
+  operatingSystem: "Android, Web",
   url: "https://www.ticofinanza.com",
   description:
     "Registrá tus gastos fijos con su día de cobro y tus ingresos y gastos del día a día. Próximos pagos, cuentas y desglose por categoría, en colones. Hecho para Costa Rica.",
@@ -187,6 +189,20 @@ export default async function LandingPage() {
                 measure="reading"
               >
                 <Pricing />
+              </Section>
+
+              {/* La instalación va acá, al final y no al principio: es
+                  una acción, y una acción se ofrece cuando ya se entendió
+                  de qué se trata. Antes vivía en /descargar, una página
+                  aparte que había que ir a buscar. */}
+              <Section
+                id="instalar"
+                label="Instalar"
+                title="Instalala en tu Android"
+                lead="Queda con su propio ícono y sin la barra del navegador en el medio. En iPhone y en la compu se usa desde el navegador, igual que cualquier sitio."
+                measure="reading"
+              >
+                <AndroidInstall />
               </Section>
 
               <Section

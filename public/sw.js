@@ -16,7 +16,7 @@
 // Sin subir la versión, quien tuviera /dashboard/ajustes en el caché seguiría
 // abriendo la pantalla vieja sin señal, y las píldoras de navegación nuevas
 // convivirían con HTML guardado que todavía dibujaba el rail.
-const VERSION = "v3";
+const VERSION = "v4";
 const STATIC_CACHE = `tf-static-${VERSION}`;
 const PAGES_PREFIX = "tf-pages-";
 const OFFLINE_URL = "/sin-conexion";

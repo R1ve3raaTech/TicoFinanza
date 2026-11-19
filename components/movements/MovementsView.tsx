@@ -1,5 +1,4 @@
 import { DownloadSimple } from "@phosphor-icons/react/dist/ssr";
-import { InstallAppButton } from "@/components/InstallAppButton";
 import { PageHeader } from "@/components/shell/PageHeader";
 import { LeadFigure, SectionLead } from "@/components/shell/SectionLead";
 import { buttonClass } from "@/components/ui/Button";
@@ -58,12 +57,7 @@ export function MovementsView({
               <AddMovementButton />
             </>
           }
-          mobileActions={
-            <>
-              <InstallAppButton />
-              <AddMovementButton iconOnly />
-            </>
-          }
+          mobileActions={<AddMovementButton iconOnly />}
         />
 
         <div className="pt-3 md:pt-0">

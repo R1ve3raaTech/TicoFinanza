@@ -13,6 +13,16 @@ const nextConfig: NextConfig = {
       { hostname: "*.supabase.co", pathname: "/storage/v1/object/public/**" },
     ],
   },
+  async redirects() {
+    return [
+      // /descargar era una página con una tarjeta por plataforma. Ahora la
+      // instalación es una sección de la portada. La redirección se queda
+      // porque hay tres formas de llegar con un enlace viejo —un marcador,
+      // la portada guardada en el caché sin conexión, y lo que Google
+      // tenga indexado del sitemap anterior— y las tres darían 404.
+      { source: "/descargar", destination: "/#instalar", permanent: true },
+    ];
+  },
   async headers() {
     return [
       {

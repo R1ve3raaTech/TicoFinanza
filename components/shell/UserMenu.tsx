@@ -2,9 +2,8 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { CaretUpDown, DownloadSimple, SignOut, UserCircle } from "@phosphor-icons/react";
+import { CaretUpDown, SignOut, UserCircle } from "@phosphor-icons/react";
 import { SignOutDialog } from "@/components/dashboard/SignOutButton";
-import { useInstallApp } from "@/components/InstallAppButton";
 import { useSettingsEntry } from "@/components/settings/SettingsEntry";
 import { Avatar } from "./Avatar";
 
@@ -13,7 +12,7 @@ const ITEM =
 
 /**
  * Cuenta del usuario, en el extremo derecho de la píldora de navegación.
- * Cerrar sesión e instalar la app viven acá adentro y no a la vista: son
+ * El perfil y el cierre de sesión viven acá adentro y no a la vista: son
  * acciones de una vez, no tienen por qué competir con la navegación todo el
  * tiempo.
  *
@@ -33,7 +32,6 @@ export function UserMenu({
   const settings = useSettingsEntry();
   const [open, setOpen] = useState(false);
   const [confirmingSignOut, setConfirmingSignOut] = useState(false);
-  const { visible: canInstall, install, hint } = useInstallApp();
   const rootRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -129,20 +127,6 @@ export function UserMenu({
                 Perfil y ajustes
               </button>
             )}
-            {canInstall && (
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => {
-                  setOpen(false);
-                  install();
-                }}
-                className={ITEM}
-              >
-                <DownloadSimple size={16} />
-                Instalar la app
-              </button>
-            )}
             <div role="separator" className="mx-1 my-1 h-px bg-line" />
             <button
               type="button"
@@ -160,7 +144,6 @@ export function UserMenu({
         )}
       </AnimatePresence>
 
-      {hint}
       <SignOutDialog open={confirmingSignOut} onClose={() => setConfirmingSignOut(false)} />
     </div>
   );

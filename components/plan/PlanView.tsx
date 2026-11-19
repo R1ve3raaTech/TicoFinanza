@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { CaretLeft, CaretRight } from "@phosphor-icons/react/dist/ssr";
 import { DebtsSection } from "@/components/debts/DebtsSection";
-import { InstallAppButton } from "@/components/InstallAppButton";
 import { PageHeader } from "@/components/shell/PageHeader";
 import { LeadFigure, SectionLead } from "@/components/shell/SectionLead";
 import { Money } from "@/components/ui/Money";
@@ -74,10 +73,7 @@ export function PlanView({
     // PÁGINA y no el contenido: capando el contenido, la columna quedaba
     // pegada a la izquierda de una página más ancha y se veía corrida.
     <main id="contenido" className="mx-auto w-full max-w-[860px] px-4 pb-12 md:px-8 xl:px-12">
-      <PageHeader
-        title="Plan"
-        mobileActions={<InstallAppButton />}
-      />
+      <PageHeader title="Plan" />
 
       <nav aria-label="Secciones del plan" className="flex gap-1 pt-3 md:pt-0">
         {TABS.map((item) => {

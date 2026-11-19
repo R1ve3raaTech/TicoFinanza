@@ -1,21 +1,18 @@
-"use client";
-
-import Link from "next/link";
-import { DownloadSimple } from "@phosphor-icons/react";
-import { useInstallApp } from "@/components/InstallAppButton";
+import { DownloadSimple } from "@phosphor-icons/react/dist/ssr";
+import { AnchorLink } from "./AnchorLink";
 
 /**
- * "Instalar la app" en el hero.
+ * "Instalar en Android" en el hero.
  *
- * Si el navegador ofrece su propio aviso de instalación, se usa ese: es un
- * toque y queda instalada ahí mismo. Si no —iOS siempre, y los navegadores
- * que todavía no lo ofrecen— lleva a /descargar, que explica el camino de
- * cada sistema y tiene el archivo de Android.
+ * **Baja a la sección de instalación, no descarga.** Antes abría el aviso
+ * de instalación del propio navegador y, si no había, llevaba a
+ * `/descargar`. Ahora la única vía es el APK, y un botón del hero que
+ * dispara la descarga de un archivo grande sin avisar es una emboscada:
+ * la sección de abajo dice el tamaño y los tres pasos antes de que empiece.
  *
- * El rótulo es el mismo en los dos casos a propósito. Cambia el elemento,
- * no lo que se lee: si el texto cambiara al hidratar, el botón principal
- * de la portada parpadearía con otra palabra delante de quien lo está
- * mirando.
+ * Dejó de ser un componente de cliente con eso: ya no consulta el estado
+ * del navegador, así que no hay nada que hidratar ni ningún texto que
+ * pueda cambiar después del primer dibujo.
  *
  * Va en secundario y no en primario: la acción principal de la portada es
  * entrar, y en esta app hay una sola acción primaria por pantalla.
@@ -24,24 +21,10 @@ const CLASS =
   "inline-flex h-12 shrink-0 items-center gap-2.5 whitespace-nowrap rounded-control border border-line-strong px-6 text-base font-medium text-ink transition-colors duration-150 hover:border-ink hover:bg-surface";
 
 export function InstallCta() {
-  const { visible, install, hint } = useInstallApp();
-
-  if (visible) {
-    return (
-      <>
-        <button type="button" onClick={install} className={`${CLASS} cursor-pointer`}>
-          <DownloadSimple size={19} aria-hidden />
-          Instalar la app
-        </button>
-        {hint}
-      </>
-    );
-  }
-
   return (
-    <Link href="/descargar" className={CLASS}>
+    <AnchorLink href="#instalar" className={CLASS}>
       <DownloadSimple size={19} aria-hidden />
-      Instalar la app
-    </Link>
+      Instalar en Android
+    </AnchorLink>
   );
 }

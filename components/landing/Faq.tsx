@@ -45,7 +45,7 @@ const faqs = [
   },
   {
     q: "¿Se instala en el teléfono?",
-    a: "Sí. Se agrega a la pantalla de inicio desde el mismo navegador y se abre como cualquier otra app, a pantalla completa. No hay que pasar por ninguna tienda.",
+    a: "En Android sí: se descarga el archivo de instalación desde acá mismo y queda con su ícono, a pantalla completa. No hay que pasar por ninguna tienda. En iPhone y en la compu se usa desde el navegador, como cualquier sitio.",
   },
 ];
 

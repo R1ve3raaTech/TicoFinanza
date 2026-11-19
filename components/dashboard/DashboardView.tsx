@@ -4,7 +4,6 @@ import { AccountsPanel } from "@/components/accounts/AccountsPanel";
 import { CategoryDonut } from "@/components/charts/CategoryDonut";
 import { IncomeExpenseChart } from "@/components/charts/IncomeExpenseChart";
 import { FixedExpenseEntryProvider } from "@/components/fixed/FixedExpenseEntry";
-import { InstallAppButton } from "@/components/InstallAppButton";
 import { AddMovementButton } from "@/components/movements/MovementEntry";
 import { PageHeader } from "@/components/shell/PageHeader";
 import type { Comparison } from "@/lib/comparison";
@@ -99,12 +98,7 @@ export function DashboardView({
             // también en el encabezado daba tres botones celestes en una
             // pantalla que todavía no tiene datos.
             actions={isEmpty ? undefined : <AddMovementButton />}
-            mobileActions={
-              <>
-                <InstallAppButton />
-                {!isEmpty && <AddMovementButton iconOnly />}
-              </>
-            }
+            mobileActions={isEmpty ? undefined : <AddMovementButton iconOnly />}
           />
 
           <SummaryHero

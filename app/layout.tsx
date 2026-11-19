@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Script from "next/script";
 import { ThemeProvider } from "next-themes";
-import { InstallPromptProvider } from "@/components/InstallPromptProvider";
 import { RegisterServiceWorker } from "@/components/RegisterServiceWorker";
 import { ToastProvider } from "@/components/Toast";
 import "./globals.css";
@@ -102,9 +101,7 @@ export default function RootLayout({
             The provider still manages theme changes, storage and system mode. */}
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange scriptProps={{ type: "text/plain" }}>
           <RegisterServiceWorker />
-          <InstallPromptProvider>
-            <ToastProvider>{children}</ToastProvider>
-          </InstallPromptProvider>
+          <ToastProvider>{children}</ToastProvider>
         </ThemeProvider>
       </body>
     </html>

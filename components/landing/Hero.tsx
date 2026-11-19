@@ -12,7 +12,7 @@ const FACTS = [
   { icon: ShieldCheck, text: "Gratis, sin tarjeta" },
   { icon: LockKey, text: "No conectamos tu banco ni tu correo" },
   { icon: CloudSlash, text: "Funciona sin señal" },
-  { icon: DeviceMobile, text: "Android o desde el navegador" },
+  { icon: DeviceMobile, text: "App para Android" },
 ];
 
 export function Hero({ loggedIn = false }: { loggedIn?: boolean }) {

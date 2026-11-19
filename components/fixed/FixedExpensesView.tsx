@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { AguinaldoPanel } from "@/components/incomes/AguinaldoPanel";
 import { FixedIncomesList } from "@/components/incomes/FixedIncomesList";
-import { InstallAppButton } from "@/components/InstallAppButton";
 import { LeadFigure, SectionLead } from "@/components/shell/SectionLead";
 import { PageHeader } from "@/components/shell/PageHeader";
 import { Money } from "@/components/ui/Money";
@@ -58,12 +57,7 @@ export function FixedExpensesView({
           title="Fijos"
           meta={tab === "gastos" ? "Lo que se cobra todos los meses" : "Lo que entra todos los meses"}
           actions={tab === "gastos" ? <AddFixedExpenseButton /> : undefined}
-          mobileActions={
-            <>
-              <InstallAppButton />
-              {tab === "gastos" && <AddFixedExpenseButton iconOnly />}
-            </>
-          }
+          mobileActions={tab === "gastos" ? <AddFixedExpenseButton iconOnly /> : undefined}
         />
 
         {/* Pestañas como enlaces, igual que en Plan: lo que estás viendo

@@ -11,10 +11,10 @@ const links = [
   { label: "Cómo funciona", href: "#como-funciona" },
   { label: "Funciones", href: "#funciones" },
   { label: "Precio", href: "#precio" },
+  // La instalación ya no es una página aparte: es una sección de la
+  // portada, así que el enlace es un ancla como los de arriba.
+  { label: "Instalar en Android", href: "#instalar" },
   { label: "Preguntas frecuentes", href: "#preguntas" },
-  // Primero la descarga: una página que nadie enlaza es una página que
-  // nadie encuentra, y es la única puerta hacia el archivo de Android.
-  { label: "Descargar la app", href: "/descargar" },
   { label: "Política de privacidad", href: "/privacidad" },
   { label: "Términos de servicio", href: "/terminos" },
   { label: "Escribinos", href: "mailto:info@ticofinanza.com" },

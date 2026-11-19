@@ -1,46 +1,26 @@
-"use client";
-
-import { DownloadSimple } from "@phosphor-icons/react";
 import { SignOutButton } from "@/components/dashboard/SignOutButton";
-import { useInstallApp } from "@/components/InstallAppButton";
-import Link from "next/link";
-import { Button, buttonClass } from "@/components/ui/Button";
 import { SettingsRow } from "./SettingsSection";
 
 /**
- * Instalar la app y cerrar sesión. En teléfono no hay menú de cuenta (la
- * barra de abajo es solo navegación), así que estas acciones viven acá.
+ * Cerrar sesión. En teléfono no hay menú de cuenta (la barra de abajo es
+ * solo navegación), así que esta acción vive acá.
+ *
+ * **Ya no está "Instalar la app".** La única vía de instalación es el APK
+ * de Android, y ese se ofrece en la portada, antes de entrar. Dentro de la
+ * app el botón no tenía a quién servirle: o ya estás en la app instalada, o
+ * estás en el navegador de una compu o un iPhone, donde no hay nada que
+ * instalar.
+ *
+ * Dejó de ser un componente de cliente al irse esa fila.
  */
 export function SessionSettings({ email }: { email?: string }) {
-  const { visible, install, hint } = useInstallApp();
-
   return (
-    <>
-      {/* La fila está siempre, haya o no aviso nativo del navegador. Antes
-          desaparecía entera cuando el navegador no ofrecía instalar (iOS
-          siempre), y entonces no quedaba ningún lugar donde enterarse de
-          que la app se puede tener con ícono propio. */}
-      <SettingsRow inline label="Instalar la app">
-        {visible ? (
-          <Button variant="secondary" size="sm" onClick={install}>
-            <DownloadSimple size={14} />
-            Instalar
-          </Button>
-        ) : (
-          <Link href="/descargar" className={buttonClass({ variant: "secondary", size: "sm" })}>
-            <DownloadSimple size={14} />
-            Ver cómo
-          </Link>
-        )}
-      </SettingsRow>
-      <SettingsRow
-        inline
-        label="Cerrar sesión"
-        description={email ? `Entraste como ${email}` : undefined}
-      >
-        <SignOutButton />
-      </SettingsRow>
-      {hint}
-    </>
+    <SettingsRow
+      inline
+      label="Cerrar sesión"
+      description={email ? `Entraste como ${email}` : undefined}
+    >
+      <SignOutButton />
+    </SettingsRow>
   );
 }

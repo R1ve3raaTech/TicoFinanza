@@ -2148,3 +2148,90 @@ diálogo**, los 11 colores y los 37 íconos, Guardar apagado sin cambios y
 prendido al elegir color, la vista previa tomando el tono, el volver, y que
 Guardar **llegue de verdad a la acción del servidor**. Sin desborde ni
 errores de consola.
+
+## Dónde quedamos (2026-11-19) — una sola vía de instalación: Android
+
+Camil: solo Android, que la descarga deje de ser una página aparte y viva en
+la portada, y que Ajustes no ofrezca instalar. La app es **solo para él**, así
+que no hay que pensar en Play Store ni en otros dispositivos.
+
+**Se fue `/descargar`.** Era una página con tres tarjetas (Android, iPhone,
+Windows) y dos de ellas no ofrecían ningún archivo — en iPhone Apple no
+permite instalar por fuera de su tienda, y el paquete de Windows que generaba
+PWABuilder no sirve suelto. Dos tarjetas sin archivo hacían ver la tercera,
+que sí lo tiene, como una opción más entre varias.
+
+- Ahora es la sección **"Instalar"** de la portada (`#instalar`, entre Precio
+  y Preguntas): va al final porque es una acción, y una acción se ofrece
+  cuando ya se entendió de qué se trata.
+- `next.config.ts` redirige `/descargar` → `/#instalar` (308). **No se borró
+  sin más** porque hay tres formas de llegar con un enlace viejo: un marcador,
+  la portada guardada en el caché sin conexión, y lo que Google tenga indexado
+  del sitemap anterior.
+- `VERSION` del Service Worker a **`v4`**: sin eso, quien tuviera `/descargar`
+  en el caché seguiría abriendo la página vieja sin señal.
+- La comprobación que vale la pena conservar se mudó a `lib/apk.ts`: **el
+  botón solo se dibuja si el archivo está de verdad** (`statSync`). Una
+  descarga que responde 404 deja a la persona creyendo que la app está rota, y
+  es un error que nadie reporta porque parece culpa del teléfono.
+
+**Se fue toda la instalación como PWA**, no solo la fila de Ajustes. Se
+borraron `InstallPromptProvider`, `InstallAppButton`, `NativeInstallButton` y
+`DownloadView`, y con ellos el botón del menú de cuenta y el ícono de descarga
+que salía en el encabezado de teléfono de Resumen, Fijos, Movimientos y Plan.
+Si la única vía es el APK, un segundo camino que aparece y desaparece según el
+navegador es ruido. **Consecuencia: ya no se maneja `beforeinstallprompt` en
+ningún lado.** Si algún día se quiere de vuelta, está en el historial.
+
+**El botón del hero (`InstallCta`) baja a la sección, no descarga.** Un botón
+del hero que dispara un archivo grande sin avisar es una emboscada; la sección
+dice el tamaño y los tres pasos antes de empezar. De paso dejó de ser
+componente de cliente: ya no consulta el estado del navegador, así que no hay
+nada que hidratar.
+
+**Copia que se actualizó** porque decía lo contrario: la pregunta "¿Se instala
+en el teléfono?" del FAQ (decía "se agrega a la pantalla de inicio desde el
+navegador"), la insignia del hero ("Android o desde el navegador" → "App para
+Android") y el `operatingSystem` del JSON-LD.
+
+### Lo que viene: APK nativo, y por qué el de hoy no sirve
+
+El APK publicado (`public/downloads/TicoFinanza.apk`, 860 KB) **es un TWA** —
+comprobado descomprimiéndolo: trae `androidx.browser.trusted`. O sea Chrome
+en una caja con el ícono de la app. Pesa tan poco justamente porque no trae
+app adentro.
+
+Camil quiere reemplazarlo por un **APK nativo que siga cargando el sitio en
+vivo** (así un cambio en la web sale en el Android sin recompilar). El motivo
+de fondo es la sesión anterior: quiere que la app lea las notificaciones de
+Google Wallet y de los bancos para registrar el gasto solo, y **un TWA no
+puede** — no hay código nativo donde meter un `NotificationListenerService`.
+El camino es Capacitor con `server.url` apuntando a producción.
+
+**Se hace después**: primero se pule la web. Tres cosas anotadas para ese
+momento:
+
+1. **No va a pesar 150 MB.** Un envoltorio Capacitor que carga el sitio pesa
+   del orden de 5–10 MB. El tamaño no es el objetivo; el envoltorio nativo sí.
+2. **`public/.well-known/assetlinks.json` se queda por ahora**: es lo que hace
+   que el TWA instalado abra sin barra de direcciones. Cuando el APK pase a
+   Capacitor deja de hacer falta, pero borrarlo antes le rompe la app que
+   Camil tiene instalada hoy.
+3. **Revisar la insignia "Funciona sin señal"** de la portada: hoy es cierta
+   (Service Worker + caché de pantallas). Dentro de un WebView de Capacitor
+   hay que comprobar que el Service Worker siga sirviendo el caché; si no,
+   la insignia pasa a ser falsa *para la app* aunque siga siendo cierta para
+   la web.
+
+**Estado**: `npm test` (185), `eslint`, `tsc` y `npm run build` limpios. QA con
+Playwright contra el build de producción a 1440 oscuro y 768/390 claro: **58
+comprobaciones** — la sección con su botón, el tamaño real y los tres pasos,
+que no quede ningún enlace a `/descargar` ni mención de instalar en Windows,
+que `/descargar` redirija y caiga en la portada, que el hero baje a la sección
+en vez de descargar, y que ni Ajustes ni el menú de cuenta ofrezcan instalar.
+Sin desborde ni errores de consola.
+
+**Una trampa que volvió a morder**: `next start` en el 3100 **no falla
+visiblemente** si ya hay otro escuchando — el viejo sigue sirviendo el build
+anterior y la QA prueba código que ya no existe. Hay que matar el proceso por
+PID (`netstat -ano | grep :3100`) antes de levantar el nuevo.
