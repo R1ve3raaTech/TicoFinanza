@@ -2208,6 +2208,32 @@ Google Wallet y de los bancos para registrar el gasto solo, y **un TWA no
 puede** — no hay código nativo donde meter un `NotificationListenerService`.
 El camino es Capacitor con `server.url` apuntando a producción.
 
+**Decidido con Camil el 2026-11-19: Capacitor.** Su pedido textual fue "que no
+dependa de ningún navegador", y tiene razón sobre el APK de hoy: un TWA abre
+Chrome por dentro, así que si Chrome está deshabilitado o viejo la app no
+abre, y la sesión es la de Chrome. Capacitor no hace eso — no abre ningún
+navegador, no muestra barra de direcciones, tiene su propio proceso y su
+propia sesión (consecuencia visible: **hay que volver a entrar dentro de la
+app**, aunque en Chrome ya estés logueado) y funciona aunque Chrome no esté.
+
+Por dentro dibuja con el **motor web del sistema** (Android System WebView),
+que es un componente de Android y no la app de Chrome. Eso se le dijo
+explícitamente: es el precio de que un cambio en la web salga en el Android
+sin recompilar. **La alternativa de cero motor web es reescribir todo en
+Kotlin**, y se descartó porque rompe justo lo que pidió —cada cambio exigiría
+recompilar e instalar— y deja dos apps que mantener.
+
+**Dos funciones que ya existen y hay que rehacer al pasar a Capacitor**
+(avisado antes de decidir, no son bloqueos pero son trabajo):
+
+- **Las notificaciones push.** Hoy van por el Service Worker (`web-push` +
+  VAPID). Dentro de un WebView la API de push del navegador no está
+  disponible, así que hay que pasarlas a **Firebase Cloud Messaging**.
+- **El modo sin conexión.** El soporte de Service Worker dentro del WebView es
+  limitado. Hay que comprobar si el caché de pantallas sigue sirviendo y, si
+  no, rehacerlo del lado nativo. Es el mismo punto que la insignia "Funciona
+  sin señal" de abajo.
+
 **Se hace después**: primero se pule la web. Tres cosas anotadas para ese
 momento:
 
