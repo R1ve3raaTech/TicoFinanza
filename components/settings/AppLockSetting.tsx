@@ -28,20 +28,37 @@ import { SettingsRow } from "./SettingsSection";
  * lleva el límite de intentos: un hash mandado al navegador se prueba
  * contra las cien mil combinaciones de cinco dígitos en un suspiro.
  *
- * **Aflojar el cerrojo pide identificarse de nuevo.** El caso real es que
- * te agarren el teléfono con la app ya abierta —justo de lo que el cerrojo
- * protege— y desde acá lo apaguen: un rato de acceso prestado quedaría
- * convertido en acceso para siempre. Con PIN puesto lo comprueba el
- * servidor; sin PIN, lo único que hay es volver a pedir la huella, que es
- * un control del lado del teléfono y por lo tanto más débil — es lo que
- * permite la plataforma sin meter un intercambio de llaves nativo.
+ * **Aflojar el cerrojo pide identificarse de nuevo, pero solo desde el
+ * APK.** El caso real es que te agarren el teléfono con la app ya abierta
+ * —justo de lo que el cerrojo protege— y desde acá lo apaguen: un rato de
+ * acceso prestado quedaría convertido en acceso para siempre. Con PIN
+ * puesto lo comprueba el servidor; sin PIN, lo único que hay es volver a
+ * pedir la huella, que es un control del lado del teléfono y por lo tanto
+ * más débil — es lo que permite la plataforma sin meter un intercambio de
+ * llaves nativo.
+ *
+ * **Desde la web no se pide**, y es a propósito: es el camino de
+ * recuperación. Si el PIN se olvida y quitarlo exigiera saberlo, la app
+ * quedaría trabada para siempre en ese teléfono. Quien entra por la web ya
+ * tiene tu sesión de Google en una computadora, o sea que ya puede leer
+ * todo: pedirle el PIN no protegería nada. Quien decide es el servidor,
+ * mirando de dónde viene el pedido; la pantalla no puede saltárselo.
  */
 type Prompt =
   | { kind: "cambiar" }
   | { kind: "quitar" }
   | { kind: "aflojar"; to: AppLockWhen };
 
-export function AppLockSetting({ lockWhen, hasPin }: { lockWhen: AppLockWhen; hasPin: boolean }) {
+export function AppLockSetting({
+  lockWhen,
+  hasPin,
+  isApp,
+}: {
+  lockWhen: AppLockWhen;
+  hasPin: boolean;
+  /** Fuera del APK no se piden PIN: ver el comentario de arriba. */
+  isApp: boolean;
+}) {
   const toast = useToast();
   const [when, setWhen] = useState<AppLockWhen>(lockWhen);
   const [pinSet, setPinSet] = useState(hasPin);
@@ -64,8 +81,21 @@ export function AppLockSetting({ lockWhen, hasPin }: { lockWhen: AppLockWhen; ha
     });
   }
 
+  /** Quitar el PIN. Desde la web va directo: es la recuperación. */
+  function removeDirectly() {
+    startTransition(async () => {
+      const result = await removeAppPin();
+      if (result.error) {
+        toast.error(result.error);
+        return;
+      }
+      setPinSet(false);
+      toast.success("PIN quitado");
+    });
+  }
+
   async function changeWhen(value: AppLockWhen) {
-    if (!weakensLock(when, value)) {
+    if (!isApp || !weakensLock(when, value)) {
       applyWhen(value);
       return;
     }
@@ -111,7 +141,7 @@ export function AppLockSetting({ lockWhen, hasPin }: { lockWhen: AppLockWhen; ha
           <Button
             variant="danger-ghost"
             size="sm"
-            onClick={() => setPrompt({ kind: "quitar" })}
+            onClick={() => (isApp ? setPrompt({ kind: "quitar" }) : removeDirectly())}
             disabled={pending}
           >
             Quitar
@@ -122,7 +152,7 @@ export function AppLockSetting({ lockWhen, hasPin }: { lockWhen: AppLockWhen; ha
       {prompt && (
         <PinFlow
           prompt={prompt}
-          needsCurrent={pinSet}
+          needsCurrent={pinSet && isApp}
           onClose={() => setPrompt(null)}
           onDone={(message, changed) => {
             setPrompt(null);

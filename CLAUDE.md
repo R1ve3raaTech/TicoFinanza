@@ -2374,6 +2374,31 @@ acceso prestado en acceso para siempre.
   operación. Comprobarlo antes sería un viaje de más y gastaría un intento
   del límite por gusto.
 
+**El PIN se exige solo desde el APK, y la web es la recuperación.** Esto
+salió de la segunda revisión de seguridad, que señaló que sin PIN puesto no
+había nada que comprobar. Mirándolo de cerca, el defecto grande era otro y
+era mío: **un PIN olvidado dejaba la app trabada para siempre en ese
+teléfono** — quitarlo exigía saberlo, y el bloque solo se dibujaba en el
+APK. Ahora el bloque aparece también en la web (rotulado "Bloqueo de la app
+de Android") y ahí no se pide PIN. Quien entra por la web ya tiene la sesión
+de Google en una computadora, o sea que ya puede leer todos los movimientos:
+pedirle el PIN no protegería nada y al dueño lo dejaba sin salida. **Quien
+decide es el servidor**, mirando el identificador del pedido; la pantalla no
+puede saltárselo.
+
+**Lo que esa revisión marcó y NO se arregló, con su razón**: que con la
+sesión del usuario se puede escribir `app_lock_*` directo por la API de
+Supabase, saltándose la acción. Es cierto, y no agrega riesgo: la misma RLS
+que permite ese UPDATE permite **leer todos los movimientos**. Quien pueda
+hacer ese pedido ya tiene los datos, así que blindar las columnas con un
+trigger y escrituras por service role defendería algo que ya está abierto
+por un camino más corto. **El residuo real es otro y queda anotado**: el
+hash del PIN se puede leer con la sesión, y cinco dígitos se revientan al
+instante — o sea que quien llegue ahí también se entera del PIN, que la
+gente reusa. No llega al navegador (el layout solo pasa `hasPin`), pero la
+API lo devolvería. La solución de verdad es guardar el PIN del lado nativo,
+y eso es trabajo del día de Capacitor.
+
 **Un falso positivo del lint, documentado en el código**: el arranque en frío
 llama a `runBiometrics()` desde un efecto y `react-hooks/set-state-in-effect`
 lo marca porque sigue la llamada hacia adentro. No lo es: lo primero que hace

@@ -194,14 +194,13 @@ export function SettingsDialog({
             </SettingsRow>
           </Bloque>
 
-          {/* Solo en el APK, y pegado a Cuenta porque es lo mismo: quién
-              puede entrar. En la web no hay cerrojo — ahí sigue el cierre
-              de sesión por inactividad. */}
-          {isApp && (
-            <Bloque title="Bloqueo">
-              <AppLockSetting lockWhen={data.lockWhen} hasPin={data.hasPin} />
-            </Bloque>
-          )}
+          {/* Pegado a Cuenta porque es lo mismo: quién puede entrar.
+              Aparece también en la web, aunque el cerrojo sea del APK: es
+              el camino de recuperación si olvidás el PIN, porque desde el
+              teléfono quitarlo exige saberlo. */}
+          <Bloque title={isApp ? "Bloqueo" : "Bloqueo de la app de Android"}>
+            <AppLockSetting lockWhen={data.lockWhen} hasPin={data.hasPin} isApp={isApp} />
+          </Bloque>
 
           <Bloque title="Cuenta">
             <SessionSettings email={data.email} />

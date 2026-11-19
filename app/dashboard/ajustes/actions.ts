@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -11,6 +12,7 @@ import { categoryClash } from "@/lib/categories";
 import { isCategoryTone } from "@/lib/categoryStyle";
 import { isMissingColumnError } from "@/lib/supabase/errors";
 import { isValidPin, parseLockWhen, weakensLock, type AppLockWhen } from "@/lib/appLock";
+import { isAppUserAgent } from "@/lib/appMode";
 import { hashPin, verifyPin } from "@/lib/pin";
 import { isSymbolName } from "@/lib/materialSymbols";
 import { RECEIPTS_BUCKET } from "@/lib/receipts";
@@ -476,11 +478,31 @@ async function checkPin(
   return (await verifyPin(pin, stored)) ? null : { error: mismatch };
 }
 
+/**
+ * El PIN se exige **solo cuando el pedido viene del APK**.
+ *
+ * Es donde vive la amenaza que el cerrojo atiende: alguien con tu teléfono
+ * en la mano y la app ya abierta. Desde la web, en cambio, hace falta tener
+ * tu sesión de Google en una computadora — y quien la tiene ya puede leer
+ * todos tus movimientos, así que pedirle el PIN no protegería nada y a vos
+ * te dejaría **sin forma de recuperarte si lo olvidás**.
+ *
+ * Por eso la web es el camino de recuperación: ahí se puede quitar el PIN
+ * sin saberlo. Está decidido así, no es un descuido.
+ *
+ * Se mira el identificador del pedido y no un dato que mande la pantalla:
+ * el navegador no puede decidir por su cuenta que no le pidan el PIN. Que
+ * el identificador se pueda falsear es cierto, y no cambia nada — para
+ * falsearlo hay que poder hacer pedidos a mano, o sea tener la sesión, que
+ * es el caso del párrafo de arriba.
+ */
 async function requireCurrentPin(
   supabase: Awaited<ReturnType<typeof requireUser>>["supabase"],
   userId: string,
   pin: string | undefined
 ): Promise<{ error: string } | null> {
+  if (!isAppUserAgent((await headers()).get("user-agent"))) return null;
+
   const read = await readPinHash(supabase, userId);
   if ("error" in read) return read;
 
