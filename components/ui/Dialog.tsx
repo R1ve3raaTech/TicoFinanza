@@ -55,8 +55,15 @@ export function Dialog({
   role?: "dialog" | "alertdialog";
   /** false mientras hay algo en curso que no se puede interrumpir. */
   dismissible?: boolean;
-  /** "top" para confirmaciones que se abren encima de otro diálogo. */
-  layer?: "base" | "top";
+  /**
+   * "top" para confirmaciones que se abren encima de otro diálogo.
+   *
+   * "over" es para lo que tiene que quedar encima del **cerrojo del APK**,
+   * que es una capa fija a z-200 (tapa hasta los diálogos que hubieran
+   * quedado abiertos antes de bloquear). Sin esta capa, la recuperación del
+   * PIN se dibujaba debajo del cerrojo: se veía, y no se podía tocar.
+   */
+  layer?: "base" | "top" | "over";
   showClose?: boolean;
 }) {
   const reduce = useReducedMotion();
@@ -130,7 +137,7 @@ export function Dialog({
 
   if (!mounted) return null;
 
-  const z = layer === "top" ? "z-[70]" : "z-50";
+  const z = layer === "over" ? "z-[210]" : layer === "top" ? "z-[70]" : "z-50";
 
   return createPortal(
     <AnimatePresence>

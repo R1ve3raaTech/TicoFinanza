@@ -199,7 +199,7 @@ export function SettingsDialog({
               el camino de recuperación si olvidás el PIN, porque desde el
               teléfono quitarlo exige saberlo. */}
           <Bloque title={isApp ? "Bloqueo" : "Bloqueo de la app de Android"}>
-            <AppLockSetting lockWhen={data.lockWhen} hasPin={data.hasPin} isApp={isApp} />
+            <AppLockSetting lockWhen={data.lockWhen} hasPin={data.hasPin} />
           </Bloque>
 
           <Bloque title="Cuenta">

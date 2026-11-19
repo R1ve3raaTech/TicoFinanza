@@ -2374,19 +2374,48 @@ acceso prestado en acceso para siempre.
   operación. Comprobarlo antes sería un viaje de más y gastaría un intento
   del límite por gusto.
 
-**El PIN se exige solo desde el APK, y la web es la recuperación.** Esto
-salió de la segunda revisión de seguridad, que señaló que sin PIN puesto no
-había nada que comprobar. Mirándolo de cerca, el defecto grande era otro y
-era mío: **un PIN olvidado dejaba la app trabada para siempre en ese
-teléfono** — quitarlo exigía saberlo, y el bloque solo se dibujaba en el
-APK. Ahora el bloque aparece también en la web (rotulado "Bloqueo de la app
-de Android") y ahí no se pide PIN. Quien entra por la web ya tiene la sesión
-de Google en una computadora, o sea que ya puede leer todos los movimientos:
-pedirle el PIN no protegería nada y al dueño lo dejaba sin salida. **Quien
-decide es el servidor**, mirando el identificador del pedido; la pantalla no
-puede saltárselo.
+**⚠️ HAY UNA SEGUNDA MIGRACIÓN SIN CORRER: `0029_pin_reset_code.sql`.**
+Agrega `purpose` a `account_deletion_codes`. Segura de correr y segura de no
+correr: sin ella el borrado de cuenta sigue igual (se detecta y se cae al
+camino viejo) y lo único que no anda es recuperar el PIN olvidado, que lo
+dice en pantalla.
 
-**Lo que esa revisión marcó y NO se arregló, con su razón**: que con la
+**El PIN actual se exige SIEMPRE, y la recuperación es por correo.** Esto
+costó dos vueltas y la segunda fue un error mío que conviene no repetir:
+
+- Primer intento: pedir el PIN solo cuando el pedido viene del APK, con la
+  web como camino de recuperación. **Mal, y lo marcó la revisión de
+  seguridad como HIGH.** Mi razonamiento era que falsear el identificador
+  exige tener la sesión, y quien la tiene ya puede leer todo. Pero **no hace
+  falta falsear nada**: a quien le agarran el teléfono desbloqueado le basta
+  abrir Chrome en ese mismo teléfono, donde la sesión de Google suele estar
+  viva, y quitar el PIN desde ahí. O sea que la puerta la abría exactamente
+  el atacante del que el cerrojo protege. **Lección: "para explotarlo hace
+  falta la sesión" no vale cuando el atacante tiene el dispositivo donde esa
+  sesión vive.**
+- Ahora: `requireCurrentPin` no mira de dónde viene el pedido. Quitar el
+  PIN, cambiarlo y aflojar el cerrojo piden el actual en todos lados.
+- La recuperación va por donde corresponde: **un código de 8 dígitos al
+  correo verificado de la cuenta** (`ForgotPinDialog`,
+  `requestPinResetCode`, `resetAppPinWithCode`). Reusa la maquinaria de
+  códigos que ya existía para borrar la cuenta, ahora con `purpose` para que
+  los dos no se crucen — sin esa columna, el código que pediste para quitar
+  el PIN serviría para **borrar tu cuenta**.
+- La salida vive **en la pantalla de cerrojo**, que es donde hace falta:
+  estando trabado no se puede llegar a Ajustes. También está en Ajustes.
+- **Lo que esto no resuelve, y está escrito en el componente**: quien tenga
+  tu teléfono desbloqueado puede pedir el código y leerlo en tu propio
+  correo. Es un escalón más alto que abrir Chrome y deja rastro en la
+  bandeja; es el mismo compromiso que toman las apps que hacen esto. La
+  defensa real contra ese caso es que el teléfono tenga su propio bloqueo.
+
+**Capa nueva en `Dialog`: `layer="over"` (z-210).** La QA encontró que el
+diálogo de recuperación se dibujaba **debajo** del cerrojo (que es una capa
+fija a z-200, para tapar hasta los diálogos que hubieran quedado abiertos
+antes de bloquear): se veía y no se podía tocar. Si se agrega algo que tenga
+que salir encima del cerrojo, va con esa capa.
+
+**Lo que la revisión marcó y NO se arregló, con su razón**: que con la
 sesión del usuario se puede escribir `app_lock_*` directo por la API de
 Supabase, saltándose la acción. Es cierto, y no agrega riesgo: la misma RLS
 que permite ese UPDATE permite **leer todos los movimientos**. Quien pueda

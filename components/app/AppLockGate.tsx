@@ -6,6 +6,7 @@ import { Fingerprint, LockKey } from "@phosphor-icons/react";
 import { signOut } from "@/app/dashboard/actions";
 import { verifyAppPin } from "@/app/dashboard/ajustes/actions";
 import { BrandMark } from "@/components/brand/BrandMark";
+import { ForgotPinDialog } from "./ForgotPinDialog";
 import { Button } from "@/components/ui/Button";
 import { cleanPinInput, isValidPin, lockEnabled, shouldAskOnReturn, type AppLockWhen } from "@/lib/appLock";
 import { endSession } from "@/lib/pageCache";
@@ -163,6 +164,7 @@ function LockScreen({
   const [pin, setPin] = useState("");
   const [error, setError] = useState("");
   const [checking, setChecking] = useState(false);
+  const [forgot, setForgot] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -254,6 +256,18 @@ function LockScreen({
             <Fingerprint size={15} />
             Usar la huella
           </Button>
+
+          {/* Acá es donde de verdad hace falta: estando trabado en el
+              cerrojo no se puede llegar a Ajustes. */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setForgot(true)}
+            disabled={checking}
+            className="text-ink-3"
+          >
+            No me acuerdo del PIN
+          </Button>
         </div>
       ) : (
         <div className="flex flex-col items-center gap-5">
@@ -279,6 +293,16 @@ function LockScreen({
       <Button variant="ghost" size="sm" onClick={() => void leave()} className="text-ink-3">
         Cerrar sesión
       </Button>
+
+      <ForgotPinDialog
+        open={forgot}
+        onClose={() => setForgot(false)}
+        // La pantalla de cerrojo es una capa fija a z-200: sin esto el
+        // diálogo se dibuja debajo, se ve y no se puede tocar.
+        layer="over"
+        // Quitado el PIN ya no hay con qué cerrar: se abre.
+        onReset={onUnlocked}
+      />
     </div>
   );
 }

@@ -1,18 +1,16 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { checkRateLimit } from "@/lib/rateLimit";
-import { issueDeletionCode, verifyDeletionCode } from "@/lib/accountDeletion";
+import { issueEmailCode, verifyEmailCode } from "@/lib/emailCodes";
 import { sendPushToUser } from "@/lib/push/send";
 import { categoryClash } from "@/lib/categories";
 import { isCategoryTone } from "@/lib/categoryStyle";
 import { isMissingColumnError } from "@/lib/supabase/errors";
 import { isValidPin, parseLockWhen, weakensLock, type AppLockWhen } from "@/lib/appLock";
-import { isAppUserAgent } from "@/lib/appMode";
 import { hashPin, verifyPin } from "@/lib/pin";
 import { isSymbolName } from "@/lib/materialSymbols";
 import { RECEIPTS_BUCKET } from "@/lib/receipts";
@@ -297,7 +295,7 @@ export async function requestAccountDeletionCode() {
     };
   }
 
-  return issueDeletionCode(admin, user.id, user.email);
+  return issueEmailCode(admin, user.id, user.email);
 }
 
 /**
@@ -311,7 +309,7 @@ export async function confirmAccountDeletion(code: string) {
 
   const admin = createAdminClient();
 
-  const result = await verifyDeletionCode(admin, user.id, code);
+  const result = await verifyEmailCode(admin, user.id, code);
   if (!result.ok) return { error: result.error };
 
   const { error: deleteError } = await admin.auth.admin.deleteUser(user.id);
@@ -479,30 +477,26 @@ async function checkPin(
 }
 
 /**
- * El PIN se exige **solo cuando el pedido viene del APK**.
+ * El PIN actual se exige **siempre**: en el APK y en la web.
  *
- * Es donde vive la amenaza que el cerrojo atiende: alguien con tu teléfono
- * en la mano y la app ya abierta. Desde la web, en cambio, hace falta tener
- * tu sesión de Google en una computadora — y quien la tiene ya puede leer
- * todos tus movimientos, así que pedirle el PIN no protegería nada y a vos
- * te dejaría **sin forma de recuperarte si lo olvidás**.
+ * Una versión anterior lo pedía solo cuando el pedido venía del APK, con la
+ * web como camino de recuperación. **Estaba mal y lo señaló la revisión de
+ * seguridad**: el razonamiento era que falsear el identificador exige tener
+ * la sesión, y quien la tiene ya puede leer todo. Pero no hace falta
+ * falsear nada — a quien le agarran el teléfono desbloqueado le basta abrir
+ * Chrome en ese mismo teléfono, donde la sesión de Google suele estar viva,
+ * y desde ahí quitar el PIN sin que nadie se lo pida. O sea que la puerta
+ * la abría exactamente el atacante del que el cerrojo protege.
  *
- * Por eso la web es el camino de recuperación: ahí se puede quitar el PIN
- * sin saberlo. Está decidido así, no es un descuido.
- *
- * Se mira el identificador del pedido y no un dato que mande la pantalla:
- * el navegador no puede decidir por su cuenta que no le pidan el PIN. Que
- * el identificador se pueda falsear es cierto, y no cambia nada — para
- * falsearlo hay que poder hacer pedidos a mano, o sea tener la sesión, que
- * es el caso del párrafo de arriba.
+ * La recuperación de un PIN olvidado existe igual, pero por donde
+ * corresponde: un código al correo verificado de la cuenta
+ * (`requestPinResetCode` / `resetAppPinWithCode`).
  */
 async function requireCurrentPin(
   supabase: Awaited<ReturnType<typeof requireUser>>["supabase"],
   userId: string,
   pin: string | undefined
 ): Promise<{ error: string } | null> {
-  if (!isAppUserAgent((await headers()).get("user-agent"))) return null;
-
   const read = await readPinHash(supabase, userId);
   if ("error" in read) return read;
 
@@ -634,4 +628,46 @@ export async function verifyAppPin(pin: string) {
 
   const denied = await checkPin(user.id, read.hash, pin, "PIN incorrecto.");
   return denied ? { ok: false, error: denied.error } : { ok: true, error: null };
+}
+
+/**
+ * Pedir por correo un código para quitar el PIN olvidado.
+ *
+ * Va al correo verificado de la cuenta —el que confirmó Google al entrar—,
+ * no a uno escrito a mano. Es la única prueba de identidad que el servidor
+ * puede comprobar y que no tiene a mano quien solo agarró tu teléfono
+ * desbloqueado.
+ */
+export async function requestPinResetCode() {
+  const { user } = await requireUser();
+  if (!user.email) return { error: GENERIC_ERROR };
+
+  const admin = createAdminClient();
+  const rateLimit = await checkRateLimit(admin, user.id, "pin_reset_code", {
+    maxCalls: 3,
+    windowSeconds: 900,
+  });
+  if (!rateLimit.allowed) {
+    return { error: `Esperá ${Math.ceil(rateLimit.retryAfterSeconds! / 60)} min antes de pedir otro código.` };
+  }
+
+  return issueEmailCode(admin, user.id, user.email, "quitar_pin");
+}
+
+/** Quitar el PIN con el código del correo. No borra ningún otro dato. */
+export async function resetAppPinWithCode(code: string) {
+  const { supabase, user } = await requireUser();
+
+  const admin = createAdminClient();
+  const result = await verifyEmailCode(admin, user.id, code, "quitar_pin");
+  if (!result.ok) return { error: result.error };
+
+  const { error } = await supabase
+    .from("user_settings")
+    .update({ app_lock_pin_hash: null, updated_at: new Date().toISOString() })
+    .eq("user_id", user.id);
+
+  if (error) return lockFailure("resetAppPinWithCode", error);
+  revalidatePath("/dashboard");
+  return { error: null };
 }
