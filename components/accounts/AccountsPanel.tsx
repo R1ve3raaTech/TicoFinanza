@@ -1,13 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowsLeftRight, Bank, CreditCard, Money as Billete, PiggyBank, Plus } from "@phosphor-icons/react";
-import type { Icon } from "@phosphor-icons/react";
+import { ArrowsLeftRight, Plus } from "@phosphor-icons/react";
+import { AccountMark } from "./AccountMark";
 import { TransferDialog } from "@/components/movements/TransferDialog";
 import { Button } from "@/components/ui/Button";
 import { Money } from "@/components/ui/Money";
 import { accountShare, accountTypeLabel } from "@/lib/accounts";
-import type { Account, AccountType } from "@/lib/types";
+import type { Account } from "@/lib/types";
 import { AccountDialog } from "./AccountDialog";
 
 /**
@@ -22,20 +22,6 @@ import { AccountDialog } from "./AccountDialog";
  * panel quedó con lo que solo él puede contestar: en cuál de tus billeteras
  * está esa plata.
  */
-/**
- * Un ícono por tipo de billetera.
- *
- * La tarjeta de una cuenta era nombre + monto y nada más: tres cajas
- * iguales que había que leer para distinguir. Con el ícono se separan de un
- * vistazo, que es lo que uno hace con esta lista.
- */
-const ICONS: Record<AccountType, Icon> = {
-  efectivo: Billete,
-  debito: Bank,
-  credito: CreditCard,
-  ahorro: PiggyBank,
-};
-
 export function AccountsPanel({ accounts }: { accounts: Account[] }) {
   const [editing, setEditing] = useState<Account | null>(null);
   const [accountOpen, setAccountOpen] = useState(false);
@@ -84,7 +70,6 @@ export function AccountsPanel({ accounts }: { accounts: Account[] }) {
             {accounts.map((account) => {
               const negative = account.current_balance < 0;
               const type = accountTypeLabel(account.type);
-              const Icon = ICONS[account.type];
               const share = accountShare(account, accounts);
               const percent = Math.round(share * 100);
               return (
@@ -95,9 +80,11 @@ export function AccountsPanel({ accounts }: { accounts: Account[] }) {
                     className="group flex w-full cursor-pointer flex-col gap-3 rounded-surface border border-line bg-surface p-3.5 text-left transition-[background-color,border-color,transform] duration-150 hover:border-line-strong hover:bg-surface-hover active:scale-[0.99] motion-reduce:transition-none motion-reduce:active:scale-100"
                   >
                     <span className="flex min-w-0 items-center gap-2.5">
-                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-control bg-surface-raised text-ink-3 transition-colors duration-150 group-hover:text-ink-2">
-                        <Icon size={16} weight="fill" aria-hidden />
-                      </span>
+                      <AccountMark
+                        account={account}
+                        size={32}
+                        className="transition-colors duration-150 group-hover:text-ink-2"
+                      />
                       <span className="flex min-w-0 flex-col">
                         <span className="truncate text-label text-ink">{account.name}</span>
                         <span className="text-micro text-ink-3">{type}</span>

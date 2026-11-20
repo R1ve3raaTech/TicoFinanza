@@ -18,6 +18,7 @@ import { monthKey } from "@/lib/fixedExpenses";
 import { isFrameworkNavigation, isNetworkFailure, localId } from "@/lib/offline";
 import { deleteReceiptFile } from "@/lib/receiptUpload";
 import { frequentEntries, type RecentMovement } from "@/lib/quickEntry";
+import { recentCategories } from "@/lib/recentCategories";
 import { suggestFor } from "@/lib/smartMatch";
 import { conversionLabel, DEFAULT_USD_RATE, isValidRate, usdToCrc } from "@/lib/usd";
 import type { Account, Transaction, TransactionType, UserCategory } from "@/lib/types";
@@ -159,6 +160,8 @@ export function MovementDialog({
   // De los mismos movimientos recientes que ya alimentan la sugerencia de
   // categoría: no hay consulta nueva.
   const frequent = frequentEntries(recent, type);
+  // Las últimas cuatro que usaste, para tenerlas a la mano sin abrir nada.
+  const recentCats = recentCategories(recent, type, categories);
 
   const effectiveCategory = suggested?.category ?? category;
   const effectiveAccountId =
@@ -343,11 +346,29 @@ export function MovementDialog({
             />
           )}
 
+          {/* El orden es el que pidió Camil: descripción, monto, categoría
+              y cuenta. La fecha y el comprobante quedan plegados porque son
+              los dos que casi nunca se tocan.
+
+              El foco automático se fue al primer campo, que ahora es la
+              descripción: con el teclado abriéndose en el segundo, la
+              pantalla arranca saltada. */}
+          <Field label="Descripción">
+            <input
+              data-autofocus=""
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder={
+                type === "EXPENSE" ? "Súper, gasolina, almuerzo…" : "Salario de octubre, proyecto…"
+              }
+              className={inputClass}
+            />
+          </Field>
+
           <div className="flex flex-col gap-2">
             <AmountInput
               value={amount}
               onChange={setAmount}
-              autoFocus
               label={usd ? "Monto en dólares" : "Monto"}
             />
 
@@ -408,17 +429,6 @@ export function MovementDialog({
             )}
           </div>
 
-          <Field label="Descripción">
-            <input
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder={
-                type === "EXPENSE" ? "Súper, gasolina, almuerzo…" : "Salario de octubre, proyecto…"
-              }
-              className={inputClass}
-            />
-          </Field>
-
           <CategoryPicker
             categories={categories}
             createType={type}
@@ -428,6 +438,17 @@ export function MovementDialog({
               setCategory(next);
             }}
             label={type === "INCOME" ? "Tipo de ingreso" : "Categoría"}
+            recent={recentCats}
+          />
+
+          {/* De qué cuenta salió es un dato importante y estaba escondido
+              detrás de "Más detalles": quien no abría ese bloque anotaba
+              todo sin cuenta, y entonces los saldos nunca cuadraban. */}
+          <AccountPicker
+            accounts={accounts}
+            value={effectiveAccountId}
+            onChange={setAccountId}
+            label={type === "INCOME" ? "¿A qué cuenta entró?" : "¿De qué cuenta salió?"}
           />
 
           {suggested?.source && (
@@ -440,13 +461,6 @@ export function MovementDialog({
 
           {detailsOpen ? (
             <>
-              <AccountPicker
-                accounts={accounts}
-                value={effectiveAccountId}
-                onChange={setAccountId}
-                label={type === "INCOME" ? "¿A qué cuenta entró?" : "¿De qué cuenta salió?"}
-              />
-
               <Field
                 label="Fecha y hora"
                 // El resumen cuenta solo el mes en curso. Sin este aviso, quien

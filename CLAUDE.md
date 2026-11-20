@@ -2608,3 +2608,67 @@ matar **todos** los procesos del puerto (`Get-NetTCPConnection -LocalPort
 con Playwright a 1440 y 390 sobre las seis vistas (fijos, fijos→ingresos,
 movimientos, plan→topes, plan→metas, plan→deudas), más una pasada con
 movimiento reducido: **23 comprobaciones**.
+
+## Dónde quedamos (2026-11-19, quinta parte) — el formulario de anotar
+
+### ⚠️ MIGRACIÓN SIN CORRER: `0030_account_icon.sql`
+
+Agrega `accounts.icon`. **Segura de correr y segura de NO correrla**: sin
+ella cada cuenta sigue con el ícono de su tipo y lo único que falla es
+elegir otro, que lo dice en pantalla ("Falta correr la migración 0030").
+
+Camil: que las categorías no salgan todas desparramadas, que estén las
+recientes, que la lista completa viva en un modal, que el orden sea
+**descripción → monto → categoría → cuenta**, que la fecha y el comprobante
+queden como detalle, y que la cuenta pueda tener ícono propio como las
+categorías. Lo mismo para ingreso (es el mismo formulario, con la pestaña).
+
+**Las cuatro recientes, y el resto en su diálogo**
+
+- `lib/recentCategories.ts`, con pruebas. **Recientes y no "las que más
+  usás"**: la frecuencia se queda pegada al pasado —una categoría que usaste
+  mucho en marzo seguiría primera en noviembre— y se mueve tan poco que la
+  posición de cada chip cambiaría sin que se note por qué.
+- Una categoría **borrada no vuelve por esta puerta**: se cruzan las
+  recientes contra las disponibles.
+- `visibleCategories()` agrega la elegida si no estuviera entre las cuatro.
+  Importa al **editar** un movimiento viejo: su categoría puede no ser
+  ninguna de las últimas, y sin eso el formulario abría sin nada marcado,
+  como si no tuviera categoría.
+- Sin historial (cuenta nueva) se ofrecen las primeras de la lista: cero
+  chips y solo un botón sería peor que lo de antes.
+- **Crear una categoría se mudó al diálogo.** En el formulario el campo de
+  texto competía por el espacio con los chips, y crear es parte de elegir.
+
+**El orden de los campos** quedó como lo pidió: descripción, monto,
+categoría, cuenta. **La cuenta salió de "Más detalles"** — estaba escondida
+ahí, así que quien no abría ese bloque anotaba todo sin cuenta y los saldos
+no cuadraban nunca. Fecha y comprobante se quedan plegados: son los dos que
+casi nunca se tocan.
+
+**El foco automático se movió al primer campo** (la descripción). Antes
+estaba en el monto; con la descripción arriba, el teclado abría en el
+segundo campo y la pantalla arrancaba saltada. *Si resulta más cómodo
+escribir el monto primero, se devuelve moviendo `data-autofocus`.*
+
+**Ícono propio de cada cuenta** (migración 0030)
+
+- `AccountMark` dibuja el elegido y cae al del tipo si no hay. Hace falta
+  porque con dos cuentas del mismo tipo —la del banco y la de la planilla—
+  el ícono del tipo las dibujaba iguales, que es justo lo contrario de para
+  lo que está.
+- Se ve en "Tus cuentas", en los chips del formulario y en la vista previa
+  del diálogo de la cuenta.
+- La grilla de íconos se extrajo a `components/ui/IconPicker.tsx`, que ahora
+  comparten las categorías y las cuentas.
+- El servidor **no confía en el nombre del símbolo** que manda el navegador
+  (`isSymbolName`): uno inventado dibujaría una cuenta sin ícono y sin forma
+  de darse cuenta.
+
+**Estado**: `npm test` (209, 8 nuevas sobre las categorías recientes),
+`eslint`, `tsc` y `npm run build` limpios. QA con Playwright a 1440 y 390:
+**23 comprobaciones** — el orden de los cuatro campos, que la fecha no esté
+a la vista, el foco en la descripción, los cuatro chips y que sean los
+últimos usados, que "Ver todas" abra su diálogo con todas y el campo de
+crear, que elegir una cierre y quede marcada, y que la cuenta ofrezca los 36
+íconos con su vista previa.

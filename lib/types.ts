@@ -18,6 +18,12 @@ export interface Account {
   user_id: string;
   name: string;
   type: AccountType;
+  /**
+   * Ícono elegido: el nombre de un Material Symbol ("savings"), o null para
+   * el que le toca por su tipo. Columna de la migración 0030; se lee de
+   * forma tolerante, así que sin la migración llega `undefined`.
+   */
+  icon?: string | null;
   initial_balance: number;
   current_balance: number;
   currency: Currency;

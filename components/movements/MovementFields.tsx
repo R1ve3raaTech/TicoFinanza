@@ -1,16 +1,19 @@
 "use client";
 
-import { useId, useRef, useState, useTransition } from "react";
-import { Check, Plus, X } from "@phosphor-icons/react";
+import { useId, useState, useTransition } from "react";
+import { DotsThree, Plus } from "@phosphor-icons/react";
 import { addCategory } from "@/app/dashboard/ajustes/actions";
 import { useToast } from "@/components/Toast";
+import { Button } from "@/components/ui/Button";
 import { CategoryMark } from "@/components/ui/CategoryMark";
-import { FormError, labelClass } from "@/components/ui/Field";
+import { Dialog } from "@/components/ui/Dialog";
+import { FormError, inputClass, labelClass } from "@/components/ui/Field";
 import { handleAmountChange } from "@/components/ui/MoneyInput";
 import { Segmented } from "@/components/ui/Segmented";
 import { ToggleChip } from "@/components/ui/ToggleChip";
 import type { TransactionType } from "@/lib/types";
 import { GENERIC_ERROR } from "@/lib/errors";
+import { RECENT_CATEGORY_COUNT, visibleCategories } from "@/lib/recentCategories";
 
 /** Piezas compartidas por el formulario de movimiento y el de gasto fijo. */
 
@@ -140,6 +143,7 @@ export function CategoryPicker({
   onChange,
   label = "Categoría",
   createType,
+  recent = [],
 }: {
   categories: string[];
   value: string;
@@ -147,19 +151,111 @@ export function CategoryPicker({
   label?: string;
   /** Con esto aparece el botón de crear una categoría nueva de ese tipo. */
   createType?: TransactionType;
+  /** Las últimas que usaste, ya filtradas (ver lib/recentCategories.ts). */
+  recent?: string[];
 }) {
   const labelId = useId();
   const toast = useToast();
-  const inputRef = useRef<HTMLInputElement>(null);
-  const [adding, setAdding] = useState(false);
-  const [draft, setDraft] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [open, setOpen] = useState(false);
   const [justAdded, setJustAdded] = useState<string[]>([]);
-  const [pending, startTransition] = useTransition();
 
   // Lo que ya está en la lista del servidor no se repite acá.
   const extra = justAdded.filter((c) => !categories.includes(c));
   const all = [...categories, ...extra];
+
+  // Los chips de a mano: las recientes más la elegida si no estuviera.
+  const shortlist = visibleCategories(
+    recent.filter((c) => all.includes(c)),
+    value,
+    all
+  );
+  // Sin historial todavía (cuenta nueva), se ofrecen las primeras de la
+  // lista: mostrar cero chips y solo un botón sería peor que lo de antes.
+  const chips = shortlist.length > 0 ? shortlist : all.slice(0, RECENT_CATEGORY_COUNT);
+
+  function pick(category: string) {
+    onChange(category);
+    setOpen(false);
+  }
+
+  return (
+    <div role="group" aria-labelledby={labelId} className="flex flex-col gap-2">
+      <span id={labelId} className={labelClass}>
+        {label}
+      </span>
+      <div className="flex flex-wrap gap-1.5">
+        {chips.map((c) => (
+          <ToggleChip key={c} pressed={value === c} onClick={() => onChange(c)}>
+            {/* La misma marca de color e ícono que la categoría tiene en las
+                listas, para reconocerla sin leer. */}
+            <CategoryMark category={c} size={16} className="-ml-0.5 rounded-[4px]" />
+            {c}
+          </ToggleChip>
+        ))}
+
+        {/* La lista entera vive detrás de este botón. Antes estaban las
+            quince desparramadas y había que leerlas todas para encontrar la
+            de siempre; en la práctica uno repite cuatro o cinco. */}
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-control border border-dashed border-line-strong px-2.5 text-label text-ink-3 transition-[color,border-color,transform] duration-150 hover:border-ink hover:text-ink active:scale-[0.97] motion-reduce:active:scale-100"
+        >
+          <DotsThree size={14} weight="bold" aria-hidden />
+          Ver todas
+        </button>
+      </div>
+
+      <AllCategoriesDialog
+        open={open}
+        onClose={() => setOpen(false)}
+        categories={all}
+        value={value}
+        onPick={pick}
+        createType={createType}
+        label={label}
+        onCreated={(name) => {
+          setJustAdded((list) => [...list, name]);
+          toast.success(`"${name}" agregada`);
+          pick(name);
+        }}
+      />
+    </div>
+  );
+}
+
+/**
+ * Todas las categorías, en un diálogo.
+ *
+ * Va en `layer="top"` porque se abre encima del formulario de movimiento,
+ * que es un diálogo de la capa base.
+ *
+ * Crear una categoría vive acá adentro y no en el formulario: la creación
+ * es parte de "elegir una", y en el formulario el campo de texto competía
+ * por el espacio con los chips.
+ */
+function AllCategoriesDialog({
+  open,
+  onClose,
+  categories,
+  value,
+  onPick,
+  createType,
+  label,
+  onCreated,
+}: {
+  open: boolean;
+  onClose: () => void;
+  categories: string[];
+  value: string;
+  onPick: (category: string) => void;
+  createType?: TransactionType;
+  label: string;
+  onCreated: (name: string) => void;
+}) {
+  const [draft, setDraft] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
 
   function create() {
     if (!createType) return;
@@ -172,101 +268,59 @@ export function CategoryPicker({
         setError(result.error ?? GENERIC_ERROR);
         return;
       }
-      setJustAdded((list) => [...list, result.name]);
-      onChange(result.name);
       setDraft("");
-      setAdding(false);
-      toast.success(`"${result.name}" agregada`);
+      onCreated(result.name);
     });
   }
 
   return (
-    <div role="group" aria-labelledby={labelId} className="flex flex-col gap-2">
-      <span id={labelId} className={labelClass}>
-        {label}
-      </span>
-      <div className="flex flex-wrap gap-1.5">
-        {all.map((c) => (
-          <ToggleChip key={c} pressed={value === c} onClick={() => onChange(c)}>
-            {/* La misma marca de color e ícono que la categoría tiene en las
-                listas, para reconocerla sin leer. */}
-            <CategoryMark category={c} size={16} className="-ml-0.5 rounded-[4px]" />
-            {c}
-          </ToggleChip>
-        ))}
+    <Dialog open={open} onClose={onClose} layer="top" size="lg" title={label}>
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-wrap gap-1.5">
+          {categories.map((c) => (
+            <ToggleChip key={c} pressed={value === c} onClick={() => onPick(c)}>
+              <CategoryMark category={c} size={16} className="-ml-0.5 rounded-[4px]" />
+              {c}
+            </ToggleChip>
+          ))}
+        </div>
 
-        {createType && !adding && (
-          <button
-            type="button"
-            onClick={() => {
-              setAdding(true);
-              // El foco se pide en el siguiente cuadro: el campo todavía no
-              // existe en el DOM cuando corre este manejador.
-              requestAnimationFrame(() => inputRef.current?.focus());
-            }}
-            className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-control border border-dashed border-line-strong px-2.5 text-label text-ink-3 transition-[color,border-color,transform] duration-150 hover:border-ink hover:text-ink active:scale-[0.97] motion-reduce:active:scale-100"
-          >
-            <Plus size={12} weight="bold" aria-hidden />
-            Nueva
-          </button>
-        )}
-
-        {createType && adding && (
-          <span className="inline-flex h-8 items-center gap-1 rounded-control border border-accent pl-2 pr-0.5">
-            <input
-              ref={inputRef}
-              value={draft}
-              maxLength={24}
-              onChange={(e) => setDraft(e.target.value)}
-              onKeyDown={(e) => {
-                // El formulario de afuera guarda con Enter: acá Enter crea
-                // la categoría y no el movimiento a medio llenar.
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  create();
-                }
-                if (e.key === "Escape") {
-                  // `nativeEvent.stopPropagation()` y no solo el del evento
-                  // de React: el diálogo escucha Escape en `document`, y sin
-                  // frenar el evento nativo ahí, cancelar el nombre de la
-                  // categoría cerraba el formulario entero a medio llenar.
-                  e.preventDefault();
-                  e.nativeEvent.stopPropagation();
-                  setAdding(false);
-                  setDraft("");
-                  setError(null);
-                }
-              }}
-              placeholder="Ferretería, mascotas…"
-              aria-label="Nombre de la categoría nueva"
-              className="w-36 bg-transparent text-label text-ink outline-none placeholder:text-ink-3 focus-visible:outline-none"
-            />
-            <button
-              type="button"
-              onClick={create}
-              disabled={pending || !draft.trim()}
-              aria-label="Crear la categoría"
-              className="flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-[4px] text-ink-2 transition-colors duration-150 hover:bg-surface-hover hover:text-ink disabled:pointer-events-none disabled:opacity-40"
-            >
-              <Check size={13} weight="bold" />
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setAdding(false);
-                setDraft("");
-                setError(null);
-              }}
-              aria-label="Cancelar"
-              className="flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-[4px] text-ink-3 transition-colors duration-150 hover:bg-surface-hover hover:text-ink"
-            >
-              <X size={13} />
-            </button>
-          </span>
+        {createType && (
+          <div className="flex flex-col gap-2 border-t border-line pt-4">
+            <div className="flex gap-2">
+              <input
+                value={draft}
+                maxLength={24}
+                onChange={(e) => setDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  // Enter acá crea la categoría. Sin esto el Enter se lo
+                  // comía el formulario de afuera y guardaba el movimiento a
+                  // medio llenar.
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    create();
+                  }
+                }}
+                placeholder="Ferretería, mascotas…"
+                aria-label="Nombre de la categoría nueva"
+                className={inputClass}
+              />
+              <Button
+                type="button"
+                variant="secondary"
+                size="field"
+                onClick={create}
+                disabled={pending || !draft.trim()}
+              >
+                <Plus size={14} weight="bold" />
+                Crear
+              </Button>
+            </div>
+            <FormError>{error}</FormError>
+          </div>
         )}
       </div>
-      <FormError>{error}</FormError>
-    </div>
+    </Dialog>
   );
 }
 

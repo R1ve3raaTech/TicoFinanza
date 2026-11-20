@@ -3,6 +3,8 @@
 import { useId, useState, useTransition } from "react";
 import { Trash } from "@phosphor-icons/react";
 import { createAccount, deleteAccount, updateAccount } from "@/app/dashboard/actions";
+import { IconPicker } from "@/components/ui/IconPicker";
+import { AccountMark } from "./AccountMark";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useToast } from "@/components/Toast";
 import { formatAmountInput, parseAmount } from "@/components/movements/MovementFields";
@@ -36,6 +38,7 @@ export function AccountDialog({
 
   const [name, setName] = useState(account?.name ?? "");
   const [type, setType] = useState<AccountType>(account?.type ?? "efectivo");
+  const [icon, setIcon] = useState<string | null>(account?.icon ?? null);
   // Se precarga el saldo de HOY, no el de partida: es el número que la
   // persona puede comparar con su banco.
   const [balance, setBalance] = useState(
@@ -60,7 +63,7 @@ export function AccountDialog({
     }
 
     startTransition(async () => {
-      const input = { name, type, currentBalance: value };
+      const input = { name, type, currentBalance: value, icon };
       const result = account
         ? await updateAccount(account.id, input)
         : await createAccount(input);
@@ -165,6 +168,17 @@ export function AccountDialog({
                 contra, y es el único monto de la app que puede ir en menos. */}
             <MoneyInput value={balance} onChange={setBalance} placeholder="0" allowNegative />
           </Field>
+
+          {/* Con dos cuentas del mismo tipo —la del banco y la de la
+              planilla— el ícono del tipo las dibujaba iguales. La vista
+              previa de al lado muestra cómo va a verse en la lista. */}
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center gap-2.5">
+              <AccountMark account={{ type, icon }} size={34} />
+              <span className="text-label text-ink-2">Así se va a ver</span>
+            </div>
+            <IconPicker value={icon} onChange={setIcon} autoHint="Por tipo" />
+          </div>
 
           <FormError>{error}</FormError>
         </form>

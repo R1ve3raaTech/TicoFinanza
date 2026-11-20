@@ -4,6 +4,7 @@ import { useId } from "react";
 import { labelClass } from "@/components/ui/Field";
 import { ToggleChip } from "@/components/ui/ToggleChip";
 import { accountTypeLabel } from "@/lib/accounts";
+import { AccountMark } from "./AccountMark";
 import type { Account } from "@/lib/types";
 
 /**
@@ -47,6 +48,10 @@ export function AccountPicker({
               pressed={value === account.id}
               onClick={() => onChange(account.id)}
             >
+              {/* La misma marca que la cuenta tiene en "Tus cuentas", con
+                  su ícono propio si eligió uno: así el chip se reconoce sin
+                  leerlo, igual que los de categoría de arriba. */}
+              <AccountMark account={account} size={16} className="-ml-0.5 rounded-[4px]" />
               {account.name}
               {showType && <span className="text-ink-3">{type.toLowerCase()}</span>}
             </ToggleChip>

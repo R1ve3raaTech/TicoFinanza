@@ -10,6 +10,8 @@ import { ownsRow } from "@/lib/supabase/ownership";
 import { createClient } from "@/lib/supabase/server";
 import type { AccountType, TransactionType } from "@/lib/types";
 import { GENERIC_ERROR } from "@/lib/errors";
+import { isSymbolName } from "@/lib/materialSymbols";
+import { isMissingColumnError } from "@/lib/supabase/errors";
 
 /** Pantallas que muestran movimientos o saldos y hay que refrescar. */
 function revalidateMovements() {
@@ -268,12 +270,20 @@ export interface AccountInput {
    * que se pide eso y el saldo inicial se deduce.
    */
   currentBalance: number;
+  /**
+   * Ícono elegido (nombre de un Material Symbol) o null para el del tipo.
+   * Columna de la migración 0030.
+   */
+  icon?: string | null;
 }
 
 function validateAccount(input: AccountInput): string | null {
   if (!input.name.trim()) return "Ponele un nombre a la cuenta.";
   // Puede ser negativo: una tarjeta de crédito arranca debiendo.
   if (!Number.isFinite(input.currentBalance)) return "El saldo no es válido.";
+  // No se confía en lo que manda el navegador: un nombre de símbolo que no
+  // existe dibujaría una cuenta sin ícono y sin forma de darse cuenta.
+  if (input.icon && !isSymbolName(input.icon)) return GENERIC_ERROR;
   return null;
 }
 
@@ -291,9 +301,16 @@ export async function createAccount(input: AccountInput) {
     type: input.type,
     initial_balance: input.currentBalance,
     currency: "CRC",
+    icon: input.icon ?? null,
   });
 
-  if (error) return { error: GENERIC_ERROR };
+  if (error) {
+    return {
+      error: isMissingColumnError(error)
+        ? "Falta correr la migración 0030 en Supabase."
+        : GENERIC_ERROR,
+    };
+  }
 
   revalidateMovements();
   return { error: null };
@@ -329,11 +346,18 @@ export async function updateAccount(id: string, input: AccountInput) {
       name: input.name.trim(),
       type: input.type,
       initial_balance: nextInitial,
+      icon: input.icon ?? null,
     })
     .eq("id", id)
     .eq("user_id", user.id);
 
-  if (error) return { error: GENERIC_ERROR };
+  if (error) {
+    return {
+      error: isMissingColumnError(error)
+        ? "Falta correr la migración 0030 en Supabase."
+        : GENERIC_ERROR,
+    };
+  }
 
   revalidateMovements();
   return { error: null };
