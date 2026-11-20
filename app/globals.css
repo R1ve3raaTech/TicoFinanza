@@ -506,11 +506,28 @@ textarea,
   }
 }
 
+/* Carga: las cuatro piezas de la marca se encienden en orden, como si la
+   información entrara y se acomodara. El retraso de cada una va en `--i`.
+   No es un círculo girando a propósito: lo que se ve es la marca. */
+@keyframes brand-load {
+  0%, 70%, 100% { opacity: 0.22; }
+  35% { opacity: 1; }
+}
+
+@layer components {
+  .brand-load > * {
+    animation: brand-load 1.25s ease-in-out infinite;
+    animation-delay: calc(var(--i, 0) * 140ms);
+    transform-origin: center;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .skeleton,
   .row-arrived,
   .shake,
-  .rise-in {
+  .rise-in,
+  .brand-load > * {
     animation: none;
   }
 }

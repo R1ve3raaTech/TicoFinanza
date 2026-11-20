@@ -163,15 +163,16 @@ export function CategoryPicker({
   const extra = justAdded.filter((c) => !categories.includes(c));
   const all = [...categories, ...extra];
 
-  // Los chips de a mano: las recientes más la elegida si no estuviera.
-  const shortlist = visibleCategories(
-    recent.filter((c) => all.includes(c)),
-    value,
-    all
-  );
-  // Sin historial todavía (cuenta nueva), se ofrecen las primeras de la
-  // lista: mostrar cero chips y solo un botón sería peor que lo de antes.
-  const chips = shortlist.length > 0 ? shortlist : all.slice(0, RECENT_CATEGORY_COUNT);
+  // Los chips de a mano: las recientes, más la elegida si no estuviera.
+  //
+  // **El respaldo se mide sobre las recientes, no sobre el resultado.** La
+  // primera versión preguntaba si la lista final estaba vacía, y nunca lo
+  // estaba: `visibleCategories` siempre devuelve al menos la elegida. En
+  // una cuenta sin historial —o en el diálogo de topes, que no le pasa
+  // ninguna— se dibujaba **un solo chip** y "Ver todas".
+  const recientes = recent.filter((c) => all.includes(c));
+  const base = recientes.length > 0 ? recientes : all.slice(0, RECENT_CATEGORY_COUNT);
+  const chips = visibleCategories(base, value, all);
 
   function pick(category: string) {
     onChange(category);

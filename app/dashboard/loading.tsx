@@ -1,3 +1,5 @@
+import { LoadingBadge } from "@/components/brand/BrandLoader";
+
 export default function DashboardLoading() {
   return (
     <main
@@ -5,6 +7,7 @@ export default function DashboardLoading() {
       aria-label="Cargando el resumen"
       className="mx-auto w-full max-w-[1180px] px-4 pb-12 md:px-8 xl:px-12"
     >
+      <LoadingBadge />
       <div className="-mx-4 flex h-14 items-center border-b border-line px-4 md:hidden">
         <div className="skeleton h-4 w-28 rounded-[4px]" />
       </div>

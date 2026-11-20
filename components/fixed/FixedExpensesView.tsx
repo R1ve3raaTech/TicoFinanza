@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { PendingMark } from "@/components/ui/PendingMark";
 import { AguinaldoPanel } from "@/components/incomes/AguinaldoPanel";
 import { FixedIncomesList } from "@/components/incomes/FixedIncomesList";
 import { LeadFigure, SectionLead } from "@/components/shell/SectionLead";
@@ -78,6 +79,10 @@ export function FixedExpensesView({
               }`}
             >
               {item.label}
+              {/* Cambiar de pestaña solo cambia el parámetro de la URL, así
+                  que Next no corta por ningún loading.tsx: sin esto el toque
+                  no devolvía ninguna señal. */}
+              <PendingMark />
             </Link>
           ))}
         </nav>

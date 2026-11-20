@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { PendingMark } from "@/components/ui/PendingMark";
 import { CaretLeft, CaretRight } from "@phosphor-icons/react/dist/ssr";
 import { DebtsSection } from "@/components/debts/DebtsSection";
 import { PageHeader } from "@/components/shell/PageHeader";
@@ -94,6 +95,7 @@ export function PlanView({
                 {item.shortLabel ?? item.label}
               </span>
               {item.shortLabel && <span className="hidden sm:inline">{item.label}</span>}
+              <PendingMark />
             </Link>
           );
         })}

@@ -1,3 +1,5 @@
+import { LoadingBadge } from "@/components/brand/BrandLoader";
+
 export default function PlanLoading() {
   return (
     <main
@@ -5,6 +7,7 @@ export default function PlanLoading() {
       aria-label="Cargando el plan"
       className="mx-auto w-full max-w-[860px] px-4 pb-12 md:px-8 xl:px-12"
     >
+      <LoadingBadge />
       <div className="-mx-4 flex h-14 items-center border-b border-line px-4 md:hidden">
         <div className="skeleton h-4 w-20 rounded-[4px]" />
       </div>

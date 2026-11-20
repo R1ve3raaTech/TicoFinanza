@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useId, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { Check, Plus } from "@phosphor-icons/react";
+import { CaretDown, Check, Plus } from "@phosphor-icons/react";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { AccountDialog } from "@/components/accounts/AccountDialog";
 import { AddFixedExpenseButton } from "@/components/fixed/FixedExpenseEntry";
 import { AddMovementButton } from "@/components/movements/MovementEntry";
@@ -50,6 +51,12 @@ export function FirstSteps({
   hasBudget: boolean;
 }) {
   const [accountOpen, setAccountOpen] = useState(false);
+  const listId = useId();
+  const reduce = useReducedMotion();
+  // Abierto de entrada: quien todavía tiene pasos pendientes necesita
+  // verlos. Lo que el desplegable resuelve es poder sacarlos de en medio
+  // cuando ya sabés qué falta y querés mirar el resto del resumen.
+  const [open, setOpen] = useState(true);
 
   const steps: Step[] = [
     {
@@ -117,14 +124,44 @@ export function FirstSteps({
 
   return (
     <section aria-labelledby="primeros-pasos-titulo" className="mt-8 border-t border-line pt-8">
-      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-        <h2 id="primeros-pasos-titulo" className="text-heading text-ink">
+      {/* Todo el encabezado es el disparador, no una flecha chiquita al
+          lado: el blanco de un dedo es la fila entera. */}
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        aria-controls={listId}
+        className="-mx-2 flex w-[calc(100%+1rem)] cursor-pointer flex-wrap items-baseline justify-between gap-x-4 gap-y-1 rounded-control px-2 py-1 text-left transition-colors duration-150 hover:bg-surface-hover/60"
+      >
+        <h2 id="primeros-pasos-titulo" className="flex items-center gap-2 text-heading text-ink">
           Empezá por acá
+          <CaretDown
+            size={14}
+            weight="bold"
+            aria-hidden
+            className={`shrink-0 text-ink-3 transition-transform duration-200 motion-reduce:transition-none ${
+              open ? "rotate-180" : ""
+            }`}
+          />
         </h2>
         <span className="money text-meta text-ink-3">
           {done} de {steps.length} listos
         </span>
-      </div>
+      </button>
+
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            id={listId}
+            // `height: auto` animado por framer: mide el contenido y lo
+            // despliega. El `overflow-hidden` es lo que hace que se vea
+            // deslizar en vez de aparecer de golpe.
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: reduce ? 0 : 0.24, ease: [0.2, 0, 0, 1] }}
+            className="overflow-hidden"
+          >
       <ol className="mt-5 border-t border-line">
         {steps.map((step, index) => (
           <li
@@ -163,6 +200,9 @@ export function FirstSteps({
           </li>
         ))}
       </ol>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <AccountDialog
         key={`cuenta-${accountOpen}`}

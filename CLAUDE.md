@@ -2672,3 +2672,54 @@ a la vista, el foco en la descripción, los cuatro chips y que sean los
 últimos usados, que "Ver todas" abra su diálogo con todas y el campo de
 crear, que elegir una cierre y quede marcada, y que la cuenta ofrezca los 36
 íconos con su vista previa.
+
+## Dónde quedamos (2026-11-19, sexta parte) — carga, desplegable y el tope
+
+**"Empezá por acá" se pliega.** Todo el encabezado es el disparador —no una
+flecha chiquita al lado— y la flecha gira. Se despliega con la altura
+animada por framer (`height: auto` medido por él) sobre un
+`overflow-hidden`, que es lo que lo hace deslizar en vez de aparecer de
+golpe. **Arranca abierto**: quien tiene pasos pendientes necesita verlos; lo
+que el desplegable resuelve es poder sacarlos de en medio.
+
+**La carga ahora es la marca, no un círculo** (`components/brand/BrandLoader.tsx`)
+
+- Las cuatro piezas del símbolo se encienden en orden (`brand-load` en
+  `app/globals.css`, el retraso de cada una en `--i`). Con
+  `prefers-reduced-motion` se quedan quietas y **encendidas**, no a medio
+  apagar.
+- Es la geometría de `BrandMark` copiada, no el componente: cada pieza
+  necesita su propio retraso. **Si cambia el símbolo, cambia en los dos
+  archivos y en `public/brand/mark.svg`.**
+- `LoadingBadge` es la pastilla fija que usan los cinco `loading.tsx`, sobre
+  el esqueleto que cada pantalla ya tenía. El esqueleto dice *qué* se está
+  cargando; la marca, que la app está trabajando.
+
+**El caso que de verdad "se quedaba pegado" eran las pestañas.** Cambiar de
+Gastos a Ingresos, de mes en Plan o de período en Movimientos es una
+navegación que **solo cambia los parámetros de la URL**: no hay cambio de
+segmento, así que Next no corta por ningún `loading.tsx` y no pasaba
+absolutamente nada hasta que llegaba la respuesta. Se resolvió con
+`useLinkStatus` (`components/ui/PendingMark.tsx`), que es justo para esto
+según los docs de Next. **Tiene que ir dentro del `<Link>`**: el hook lee el
+estado del enlace que lo envuelve. Es chico a propósito — la recomendación
+es respuesta sutil y en línea; la pantalla entera se reserva para los
+cambios de ruta.
+
+**El tope de Plan dejó de abrir el menú del sistema.** Era el único lugar de
+la app con un `<select>` nativo a la vista; ahora usa el mismo
+`CategoryPicker` de los movimientos, con las marcas de color. Al **editar**
+un tope la categoría no se cambia —sería borrar uno y crear otro— así que
+ahí se muestra sola, sin control.
+
+**Un bug que encontró la QA**, y que vale para el `CategoryPicker` entero:
+el respaldo "si no hay recientes, mostrá las primeras" preguntaba si la
+lista final estaba vacía, y nunca lo estaba (`visibleCategories` siempre
+devuelve al menos la elegida). Resultado: en una cuenta sin historial, y en
+el diálogo de topes —que no le pasa recientes—, se dibujaba **un solo chip**
+y "Ver todas". Ahora el respaldo se mide sobre las recientes.
+
+**Estado**: `npm test` (209), `eslint`, `tsc` y `npm run build` limpios. QA
+con Playwright: **19 comprobaciones** — el desplegable abre, cierra y gira
+la flecha; el tope sin `<select>` y con cuatro chips; la marca animada con
+sus cuatro retrasos escalonados; y todo quieto con movimiento reducido.

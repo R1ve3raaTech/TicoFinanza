@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { PendingMark } from "@/components/ui/PendingMark";
 import { useRouter, useSearchParams } from "next/navigation";
 import { CalendarBlank } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/Button";
@@ -72,6 +73,7 @@ export function DateRangeFilter({
                     sin que haya que arrastrar la fila hasta el final. */}
                 <span className="sm:hidden">{period.short}</span>
                 <span className="hidden sm:inline">{period.label}</span>
+                <PendingMark size={12} />
               </button>
             </li>
           ))}

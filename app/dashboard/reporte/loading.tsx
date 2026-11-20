@@ -1,3 +1,5 @@
+import { LoadingBadge } from "@/components/brand/BrandLoader";
+
 /**
  * El reporte era la única pantalla del área con sesión sin esqueleto: al
  * entrar quedaba en blanco hasta que llegaban los datos.
@@ -13,6 +15,7 @@ export default function ReportLoading() {
       aria-label="Cargando el reporte"
       className="mx-auto w-full max-w-[860px] px-4 pb-12 pt-6 md:px-8 md:pt-4"
     >
+      <LoadingBadge />
       <div className="skeleton h-5 w-20 rounded-[4px]" />
 
       <div className="flex items-center justify-between gap-3 pb-6 pt-2">

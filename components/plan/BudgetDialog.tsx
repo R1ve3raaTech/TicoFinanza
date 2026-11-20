@@ -8,7 +8,9 @@ import { useToast } from "@/components/Toast";
 import { AmountInput, formatAmountInput, parseAmount } from "@/components/movements/MovementFields";
 import { Button } from "@/components/ui/Button";
 import { Dialog } from "@/components/ui/Dialog";
-import { Field, FormError, Select } from "@/components/ui/Field";
+import { Field, FormError } from "@/components/ui/Field";
+import { CategoryMark } from "@/components/ui/CategoryMark";
+import { CategoryPicker } from "@/components/movements/MovementFields";
 import type { BudgetProgress } from "@/lib/budgets";
 
 /**
@@ -39,7 +41,6 @@ export function BudgetDialog({
 }) {
   const toast = useToast();
   const formId = useId();
-  const categoryId = useId();
   const editing = Boolean(budget);
 
   const options = budget ? [budget.category] : categories;
@@ -138,20 +139,26 @@ export function BudgetDialog({
             }}
             className="flex flex-col gap-5"
           >
-            <Field label="Categoría">
-              <Select
-                id={categoryId}
+            {/* Chips con la marca de color, no el desplegable del sistema:
+                es el mismo control que el formulario de movimientos, y era
+                el único lugar de la app donde se abría el menú nativo.
+                Al editar la categoría no se cambia —sería borrar un tope y
+                crear otro— así que ahí se muestra sola, sin elegir nada. */}
+            {editing ? (
+              <Field label="Categoría">
+                <span className="flex h-10 items-center gap-2 rounded-control border border-line bg-surface-raised px-3 text-sm text-ink sm:h-9">
+                  <CategoryMark category={category} size={18} className="rounded-[4px]" />
+                  {category}
+                </span>
+              </Field>
+            ) : (
+              <CategoryPicker
+                categories={options}
                 value={category}
-                disabled={editing}
-                onChange={(e) => setCategory(e.target.value)}
-              >
-                {options.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </Select>
-            </Field>
+                onChange={setCategory}
+                label="Categoría"
+              />
+            )}
 
             <AmountInput
               value={limit}
