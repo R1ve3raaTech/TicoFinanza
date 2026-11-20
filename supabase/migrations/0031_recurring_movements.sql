@@ -31,7 +31,13 @@ create table if not exists public.recurring_movements (
   active boolean not null default true,
   created_at timestamptz not null default now(),
   -- Una recurrencia semanal sin día no se puede resolver.
-  constraint recurring_movements_weekday_check
+  --
+  -- **El nombre no puede ser `recurring_movements_weekday_check`**: ese es
+  -- el que Postgres le pone solo al `check` en línea de la columna
+  -- `weekday` de arriba (`<tabla>_<columna>_check`), así que las dos
+  -- restricciones chocaban dentro del mismo CREATE TABLE y la migración
+  -- entera fallaba con 42710.
+  constraint recurring_movements_semanal_dia_check
     check (frequency <> 'semanal' or weekday is not null)
 );
 

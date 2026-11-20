@@ -2728,6 +2728,17 @@ sus cuatro retrasos escalonados; y todo quieto con movimiento reducido.
 
 ### ⚠️ MIGRACIÓN SIN CORRER: `0031_recurring_movements.sql`
 
+**Ojo: la primera versión no se podía correr.** La columna `weekday` tenía
+un `check` en línea, y Postgres a esos les pone de nombre
+`<tabla>_<columna>_check` — justo el que yo le había dado a mano a la
+restricción de tabla de más abajo. Las dos chocaban dentro del mismo CREATE
+TABLE y la migración entera fallaba con **42710: check constraint
+"recurring_movements_weekday_check" already exists**, sin crear nada. Está
+corregido (`recurring_movements_semanal_dia_check`) y hay una prueba en
+`lib/supabase/policies.test.ts` que recorre todas las migraciones buscando
+ese choque, porque el error solo aparece al correr la SQL contra la base y
+desde acá no hay forma de hacerlo.
+
 Crea la tabla de movimientos que se repiten. **Segura de correr y segura de
 NO correrla**: sin ella el panel de "Lo que se repite hoy" no sale y el
 botón "Repetir" del formulario avisa que falta la migración. Nada más

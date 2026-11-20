@@ -111,3 +111,42 @@ test("user_categories tiene sus cuatro políticas", () => {
     assert.ok(pattern.test(sql), `falta la política de ${accion.toUpperCase()} de user_categories`);
   }
 });
+
+/**
+ * Postgres le pone nombre solo a un `check` escrito en la columna:
+ * `<tabla>_<columna>_check`. Si además se declara una restricción de tabla
+ * con ESE mismo nombre, las dos chocan dentro del mismo CREATE TABLE y la
+ * migración entera falla con 42710 — como pasó con la 0031, que no se pudo
+ * correr hasta renombrarla.
+ *
+ * El error aparece recién al correr la SQL contra la base, que es
+ * justamente lo que no se puede hacer desde acá: por eso la comprobación
+ * es sobre el texto.
+ */
+test("ninguna restricción con nombre choca con la que Postgres pone sola", () => {
+  const dir = join(ROOT, "supabase", "migrations");
+  const choques: string[] = [];
+
+  for (const file of readdirSync(dir).filter((f) => f.endsWith(".sql"))) {
+    const sql = readFileSync(join(dir, file), "utf8");
+    const tabla = /create table (?:if not exists )?(?:public\.)?([a-z_]+)/i.exec(sql)?.[1];
+    if (!tabla) continue;
+
+    // Columnas con `check` en línea: el nombre que Postgres les asigna.
+    const automaticos = new Set<string>();
+    for (const m of sql.matchAll(/^ {2}([a-z_]+)\s+[a-z0-9(), ]*\bcheck\s*\(/gim)) {
+      automaticos.add(`${tabla}_${m[1]}_check`);
+    }
+
+    for (const m of sql.matchAll(/constraint\s+([a-z_]+)/gi)) {
+      if (automaticos.has(m[1])) choques.push(`${file}: ${m[1]}`);
+    }
+  }
+
+  assert.deepEqual(
+    choques,
+    [],
+    `estas restricciones tienen el nombre que Postgres le da sola al check de su columna, ` +
+      `así que la migración falla al correrse: ${choques.join(", ")}`
+  );
+});
