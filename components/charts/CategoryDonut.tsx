@@ -84,7 +84,17 @@ export function CategoryDonut({ slices, total }: { slices: CategorySlice[]; tota
               strokeDashoffset={-dashOffset}
               onMouseEnter={() => setActive(slice.label)}
               onMouseLeave={() => setActive(null)}
-              className={`transition-opacity duration-150 ${
+              // En teléfono no hay puntero: sin esto, el desglose del
+              // centro solo existía en escritorio.
+              //
+              // Va por `pointerdown` y SOLO para el dedo. Con un `onClick`
+              // que alterna, en un dispositivo con mouse el clic llegaba
+              // después del `mouseenter` que ya había activado la porción,
+              // así que la apagaba al instante: tocar no hacía nada.
+              onPointerDown={(e) => {
+                if (e.pointerType === "touch") setActive(slice.label);
+              }}
+              className={`cursor-pointer transition-opacity duration-150 ${
                 active && active !== slice.label ? "opacity-45" : "opacity-100"
               }`}
             />
@@ -116,7 +126,10 @@ export function CategoryDonut({ slices, total }: { slices: CategorySlice[]; tota
               onMouseLeave={() => setActive(null)}
               onFocus={() => setActive(slice.label)}
               onBlur={() => setActive(null)}
-              className={`-mx-2 flex w-[calc(100%+1rem)] cursor-default items-center gap-2.5 rounded-control px-2 py-1.5 text-left transition-colors duration-150 hover:bg-surface-hover/70 ${
+              onPointerDown={(e) => {
+                if (e.pointerType === "touch") setActive(slice.label);
+              }}
+              className={`-mx-2 flex w-[calc(100%+1rem)] cursor-pointer items-center gap-2.5 rounded-control px-2 py-1.5 text-left transition-colors duration-150 hover:bg-surface-hover/70 ${
                 active === slice.label ? "bg-surface-hover/70" : ""
               }`}
             >
@@ -133,13 +146,20 @@ export function CategoryDonut({ slices, total }: { slices: CategorySlice[]; tota
               </span>
               {/* La variación va en tinta neutra, no en verde o rojo:
                   gastar más en una categoría no es "malo" por sí solo, y
-                  pintarlo de alarma todos los meses enseña a ignorarlo. */}
-              {typeof slice.changePercent === "number" && (
-                <span className="money hidden w-12 shrink-0 text-right text-micro text-ink-3 sm:block">
-                  {slice.changePercent > 0 ? "+" : ""}
-                  {Math.round(slice.changePercent)}%
-                </span>
-              )}
+                  pintarlo de alarma todos los meses enseña a ignorarlo.
+                  
+                  La columna se dibuja SIEMPRE, vacía cuando no hay con qué
+                  comparar: omitiéndola, esa fila perdía una celda y el
+                  monto y el porcentaje se corrían a la derecha. Se veía
+                  como una tabla mal alineada, que es lo que era. */}
+              <span
+                aria-hidden={typeof slice.changePercent !== "number"}
+                className="money hidden w-12 shrink-0 text-right text-micro text-ink-3 sm:block"
+              >
+                {typeof slice.changePercent === "number"
+                  ? `${slice.changePercent > 0 ? "+" : ""}${Math.round(slice.changePercent)}%`
+                  : ""}
+              </span>
               <span className="money w-9 shrink-0 text-right text-meta text-ink-3">
                 {Math.round(slice.share * 100)}%
               </span>

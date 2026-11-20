@@ -1,4 +1,5 @@
-import { Money, MoneyDisplay } from "@/components/ui/Money";
+import { Money } from "@/components/ui/Money";
+import { MoneyCountUp } from "@/components/ui/MoneyCountUp";
 import { formatMoney } from "@/lib/format";
 import type { MonthHeadline } from "@/lib/greeting";
 
@@ -81,7 +82,7 @@ export function SummaryHero({
               total < 0 ? "text-expense" : "text-ink"
             }`}
           >
-            <MoneyDisplay value={total} />
+            <MoneyCountUp value={total} />
           </p>
 
           {/* Cómo cerrás el mes: lo que hay hoy, más los ingresos fijos que

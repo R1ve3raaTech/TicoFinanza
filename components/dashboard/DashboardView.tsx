@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import Link from "next/link";
 import { ArrowRight } from "@phosphor-icons/react/dist/ssr";
 import { AccountsPanel } from "@/components/accounts/AccountsPanel";
@@ -101,50 +102,70 @@ export function DashboardView({
             mobileActions={isEmpty ? undefined : <AddMovementButton iconOnly />}
           />
 
-          <SummaryHero
-            greeting={greeting}
-            todayLabel={todayLabel}
-            headline={headline}
-            total={totalBalance(accounts)}
-            hasAccounts={accounts.length > 0}
-            pendingFixed={summary.fixedPending}
-            pendingIncome={pendingIncome}
-          />
-
-          <div>
-            <h3 className="pb-3 text-label text-ink-2">Tu mes de {monthLabel}</h3>
-            <SummaryCards summary={summary} comparison={comparison} />
+          {/* Entrada escalonada, una sola vez al abrir. Es el único
+              movimiento que no responde a un gesto, y por eso dura poco y
+              no se repite: con `prefers-reduced-motion` no pasa nada (ver
+              `.rise-in` en app/globals.css). El retraso de cada bloque va
+              en `--d`. */}
+          <div className="rise-in">
+            <SummaryHero
+              greeting={greeting}
+              todayLabel={todayLabel}
+              headline={headline}
+              total={totalBalance(accounts)}
+              hasAccounts={accounts.length > 0}
+              pendingFixed={summary.fixedPending}
+              pendingIncome={pendingIncome}
+            />
           </div>
 
-          {/* Sin envoltorio con padding: cuando los tres pasos están
-              listos el componente no renderiza nada, y un div con `pt-10`
-              dejaría un hueco muerto en la pantalla de siempre. */}
-          <FirstSteps
-            hasAccount={accounts.length > 0}
-            hasFixed={hasFixed}
-            hasMovement={hasMovement}
-            hasFixedIncome={hasFixedIncome}
-            hasBudget={hasBudget}
-          />
+          <div className="rise-in" style={{ "--d": "60ms" } as CSSProperties}>
+            <h3 className="pb-3 text-label text-ink-2">Tu mes de {monthLabel}</h3>
+            <SummaryCards
+              summary={summary}
+              comparison={comparison}
+              pendingIncome={pendingIncome}
+              hasFixedIncome={hasFixedIncome}
+            />
+          </div>
 
-          <ExpectedIncomes incomes={toConfirm} accounts={accounts} />
+          {/* `empty:hidden` y sin padding propio: cuando los pasos están
+              todos listos el componente no dibuja nada, y un envoltorio con
+              aire dejaría un hueco muerto en la pantalla de siempre. Vacío,
+              este div desaparece entero. */}
+          <div className="rise-in empty:hidden" style={{ "--d": "100ms" } as CSSProperties}>
+            <FirstSteps
+              hasAccount={accounts.length > 0}
+              hasFixed={hasFixed}
+              hasMovement={hasMovement}
+              hasFixedIncome={hasFixedIncome}
+              hasBudget={hasBudget}
+            />
+          </div>
+
+          <div className="rise-in empty:hidden" style={{ "--d": "140ms" } as CSSProperties}>
+            <ExpectedIncomes incomes={toConfirm} accounts={accounts} />
+          </div>
 
           {/* Sin ninguna cuenta el panel no aparece: su estado vacío decía
               lo mismo que el primer paso de arriba, con otro botón al lado.
               Dos invitaciones a lo mismo, una debajo de la otra. */}
           {accounts.length > 0 && (
-            <div className="pt-8">
+            <div className="rise-in pt-8" style={{ "--d": "180ms" } as CSSProperties}>
               <AccountsPanel accounts={accounts} />
             </div>
           )}
 
           {!isEmpty && (
             <>
-              <div className="pt-8">
+              <div className="rise-in pt-8" style={{ "--d": "220ms" } as CSSProperties}>
                 <UpcomingPayments payments={payments} />
               </div>
 
-              <div className="grid gap-10 pt-10 lg:grid-cols-2 lg:gap-12 xl:gap-16">
+              <div
+                className="rise-in grid gap-10 pt-10 lg:grid-cols-2 lg:gap-12 xl:gap-16"
+                style={{ "--d": "260ms" } as CSSProperties}
+              >
                 <section aria-labelledby="categorias-titulo" className="min-w-0">
                   <div className="flex h-10 items-center justify-between gap-3">
                     <h2 id="categorias-titulo" className="text-heading text-ink">

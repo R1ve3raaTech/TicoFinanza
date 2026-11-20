@@ -145,6 +145,15 @@ export function AppLockGate({
   );
 }
 
+/**
+ * La pantalla de cerrojo, con el lenguaje de la app.
+ *
+ * La primera versión era el logo flotando en negro y tres enlaces grises
+ * casi del mismo peso, uno debajo de otro: no se parecía a ninguna otra
+ * pantalla y no se sabía qué tocar. Ahora es un panel sobre la superficie,
+ * como los diálogos, con **una sola acción principal** y el resto callado
+ * abajo — la misma regla que el resto de la app.
+ */
 function LockScreen({
   asking,
   showPin,
@@ -165,6 +174,9 @@ function LockScreen({
   const [error, setError] = useState("");
   const [checking, setChecking] = useState(false);
   const [forgot, setForgot] = useState(false);
+  // Se incrementa con cada PIN rechazado para remontar la animación: sin
+  // cambiar la `key`, el segundo error no vuelve a sacudir nada.
+  const [rejections, setRejections] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -182,6 +194,7 @@ function LockScreen({
         return;
       }
       setPin("");
+      setRejections((n) => n + 1);
       setError(result.error ?? "PIN incorrecto.");
       inputRef.current?.focus();
     },
@@ -210,89 +223,80 @@ function LockScreen({
   }
 
   return (
-    <div className="fixed inset-0 z-[200] flex flex-col items-center justify-center gap-8 bg-ground px-6">
-      <BrandMark size={44} accent />
-
-      {showPin ? (
-        <div className="flex w-full max-w-[18rem] flex-col items-center gap-5">
-          <p className="text-label text-ink-2">Escribí tu PIN</p>
-
-          {/* Las cinco casillas son el dibujo; lo que recibe las teclas es
-              un solo campo invisible encima. Cinco campos de verdad
-              obligarían a mover el foco a mano en cada dígito y pelearse
-              con el borrado. */}
-          <div className="relative w-full">
-            <input
-              ref={inputRef}
-              value={pin}
-              onChange={(e) => onPinChange(e.target.value)}
-              inputMode="numeric"
-              autoComplete="off"
-              aria-label="PIN de cinco dígitos"
-              disabled={checking}
-              className="absolute inset-0 h-full w-full cursor-default opacity-0"
-            />
-            <div className="pointer-events-none flex justify-center gap-2.5">
-              {Array.from({ length: 5 }, (_, i) => (
-                <span
-                  key={i}
-                  className={`h-12 w-10 rounded-control border transition-colors duration-150 ${
-                    i < pin.length ? "border-accent bg-surface" : "border-line bg-surface-raised"
-                  } flex items-center justify-center`}
-                >
-                  {i < pin.length && (
-                    <span aria-hidden className="h-2.5 w-2.5 rounded-full bg-ink" />
-                  )}
-                </span>
-              ))}
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-ground px-5 py-8">
+      <div className="rise-in flex w-full max-w-[21rem] flex-col items-center">
+        <div className="flex w-full flex-col items-center gap-6 rounded-dialog border border-line bg-surface px-6 py-8">
+          <div className="flex flex-col items-center gap-4">
+            <span className="flex h-14 w-14 items-center justify-center rounded-surface bg-surface-raised">
+              <BrandMark size={28} accent />
+            </span>
+            <div className="flex flex-col items-center gap-1">
+              <h1 className="text-heading text-ink">TicoFinanza</h1>
+              <p aria-live="polite" className="text-meta text-ink-3">
+                {showPin
+                  ? "Escribí tu PIN"
+                  : asking
+                    ? "Esperando tu huella..."
+                    : "Tocá para desbloquear"}
+              </p>
             </div>
           </div>
 
-          <p role="alert" className="min-h-[1.25rem] text-label font-normal text-expense">
-            {checking ? "" : error}
-          </p>
-
-          <Button variant="ghost" size="sm" onClick={onRetry} disabled={checking}>
-            <Fingerprint size={15} />
-            Usar la huella
-          </Button>
-
-          {/* Acá es donde de verdad hace falta: estando trabado en el
-              cerrojo no se puede llegar a Ajustes. */}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setForgot(true)}
-            disabled={checking}
-            className="text-ink-3"
-          >
-            No me acuerdo del PIN
-          </Button>
-        </div>
-      ) : (
-        <div className="flex flex-col items-center gap-5">
-          <LockKey size={28} weight="fill" aria-hidden className="text-ink-3" />
-          <p className="text-center text-base text-ink-2">
-            {asking ? "Esperando tu huella..." : "TicoFinanza está bloqueada"}
-          </p>
-          <div className="flex flex-col items-center gap-2">
-            <Button variant="primary" onClick={onRetry} disabled={asking}>
-              <Fingerprint size={16} />
+          {showPin ? (
+            <div className="flex w-full flex-col items-center gap-4">
+              <PinBoxes
+                key={rejections}
+                value={pin}
+                onChange={onPinChange}
+                disabled={checking}
+                error={Boolean(error)}
+                inputRef={inputRef}
+              />
+              <p role="alert" className="min-h-[1.25rem] text-label font-normal text-expense">
+                {checking ? "" : error}
+              </p>
+            </div>
+          ) : (
+            /* Una sola acción principal, como en cualquier otra pantalla. */
+            <Button variant="primary" className="h-11 w-full" onClick={onRetry} disabled={asking}>
+              <Fingerprint size={18} />
               Desbloquear
             </Button>
-            {hasPin && (
+          )}
+        </div>
+
+        {/* Las salidas, debajo del panel y más calladas: son el camino de
+            atrás, no lo que uno viene a hacer acá. */}
+        <div className="flex flex-col items-center gap-0.5 pt-4">
+          {showPin ? (
+            <Button variant="ghost" size="sm" onClick={onRetry} disabled={checking}>
+              <Fingerprint size={14} />
+              Usar la huella
+            </Button>
+          ) : (
+            hasPin && (
               <Button variant="ghost" size="sm" onClick={onUsePin} disabled={asking}>
+                <LockKey size={14} />
                 Usar el PIN
               </Button>
-            )}
-          </div>
+            )
+          )}
+          {hasPin && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setForgot(true)}
+              disabled={checking}
+              className="text-ink-3"
+            >
+              No me acuerdo del PIN
+            </Button>
+          )}
+          <Button variant="ghost" size="sm" onClick={() => void leave()} className="text-ink-3">
+            Cerrar sesión
+          </Button>
         </div>
-      )}
-
-      {/* Un PIN olvidado no puede ser el final del camino. */}
-      <Button variant="ghost" size="sm" onClick={() => void leave()} className="text-ink-3">
-        Cerrar sesión
-      </Button>
+      </div>
 
       <ForgotPinDialog
         open={forgot}
@@ -303,6 +307,74 @@ function LockScreen({
         // Quitado el PIN ya no hay con qué cerrar: se abre.
         onReset={onUnlocked}
       />
+    </div>
+  );
+}
+
+/**
+ * Las cinco casillas del PIN.
+ *
+ * El dibujo son las casillas; lo que recibe las teclas es un solo campo
+ * invisible encima. Cinco campos de verdad obligarían a mover el foco a
+ * mano en cada dígito y a pelearse con el borrado hacia atrás.
+ *
+ * La casilla que sigue lleva el borde de acento, así se ve dónde va a caer
+ * lo que escribas: con todas iguales, el campo invisible dejaba la pantalla
+ * sin ninguna señal de foco.
+ */
+function PinBoxes({
+  value,
+  onChange,
+  disabled,
+  error,
+  inputRef,
+}: {
+  value: string;
+  onChange: (raw: string) => void;
+  disabled?: boolean;
+  error?: boolean;
+  inputRef: React.RefObject<HTMLInputElement | null>;
+}) {
+  return (
+    <div className={`relative w-full ${error ? "shake" : ""}`}>
+      <input
+        ref={inputRef}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        inputMode="numeric"
+        autoComplete="off"
+        aria-label="PIN de cinco dígitos"
+        aria-invalid={error || undefined}
+        disabled={disabled}
+        className="absolute inset-0 h-full w-full cursor-default opacity-0"
+      />
+      <div className="pointer-events-none flex justify-center gap-2.5">
+        {Array.from({ length: 5 }, (_, i) => {
+          const lleno = i < value.length;
+          const siguiente = i === value.length && !disabled;
+          return (
+            <span
+              key={i}
+              className={`flex h-12 w-10 items-center justify-center rounded-control border bg-surface-raised transition-[border-color,background-color] duration-150 ${
+                error
+                  ? "border-expense"
+                  : lleno
+                    ? "border-line-strong"
+                    : siguiente
+                      ? "border-accent"
+                      : "border-line"
+              }`}
+            >
+              {lleno && (
+                <span
+                  aria-hidden
+                  className={`h-2.5 w-2.5 rounded-full ${error ? "bg-expense" : "bg-ink"}`}
+                />
+              )}
+            </span>
+          );
+        })}
+      </div>
     </div>
   );
 }

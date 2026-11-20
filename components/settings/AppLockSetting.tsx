@@ -6,7 +6,8 @@ import { ForgotPinDialog } from "@/components/app/ForgotPinDialog";
 import { useToast } from "@/components/Toast";
 import { Button } from "@/components/ui/Button";
 import { Dialog } from "@/components/ui/Dialog";
-import { FormError, Select } from "@/components/ui/Field";
+import { FormError } from "@/components/ui/Field";
+import { Segmented } from "@/components/ui/Segmented";
 import {
   cleanPinInput,
   isValidPin,
@@ -89,20 +90,17 @@ export function AppLockSetting({ lockWhen, hasPin }: { lockWhen: AppLockWhen; ha
 
   return (
     <>
-      <SettingsRow inline label="Pedir al volver a la app" htmlFor="app-lock-when">
-        <Select
-          id="app-lock-when"
+      {/* Control segmentado, el mismo que usa "Tema" dos filas más arriba.
+          Antes era un desplegable de formulario: puestos uno sobre otro, se
+          notaba que venían de dos apps distintas. */}
+      <SettingsRow inline label="Pedir al volver a la app">
+        <Segmented
           value={when}
+          onChange={(value) => void changeWhen(value)}
+          ariaLabel="Pedir al volver a la app"
           disabled={pending}
-          onChange={(e) => void changeWhen(e.target.value as AppLockWhen)}
-          className="w-[11rem]"
-        >
-          {LOCK_OPTIONS.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </Select>
+          options={LOCK_OPTIONS.map((option) => ({ value: option.value, label: option.label }))}
+        />
       </SettingsRow>
 
       <SettingsRow inline label="PIN de respaldo">

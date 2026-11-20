@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { ArrowRight, Check, WarningCircle } from "@phosphor-icons/react/dist/ssr";
+import { ArrowRight, WarningCircle } from "@phosphor-icons/react/dist/ssr";
+import { CategoryMark } from "@/components/ui/CategoryMark";
 import { Money } from "@/components/ui/Money";
 import { URGENT_DAYS, type UpcomingPayment } from "@/lib/fixedExpenses";
 
@@ -35,6 +36,15 @@ function whenText(payment: UpcomingPayment): string {
  * resalta en rojo, con ícono y con el texto del plazo: el color es refuerzo,
  * no el único aviso — en escala de grises o con daltonismo la fila igual se
  * lee como urgente.
+ *
+ * Cada fila abre con la **marca de su categoría**, la misma que usan Fijos y
+ * Movimientos. Antes la categoría era texto gris debajo del nombre: había
+ * que leer fila por fila para encontrar "el recibo del agua", que es
+ * justamente lo que esta lista tiene que contestar de un vistazo.
+ *
+ * El ícono de urgencia se mudó a la columna "Vence", al lado del plazo en
+ * rojo: ahí es donde está el dato, y así la marca de categoría tiene el
+ * lugar de adelante para ella sola.
  */
 export function UpcomingPayments({ payments }: { payments: UpcomingPayment[] }) {
   const pending = payments.filter((p) => p.status === "PENDING");
@@ -84,7 +94,12 @@ export function UpcomingPayments({ payments }: { payments: UpcomingPayment[] }) 
               <th scope="col" className="w-[5.5rem] py-2 text-micro font-medium text-ink-3">
                 Vence
               </th>
-              <th scope="col" className="w-[7rem] py-2 text-right text-micro font-medium text-ink-3">
+              {/* Más angosta en teléfono: con la marca de categoría
+                  adelante, 7rem acá dejaban a "Claude Code Pro" cortado. */}
+              <th
+                scope="col"
+                className="w-[6rem] py-2 text-right text-micro font-medium text-ink-3 sm:w-[7rem]"
+              >
                 Monto
               </th>
             </tr>
@@ -93,19 +108,18 @@ export function UpcomingPayments({ payments }: { payments: UpcomingPayment[] }) 
             {rows.map((payment) => {
               const alert = payment.status === "PENDING" && payment.urgent;
               return (
-                <tr key={payment.id} className="border-b border-line">
+                <tr
+                  key={payment.id}
+                  className="border-b border-line transition-colors duration-150 hover:bg-surface-hover"
+                >
                   <td className="py-3 pr-3 align-middle">
-                    <span className="flex min-w-0 items-center gap-2">
-                      {alert ? (
-                        <WarningCircle
-                          size={14}
-                          weight="fill"
-                          aria-hidden
-                          className="shrink-0 text-expense"
-                        />
-                      ) : payment.status === "PAID" ? (
-                        <Check size={14} weight="bold" aria-hidden className="shrink-0 text-ink-3" />
-                      ) : null}
+                    <span className="flex min-w-0 items-center gap-2 sm:gap-2.5">
+                      <CategoryMark category={payment.category} size={26} className="sm:hidden" />
+                      <CategoryMark
+                        category={payment.category}
+                        size={30}
+                        className="hidden sm:flex"
+                      />
                       <span className="min-w-0">
                         <span className="block truncate text-sm font-medium text-ink">
                           {payment.name}
@@ -120,10 +134,13 @@ export function UpcomingPayments({ payments }: { payments: UpcomingPayment[] }) 
                   </td>
                   <td className="py-3 pr-3 align-middle">
                     <span
-                      className={`block whitespace-nowrap text-label ${
+                      className={`flex items-center gap-1.5 whitespace-nowrap text-label ${
                         alert ? "font-medium text-expense" : "font-normal text-ink-2"
                       }`}
                     >
+                      {alert && (
+                        <WarningCircle size={14} weight="fill" aria-hidden className="shrink-0" />
+                      )}
                       {payment.dueInDays < 0 && <span className="sr-only">Venció </span>}
                       {whenText(payment)}
                     </span>

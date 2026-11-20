@@ -2471,3 +2471,90 @@ que cambiar el PIN pida primero el actual, que ponerlo de cero no pida nada,
 que quitarlo lo exija, que apagar el cerrojo y bajarlo a "Solo al abrirla"
 abran el pedido de PIN, que cancelar deje el control como estaba, y que
 apretarlo pase derecho.
+
+## Dónde quedamos (2026-11-19, tercera parte) — pulido, tanda 1
+
+Camil: que los paneles de adentro se vean mejor, con microinteracciones, "a
+detalle" y sin cosas vacías; y que el control de bloqueo use "el diseño de
+siempre". Esta tanda cubre **Resumen, el cerrojo y Ajustes**; Fijos,
+Movimientos y Plan quedan para la siguiente.
+
+**Antes de planear se miraron las pantallas de verdad**, con una vista
+temporal y datos de ejemplo. Vale la pena repetirlo: casi todo lo que se
+arregló acá salió de mirar la captura, no de pensar en abstracto.
+
+**La regla del movimiento** (nueva, y vale para la tanda 2): *cada efecto
+responde a algo que la persona hace, ninguno se repite solo, y todos se
+apagan con `prefers-reduced-motion`*. Dos utilidades nuevas en
+`app/globals.css`: `.shake` (PIN rechazado) y `.rise-in` (entrada
+escalonada, con el retraso en `--d`).
+
+**El control de bloqueo, con el diseño de siempre**
+
+- `Select` → `Segmented`, el mismo de "Tema" dos filas más arriba. Puestos
+  uno sobre otro se notaba que venían de dos apps distintas. Comprobado que
+  los dos miden igual (32px).
+- **Se quitó la opción "Solo al abrirla"**, que no entraba en cuatro tramos
+  y además se parecía demasiado a "Nunca": con la app viva en segundo plano
+  el cerrojo no se volvía a interponer. La base sigue aceptando el valor
+  (check de la 0028) y `parseLockWhen` lo cae al de por defecto.
+
+**La pantalla de cerrojo**: era el logo flotando en negro con tres enlaces
+grises casi del mismo peso. Ahora es un panel sobre superficie, como los
+diálogos, con **una sola acción principal** y las salidas debajo y más
+calladas. La casilla que sigue lleva el borde de acento (el campo es
+invisible, así que sin eso no había ninguna señal de foco) y el PIN
+rechazado sacude las casillas una vez.
+
+**Resumen: lo que estaba vacío**
+
+- La tarjeta **"Ingreso total" era la única sin segunda línea** y dejaba un
+  hueco en la primera que uno mira. Ahora dice cuánto de lo esperado falta
+  por entrar. Hay una comprobación de que las cuatro tienen la misma
+  anatomía.
+- **Las tarjetas de cuenta** eran nombre + monto y mucho aire: ahora llevan
+  el ícono de su tipo, el saldo, y una barra con cuánto pesa dentro del
+  total. `accountShare()` mide contra **lo que hay** y no contra el
+  patrimonio neto: con una tarjeta en rojo, medir contra el neto hacía que
+  una cuenta sola diera más de 100 %. Con pruebas.
+- **"Próximos pagos" usa la marca de categoría**, la misma de Fijos y
+  Movimientos. El ícono de urgencia se mudó a la columna "Vence", junto al
+  plazo en rojo, que es donde está el dato. A 390 la columna del monto cede
+  ancho (`w-[6rem] sm:w-[7rem]`): con la marca adelante, "Claude Code Pro"
+  quedaba cortado.
+
+**Dos bugs reales encontrados mirando, no reportados**
+
+1. **La leyenda de la dona se desalineaba.** La columna de variación se
+   omitía cuando una categoría no tenía con qué comparar, así que esa fila
+   perdía una celda y el monto y el porcentaje se corrían a la derecha. Ahora
+   la columna se dibuja siempre, vacía. *Para medirlo con Playwright hay que
+   comparar el borde **derecho**: están alineados a la derecha y tienen
+   anchos distintos, así que su `left` no coincide ni cuando está bien.*
+2. **Tocar la dona en teléfono no hacía nada.** El `onClick` que alternaba
+   llegaba después del `mouseenter` que ya había activado la porción, así
+   que la apagaba al instante. Ahora va por `pointerdown` y **solo cuando
+   `pointerType === "touch"`**; el mouse sigue con hover. *Para probarlo hace
+   falta un contexto con `hasTouch: true` y `tap()`: un `click()` de mouse
+   recorre el otro camino del código.*
+
+**Microinteracciones agregadas**: entrada escalonada de los bloques del
+resumen (una vez, al abrir), el saldo contando hacia arriba
+(`MoneyCountUp`), hover en las tarjetas de resumen y de cuenta, hundido al
+tocar una cuenta, y hover por fila en Próximos pagos.
+
+**`MoneyCountUp` tiene dos trampas resueltas y comentadas**: el primer
+render —servidor y cliente— devuelve el **valor final**, porque empezar en
+cero sería un error de hidratación; y **todo el estado cambia dentro del
+cuadro de animación**, nunca en el cuerpo del efecto (lo marca el compilador
+de React). El cero no se ve porque para entonces el contenedor sigue en
+opacidad cero por `rise-in`. Mientras cuenta usa cifras de ancho fijo: con
+proporcionales el número cambia de largo en cada cuadro y se sacude.
+
+**Algo que yo había dicho mal**: en el plan afirmé que los gráficos no
+tenían tooltip. **Sí lo tenían, los dos.** Lo que faltaba era lo de arriba.
+
+**Estado**: `npm test` (201, 4 nuevas sobre el reparto de cuentas), `eslint`,
+`tsc` y `npm run build` limpios. QA con Playwright contra el build de
+producción a 1440 y 390, más una pasada con movimiento reducido: **27
+comprobaciones**.

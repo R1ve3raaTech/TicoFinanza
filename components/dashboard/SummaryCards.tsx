@@ -30,7 +30,7 @@ function Card({
   children: ReactNode;
 }) {
   return (
-    <div className="min-w-0 rounded-surface border border-line bg-surface p-4">
+    <div className="min-w-0 rounded-surface border border-line bg-surface p-4 transition-colors duration-150 hover:border-line-strong">
       <dt className="flex items-center gap-2 text-meta text-ink-3">
         {swatch && <span aria-hidden className={`h-2 w-2 shrink-0 rounded-[2px] ${swatch}`} />}
         {label}
@@ -58,9 +58,15 @@ function Card({
 export function SummaryCards({
   summary,
   comparison,
+  pendingIncome = 0,
+  hasFixedIncome = false,
 }: {
   summary: MonthSummary;
   comparison?: Comparison;
+  /** Ingresos fijos del mes que todavía no entraron. */
+  pendingIncome?: number;
+  /** Ya declaró al menos un ingreso fijo. */
+  hasFixedIncome?: boolean;
 }) {
   const deficit = summary.net < 0;
   // En cero no hay ni superávit ni déficit: el verde ahí sobra.
@@ -68,7 +74,21 @@ export function SummaryCards({
 
   return (
     <dl className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-      <Card label="Ingreso total" swatch="bg-chart-income">
+      {/* Esta tarjeta era la única sin segunda línea, y quedaba un hueco
+          visible justo en la primera que uno mira. Lo que le faltaba era un
+          dato que solo ella puede contestar: cuánto de lo esperado todavía
+          no entró. */}
+      <Card
+        label="Ingreso total"
+        swatch="bg-chart-income"
+        hint={
+          pendingIncome > 0
+            ? `Faltan ${formatMoney(pendingIncome)} por entrar`
+            : hasFixedIncome
+              ? "Todo lo esperado ya entró"
+              : "Lo que anotaste este mes"
+        }
+      >
         <Money value={summary.income} plus tabular={false} className="text-ink" />
       </Card>
       <Card

@@ -11,12 +11,22 @@
  * toda la tarde para quien lo levante.
  */
 
-export type AppLockWhen = "nunca" | "siempre" | "1min" | "5min" | "inicio";
+/**
+ * **"inicio" (solo al abrirla) se quitó.** En la práctica se parecía
+ * demasiado a "nunca": con la app viva en segundo plano el cerrojo no se
+ * volvía a interponer nunca más. Cuatro opciones además entran en el
+ * control segmentado, que es el que usa el resto de Ajustes.
+ *
+ * La base sigue aceptándolo (check de la 0028): una fila vieja con ese
+ * valor cae en el de por defecto al leerse, que es lo que hace
+ * `parseLockWhen`.
+ */
+export type AppLockWhen = "nunca" | "siempre" | "1min" | "5min";
 
 /** Lo que vale si la columna no existe todavía o trae algo raro. */
 export const DEFAULT_LOCK_WHEN: AppLockWhen = "1min";
 
-const VALUES: AppLockWhen[] = ["nunca", "siempre", "1min", "5min", "inicio"];
+const VALUES: AppLockWhen[] = ["nunca", "siempre", "1min", "5min"];
 
 /**
  * Lee el valor guardado sin confiar en él.
@@ -30,12 +40,16 @@ export function parseLockWhen(value: string | null | undefined): AppLockWhen {
   return VALUES.includes(value as AppLockWhen) ? (value as AppLockWhen) : DEFAULT_LOCK_WHEN;
 }
 
-/** Las opciones tal como se ofrecen en Ajustes, en orden de más a menos estricto. */
+/**
+ * Las opciones tal como se ofrecen en Ajustes, de más a menos estricto.
+ *
+ * Los rótulos son cortos porque van en un control segmentado de cuatro
+ * tramos, que a 360px reparte menos de 70px a cada uno.
+ */
 export const LOCK_OPTIONS: { value: AppLockWhen; label: string }[] = [
   { value: "siempre", label: "Siempre" },
-  { value: "1min", label: "Al minuto" },
-  { value: "5min", label: "A los 5 minutos" },
-  { value: "inicio", label: "Solo al abrirla" },
+  { value: "1min", label: "1 min" },
+  { value: "5min", label: "5 min" },
   { value: "nunca", label: "Nunca" },
 ];
 
@@ -51,7 +65,6 @@ export function lockEnabled(when: AppLockWhen): boolean {
 export function shouldAskOnReturn(when: AppLockWhen, hiddenMs: number): boolean {
   switch (when) {
     case "nunca":
-    case "inicio":
       return false;
     case "siempre":
       return true;
@@ -73,12 +86,9 @@ export function shouldAskOnReturn(when: AppLockWhen, hiddenMs: number): boolean 
  * nadie se hace daño poniéndose más estricto.
  */
 const STRENGTH: Record<AppLockWhen, number> = {
-  siempre: 4,
-  "1min": 3,
-  "5min": 2,
-  // Deja de pedir al volver: con la app viva en segundo plano, el cerrojo
-  // no se vuelve a interponer. Por eso está apenas encima de apagarlo.
-  inicio: 1,
+  siempre: 3,
+  "1min": 2,
+  "5min": 1,
   nunca: 0,
 };
 

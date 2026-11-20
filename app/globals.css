@@ -476,9 +476,41 @@ textarea,
   }
 }
 
+/* Rechazo: el PIN no coincide. Corto, lateral y una sola vez — es la
+   respuesta a algo que la persona hizo, no un adorno que se repite. */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-6px); }
+  40% { transform: translateX(5px); }
+  60% { transform: translateX(-3px); }
+  80% { transform: translateX(2px); }
+}
+
+/* Entrada escalonada de las secciones con sesión. El retraso lo pone quien
+   la usa con `--d`; sin variable entra de una. Es el mismo gesto que
+   `animate-fade-up` de la portada, más corto y más corto el recorrido:
+   adentro se entra muchas veces al día y un movimiento largo cansa. */
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@layer components {
+  .shake {
+    animation: shake 0.3s ease-in-out both;
+  }
+
+  .rise-in {
+    animation: rise-in 0.34s cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation-delay: var(--d, 0ms);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .skeleton,
-  .row-arrived {
+  .row-arrived,
+  .shake,
+  .rise-in {
     animation: none;
   }
 }
