@@ -8,6 +8,8 @@ import { FixedExpenseEntryProvider } from "@/components/fixed/FixedExpenseEntry"
 import { AddMovementButton } from "@/components/movements/MovementEntry";
 import { PageHeader } from "@/components/shell/PageHeader";
 import type { Comparison } from "@/lib/comparison";
+import type { FixedPaymentMatch } from "@/lib/autoPayments";
+import type { RecurringMovement } from "@/lib/recurring";
 import type { ExpectedIncome } from "@/lib/fixedIncomes";
 import type { UpcomingPayment } from "@/lib/fixedExpenses";
 import type { MonthHeadline } from "@/lib/greeting";
@@ -16,6 +18,8 @@ import type { CategorySlice, MonthSummary, MonthTotal } from "@/lib/insights";
 import type { Account, UserCategory } from "@/lib/types";
 import { FirstSteps } from "./FirstSteps";
 import { ExpectedIncomes } from "./ExpectedIncomes";
+import { PaidFixedSuggestions } from "./PaidFixedSuggestions";
+import { RecurringSuggestions } from "./RecurringSuggestions";
 import { SummaryCards } from "./SummaryCards";
 import { SummaryHero } from "./SummaryHero";
 import { UpcomingPayments } from "./UpcomingPayments";
@@ -41,6 +45,8 @@ export function DashboardView({
   months,
   customCategories,
   toConfirm = [],
+  paidMatches = [],
+  recurringToday = [],
   pendingIncome = 0,
   todayKey,
   todayLabel,
@@ -63,6 +69,10 @@ export function DashboardView({
   customCategories: UserCategory[];
   /** Ingresos fijos cuya fecha ya pasó y siguen sin confirmar. */
   toConfirm?: ExpectedIncome[];
+  /** Gastos fijos que parecen ya pagados (ver lib/autoPayments.ts). */
+  paidMatches?: FixedPaymentMatch[];
+  /** Movimientos que se repiten y a los que les toca hoy. */
+  recurringToday?: RecurringMovement[];
   /** Ingresos fijos del mes que todavía no entraron. */
   pendingIncome?: number;
   todayKey: string;
@@ -145,6 +155,16 @@ export function DashboardView({
 
           <div className="rise-in empty:hidden" style={{ "--d": "140ms" } as CSSProperties}>
             <ExpectedIncomes incomes={toConfirm} accounts={accounts} />
+          </div>
+
+          {/* Mismo lugar y misma forma que los ingresos por confirmar: las
+              dos son la app preguntando antes de dar algo por hecho. */}
+          <div className="rise-in empty:hidden" style={{ "--d": "160ms" } as CSSProperties}>
+            <PaidFixedSuggestions matches={paidMatches} />
+          </div>
+
+          <div className="rise-in empty:hidden" style={{ "--d": "170ms" } as CSSProperties}>
+            <RecurringSuggestions movements={recurringToday} todayKey={todayKey} />
           </div>
 
           {/* Sin ninguna cuenta el panel no aparece: su estado vacío decía

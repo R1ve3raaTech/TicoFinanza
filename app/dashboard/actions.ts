@@ -9,9 +9,10 @@ import { WRONG_SESSION } from "@/lib/offline";
 import { ownsRow } from "@/lib/supabase/ownership";
 import { createClient } from "@/lib/supabase/server";
 import type { AccountType, TransactionType } from "@/lib/types";
-import { GENERIC_ERROR } from "@/lib/errors";
+import { GENERIC_ERROR, logFailure } from "@/lib/errors";
 import { isSymbolName } from "@/lib/materialSymbols";
 import { isMissingColumnError } from "@/lib/supabase/errors";
+import type { RecurrenceFrequency } from "@/lib/recurring";
 
 /** Pantallas que muestran movimientos o saldos y hay que refrescar. */
 function revalidateMovements() {
@@ -481,4 +482,132 @@ export async function signOutIdle() {
     if (isProjectAuthCookie(name)) store.delete(name);
   }
   return { destination: "/entrar?motivo=inactividad" };
+}
+
+// ---------------------------------------------------------------------------
+// Movimientos que se repiten y no son gastos fijos (migración 0031)
+//
+// El almuerzo de todos los días hábiles, el bus. La app los **propone** en
+// el resumen y se confirman de un toque, con el monto editable: el almuerzo
+// no cuesta lo mismo todos los días, y meterlo a ciegas dejaría el saldo
+// mintiendo. Ver lib/recurring.ts.
+// ---------------------------------------------------------------------------
+
+export interface RecurringInput {
+  description: string;
+  amount: number;
+  category: string | null;
+  accountId: string | null;
+  type: TransactionType;
+  frequency: RecurrenceFrequency;
+  /** Solo para la frecuencia semanal. 0 = domingo. */
+  weekday: number | null;
+}
+
+function missingColumn(error: { code?: string | null; message?: string | null } | null) {
+  return isMissingColumnError(error) ? "Falta correr la migración 0031 en Supabase." : GENERIC_ERROR;
+}
+
+/** Crear la plantilla. Se usa desde el formulario de movimiento. */
+export async function createRecurring(input: RecurringInput) {
+  const { supabase, user } = await requireUser();
+
+  if (!input.description.trim()) return { error: "Ponele un detalle para reconocerlo." };
+  if (!(input.amount > 0)) return { error: "El monto tiene que ser mayor que cero." };
+  if (input.frequency === "semanal" && input.weekday === null) {
+    return { error: "Elegí el día de la semana." };
+  }
+  // RLS solo exige que `user_id` sea el de la sesión: una cuenta ajena
+  // pasaría si no se comprueba acá.
+  if (!(await ownsRow(supabase, "accounts", input.accountId))) {
+    return { error: UNKNOWN_ACCOUNT };
+  }
+
+  const { error } = await supabase.from("recurring_movements").insert({
+    user_id: user.id,
+    description: input.description.trim(),
+    amount: input.amount,
+    category: input.category || null,
+    account_id: input.accountId,
+    type: input.type,
+    frequency: input.frequency,
+    weekday: input.frequency === "semanal" ? input.weekday : null,
+  });
+
+  if (error) return { error: missingColumn(error) };
+
+  revalidateMovements();
+  return { error: null };
+}
+
+/**
+ * Confirmar la de hoy: crea el movimiento y anota el día.
+ *
+ * **El día se escribe aunque el monto cambie**: lo que evita que la
+ * propuesta vuelva a salir hoy es `last_confirmed_date`, no el movimiento.
+ */
+export async function confirmRecurring(id: string, amount: number, todayKey: string) {
+  const { supabase, user } = await requireUser();
+
+  if (!(amount > 0)) return { error: "El monto tiene que ser mayor que cero." };
+
+  const { data: recurring } = await supabase
+    .from("recurring_movements")
+    .select("*")
+    .eq("id", id)
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (!recurring) return { error: GENERIC_ERROR };
+  // Ya se confirmó hoy: no se anota dos veces aunque lleguen dos toques.
+  if (recurring.last_confirmed_date && recurring.last_confirmed_date >= todayKey) {
+    revalidateMovements();
+    return { error: null };
+  }
+
+  const { error } = await supabase.from("transactions").insert({
+    user_id: user.id,
+    amount,
+    currency: "CRC",
+    description: recurring.description,
+    category: recurring.category,
+    type: recurring.type,
+    account_id: recurring.account_id,
+    transaction_date: new Date().toISOString(),
+  });
+
+  if (error) return { error: GENERIC_ERROR };
+
+  const { error: markError } = await supabase
+    .from("recurring_movements")
+    .update({ last_confirmed_date: todayKey })
+    .eq("id", id)
+    .eq("user_id", user.id);
+
+  if (markError) {
+    // El movimiento ya entró. Si esto falla, lo peor es que la propuesta
+    // vuelva a salir hoy — y anotarlo dos veces sería culpa de un segundo
+    // toque, no de acá. Se dice, para que no se anote dos veces sin querer.
+    logFailure("confirmRecurring: no se pudo marcar el día", markError);
+    return { error: "Se anotó el movimiento, pero puede que vuelva a proponerse hoy." };
+  }
+
+  revalidateMovements();
+  return { error: null };
+}
+
+/** Dejar de proponerla. No borra los movimientos que ya se anotaron. */
+export async function stopRecurring(id: string) {
+  const { supabase, user } = await requireUser();
+
+  const { error } = await supabase
+    .from("recurring_movements")
+    .update({ active: false })
+    .eq("id", id)
+    .eq("user_id", user.id);
+
+  if (error) return { error: missingColumn(error) };
+
+  revalidateMovements();
+  return { error: null };
 }

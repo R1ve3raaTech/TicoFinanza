@@ -6,7 +6,7 @@ import { monthKey } from "@/lib/fixedExpenses";
 import { ownsRow } from "@/lib/supabase/ownership";
 import { createClient } from "@/lib/supabase/server";
 import type { FixedExpenseStatus } from "@/lib/types";
-import { GENERIC_ERROR } from "@/lib/errors";
+import { GENERIC_ERROR, logFailure } from "@/lib/errors";
 
 function revalidateFixed() {
   revalidatePath("/dashboard");
@@ -240,6 +240,73 @@ export async function deleteFixedExpense(id: string) {
     .eq("user_id", user.id);
 
   if (error) return { error: GENERIC_ERROR };
+
+  revalidateFixed();
+  return { error: null };
+}
+
+/**
+ * Confirmar que un gasto fijo ya se pagó, con el movimiento que lo prueba.
+ *
+ * Es la contraparte de `matchFixedPayments` (lib/autoPayments.ts): la app
+ * **propone** el emparejamiento y acá se confirma de un toque. No crea
+ * ningún movimiento —ya existe, es el que la persona anotó— sino que lo ata
+ * al fijo y marca el ciclo como pagado.
+ *
+ * **Atar el movimiento importa tanto como marcar el estado**: sin
+ * `fixed_expense_id`, ese gasto seguiría contando como variable *además* de
+ * contar como fijo, y el mes cerraría con el alquiler sumado dos veces.
+ *
+ * La transición va condicionada igual que en `setFixedExpenseStatus`: dos
+ * toques seguidos no marcan dos veces.
+ */
+export async function confirmFixedPayment(expenseId: string, transactionId: string) {
+  const { supabase, user } = await requireUser();
+
+  const month = monthKey();
+
+  // El movimiento tiene que ser suyo y no estar ya atado a otro fijo. La
+  // política de RLS solo exige que `user_id` sea el de la sesión, así que
+  // un id ajeno pasaría si no se comprueba acá.
+  const { data: movimiento } = await supabase
+    .from("transactions")
+    .select("id, fixed_expense_id")
+    .eq("id", transactionId)
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (!movimiento || movimiento.fixed_expense_id) return { error: GENERIC_ERROR };
+
+  const { data: transitioned, error } = await supabase
+    .from("fixed_expenses")
+    .update(statusFields("PAID"))
+    .eq("id", expenseId)
+    .eq("user_id", user.id)
+    .or(`status.neq.PAID,status_month.is.null,status_month.neq.${month}`)
+    .select("id");
+
+  if (error) return { error: GENERIC_ERROR };
+  // Ya estaba pagado: no se toca el movimiento.
+  if (!transitioned || transitioned.length === 0) {
+    revalidateFixed();
+    return { error: null };
+  }
+
+  const { error: linkError } = await supabase
+    .from("transactions")
+    .update({ fixed_expense_id: expenseId })
+    .eq("id", transactionId)
+    .eq("user_id", user.id);
+
+  if (linkError) {
+    // El estado quedó en pagado y el movimiento sin atar: se dice, porque
+    // el mes va a contar ese gasto dos veces hasta que se corrija.
+    logFailure("confirmFixedPayment: no se pudo atar el movimiento", linkError);
+    return {
+      error:
+        "Se marcó como pagado, pero no se pudo enlazar el movimiento. Revisalo en Movimientos.",
+    };
+  }
 
   revalidateFixed();
   return { error: null };

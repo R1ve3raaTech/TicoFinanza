@@ -2723,3 +2723,74 @@ y "Ver todas". Ahora el respaldo se mide sobre las recientes.
 con Playwright: **19 comprobaciones** — el desplegable abre, cierra y gira
 la flecha; el tope sin `<select>` y con cuatro chips; la marca animada con
 sus cuatro retrasos escalonados; y todo quieto con movimiento reducido.
+
+## Dónde quedamos (2026-11-20) — las dos primeras automatizaciones
+
+### ⚠️ MIGRACIÓN SIN CORRER: `0031_recurring_movements.sql`
+
+Crea la tabla de movimientos que se repiten. **Segura de correr y segura de
+NO correrla**: sin ella el panel de "Lo que se repite hoy" no sale y el
+botón "Repetir" del formulario avisa que falta la migración. Nada más
+cambia.
+
+De las tres automatizaciones que pidió Camil se hicieron **dos**. La tercera
+—leer las notificaciones de Wallet y de los bancos— es la que necesita el
+envoltorio nativo, y él mismo dejó Capacitor para después. **No se
+escribieron parsers a ciegas**: inventar el formato de una notificación que
+no se puede ver es exactamente cómo nació el bug de 2026-08-15 (compras del
+Banco Popular registradas como BAC). El primer paso de esa función es
+capturar texto real de notificaciones del teléfono de Camil.
+
+**Gastos fijos que parecen ya pagados** (`lib/autoPayments.ts`, sin migración)
+
+- Empareja un gasto fijo pendiente con un movimiento del **mismo monto, la
+  misma cuenta y cerca del día de cobro** (3 días antes, 6 después) que no
+  esté ya atado a ningún fijo. Lo propone en el resumen; un toque marca
+  pagado **y ata el movimiento**.
+- **Atar el movimiento importa tanto como marcar el estado**: sin
+  `fixed_expense_id` ese gasto contaría como variable *además* de contar
+  como fijo, y el mes cerraría con el alquiler sumado dos veces.
+- **El monto tiene que coincidir exacto.** Con tolerancia, un recibo que
+  varía mes a mes emparejaría con cualquier cosa. Cada movimiento se usa una
+  sola vez y cada fijo se queda con el más cercano a su día.
+- **Propone, no marca.** Un emparejamiento equivocado desarma el saldo
+  proyectado sin que nadie se entere; con la propuesta, lo peor que pasa es
+  decir que no. La fila muestra **el movimiento que lo prueba**, para poder
+  decir que no con criterio.
+- No hizo falta migración: `transactions.fixed_expense_id` existe desde la
+  0022.
+
+**Movimientos que se repiten y no son fijos** (`lib/recurring.ts`, migración 0031)
+
+- El almuerzo de los días hábiles, el bus. Frecuencias: días hábiles, todos
+  los días, una vez por semana. **No hay mensual a propósito**: eso es
+  exactamente un gasto fijo, y tener las dos cosas es cómo se termina con el
+  alquiler anotado dos veces.
+- Se crean desde el formulario de movimiento con el botón **"Repetir"**, al
+  lado de "Anotar en dólares" y "Dividir cuenta". Solo al registrar: un
+  movimiento viejo no se convierte en recurrencia.
+- **Solo se propone la de hoy, nunca las de días pasados.** Rellenar hacia
+  atrás suena útil y no lo es: el monto del almuerzo del martes no se sabe
+  hoy, y una lista de seis propuestas viejas se despacha con "no" sin
+  mirarla — con lo cual la función deja de servir justo el día que importaba.
+- **El monto es editable antes de confirmar, y ese es el punto.** Si la app
+  insertara sola con el monto de la plantilla, el saldo se iría separando
+  del real un poco cada día.
+- `last_confirmed_date` evita repetir la propuesta el mismo día. Una fecha
+  guardada **en el futuro** (reloj desajustado) se trata como confirmada:
+  fallar hacia "no molestar" es mejor que proponer en bucle.
+- La migración trae **las cuatro políticas de RLS**, la de UPDATE incluida:
+  sin ella, confirmar no podría escribir `last_confirmed_date` y la app
+  propondría para siempre, sin dar error (ver la 0027).
+
+**Un desborde que encontró la QA**: la fila de "Lo que se repite hoy" tenía
+el monto editable y los dos botones en un `shrink-0`, y a 390px se salía de
+la pantalla. Ahora las acciones bajan a su propia línea en teléfono.
+
+**Estado**: `npm test` (233, 24 nuevas entre el emparejamiento y las
+recurrencias), `eslint`, `tsc` y `npm run build` limpios. QA con Playwright
+contra el build de producción a 1280 y 390: **33 comprobaciones** — que la
+propuesta muestre el movimiento que la justifica, que decir que no la saque
+sin tocar el servidor, que el monto de una recurrencia se pueda cambiar,
+que "Anotar" llegue a la acción, y que el formulario ofrezca las tres
+frecuencias sin ninguna mensual.

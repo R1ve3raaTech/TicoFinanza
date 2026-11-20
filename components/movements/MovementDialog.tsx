@@ -1,8 +1,13 @@
 "use client";
 
 import { useId, useRef, useState, useTransition } from "react";
-import { CaretDown, CurrencyDollar, Trash, Users } from "@phosphor-icons/react";
-import { addTransaction, deleteTransaction, updateTransaction } from "@/app/dashboard/actions";
+import { ArrowsClockwise, CaretDown, CurrencyDollar, Trash, Users } from "@phosphor-icons/react";
+import {
+  addTransaction,
+  createRecurring,
+  deleteTransaction,
+  updateTransaction,
+} from "@/app/dashboard/actions";
 import { AccountPicker } from "@/components/accounts/AccountPicker";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useQueueOwner } from "@/components/offline/QueueOwner";
@@ -12,9 +17,11 @@ import { Button } from "@/components/ui/Button";
 import { Dialog } from "@/components/ui/Dialog";
 import { Field, FormError, inputClass } from "@/components/ui/Field";
 import { Money } from "@/components/ui/Money";
+import { Segmented } from "@/components/ui/Segmented";
 import { expenseCategories, incomeCategories } from "@/lib/categories";
 import { GENERIC_ERROR } from "@/lib/errors";
 import { monthKey } from "@/lib/fixedExpenses";
+import { FREQUENCIES, WEEKDAYS, type RecurrenceFrequency } from "@/lib/recurring";
 import { isFrameworkNavigation, isNetworkFailure, localId } from "@/lib/offline";
 import { deleteReceiptFile } from "@/lib/receiptUpload";
 import { frequentEntries, type RecentMovement } from "@/lib/quickEntry";
@@ -119,6 +126,12 @@ export function MovementDialog({
   const [usd, setUsd] = useState(false);
   const [rate, setRate] = useState(String(DEFAULT_USD_RATE));
   const [splitOpen, setSplitOpen] = useState(false);
+  // "Repetir": crea además una plantilla que el resumen va a proponer cada
+  // vez que toque. Solo al registrar — un movimiento viejo no se convierte
+  // en una recurrencia.
+  const [repeat, setRepeat] = useState(false);
+  const [frequency, setFrequency] = useState<RecurrenceFrequency>("habiles");
+  const [weekday, setWeekday] = useState(1);
   /**
    * Cuenta, fecha y comprobante arrancan plegados.
    *
@@ -261,6 +274,23 @@ export function MovementDialog({
         return;
       }
       savedRef.current = true;
+
+      // La plantilla se crea DESPUÉS de que el movimiento entró: si fallara
+      // primero, quedaría una recurrencia de algo que nunca se anotó. Si
+      // falla ella, el movimiento igual quedó — se avisa y se sigue.
+      if (!editing && repeat) {
+        const recurring = await createRecurring({
+          description,
+          amount: value,
+          category: effectiveCategory,
+          accountId: effectiveAccountId,
+          type,
+          frequency,
+          weekday: frequency === "semanal" ? weekday : null,
+        });
+        if (recurring.error) toast.error(recurring.error);
+      }
+
       toast.success(editing ? "Movimiento actualizado" : "Movimiento registrado");
       onClose();
     });
@@ -415,7 +445,51 @@ export function MovementDialog({
                 <Users size={14} />
                 Dividir cuenta
               </Button>
+              {!editing && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  aria-pressed={repeat}
+                  aria-expanded={repeat}
+                  onClick={() => setRepeat((v) => !v)}
+                >
+                  <ArrowsClockwise size={14} />
+                  Repetir
+                </Button>
+              )}
             </div>
+
+            {repeat && (
+              <div className="flex flex-col gap-2 rounded-surface border border-line bg-surface-raised p-3">
+                <Segmented
+                  value={frequency}
+                  onChange={setFrequency}
+                  ariaLabel="Cada cuánto se repite"
+                  fullWidth
+                  options={FREQUENCIES.map((f) => ({ value: f.value, label: f.label }))}
+                />
+                {frequency === "semanal" && (
+                  <div role="group" aria-label="Día de la semana" className="flex flex-wrap gap-1">
+                    {WEEKDAYS.map((day) => (
+                      <button
+                        key={day.value}
+                        type="button"
+                        aria-pressed={weekday === day.value}
+                        aria-label={day.label}
+                        onClick={() => setWeekday(day.value)}
+                        className={`h-8 w-8 cursor-pointer rounded-control border text-label transition-colors duration-150 ${
+                          weekday === day.value
+                            ? "border-ink text-ink"
+                            : "border-line text-ink-3 hover:border-line-strong"
+                        }`}
+                      >
+                        {day.short}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
             {splitOpen && (
               <BillSplitPanel

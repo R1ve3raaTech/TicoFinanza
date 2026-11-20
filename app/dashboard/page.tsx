@@ -13,6 +13,8 @@ import { greeting, monthHeadline } from "@/lib/greeting";
 import { compareMonths } from "@/lib/comparison";
 import { expectedIncomes, incomeTotals } from "@/lib/fixedIncomes";
 import { categorySpending, monthSummary, monthlyTotals } from "@/lib/insights";
+import { matchFixedPayments } from "@/lib/autoPayments";
+import { dueToday, type RecurringMovement } from "@/lib/recurring";
 import { resolveFirstName } from "@/lib/profile";
 import { createClient } from "@/lib/supabase/server";
 import type {
@@ -49,6 +51,8 @@ export default async function DashboardPage() {
     { data: accounts },
     { data: incomes },
     { count: budgetCount },
+    { data: monthExpenses },
+    { data: recurring },
   ] = await Promise.all([
       // Seis meses de historial: alcanza para el gráfico, y de paso trae el
       // mes en curso para los totales y el desglose por categoría.
@@ -83,6 +87,26 @@ export default async function DashboardPage() {
         .select("id", { count: "exact", head: true })
         .eq("user_id", user.id)
         .eq("month_year", monthKeyOf(dayKey())),
+      // Los gastos del mes con los campos que hacen falta para emparejarlos
+      // con un fijo (ver lib/autoPayments.ts). Es una consulta aparte y no
+      // columnas de más en la de arriba: esa trae seis meses y alimenta los
+      // gráficos, así que ensancharla sería traer seis veces lo que se
+      // necesita.
+      supabase
+        .from("transactions")
+        .select("id, amount, account_id, description, transaction_date, type, fixed_expense_id")
+        .eq("user_id", user.id)
+        .eq("type", "EXPENSE")
+        .is("fixed_expense_id", null)
+        .gte("transaction_date", monthStartISO()),
+      // Las plantillas que se repiten (migración 0031). Se piden todas las
+      // activas —son pocas— y el filtro de "hoy" lo hace `dueToday`, que es
+      // lógica pura y tiene pruebas.
+      supabase
+        .from("recurring_movements")
+        .select("*")
+        .eq("user_id", user.id)
+        .eq("active", true),
     ]);
 
   const history = (movements ?? []) as Pick<
@@ -94,6 +118,17 @@ export default async function DashboardPage() {
   // El mes se compara en hora de Costa Rica, no en UTC: un gasto del 31 a
   // las 7 p.m. es 1 del mes siguiente en UTC y caería en el mes equivocado.
   const ofThisMonth = history.filter((t) => monthKey(new Date(t.transaction_date)) === currentMonth);
+  // Los que parecen ya pagados, para proponerlos de un toque.
+  const paidMatches = matchFixedPayments(
+    fixed,
+    (monthExpenses ?? []) as Transaction[],
+    currentMonth,
+    todayKey
+  );
+  // Si la migración 0031 no se corrió, la consulta falla y `recurring`
+  // llega null: la app sigue andando sin el panel.
+  const recurringToday = dueToday((recurring ?? []) as RecurringMovement[], todayKey);
+
   const totals = fixedTotals(fixed, currentMonth);
   const summary = monthSummary(ofThisMonth, totals);
 
@@ -150,6 +185,8 @@ export default async function DashboardPage() {
       months={monthlyTotals(history, 6)}
       customCategories={(categories ?? []) as UserCategory[]}
       toConfirm={toConfirm}
+      paidMatches={paidMatches}
+      recurringToday={recurringToday}
       pendingIncome={incomes30.pending}
       todayKey={todayKey}
       todayLabel={todayLabel}
@@ -166,6 +203,16 @@ export default async function DashboardPage() {
 }
 
 /** Primer día del mes de hace cinco meses, que es donde arranca el gráfico. */
+/**
+ * Primer día del mes en curso. Con margen de un día hacia atrás porque la
+ * consulta compara contra un `timestamptz` en UTC y Costa Rica va seis
+ * horas atrás: sin el margen, un gasto del día 1 temprano quedaría afuera.
+ */
+function monthStartISO(): string {
+  const d = new Date();
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1, -12)).toISOString();
+}
+
 function sixMonthsAgoISO(): string {
   const d = new Date();
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() - 5, 1)).toISOString();
