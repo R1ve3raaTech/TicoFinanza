@@ -98,6 +98,11 @@ Tres cosas del workflow que no son decorativas:
 - **Los íconos y el splash se generan** con
   `node scripts/generate-android-icons.mjs`, a partir del mismo símbolo que
   el resto de la marca. Sin correrlo, la app queda con el logo de Capacitor.
+- **`android/gradlew` tiene que estar marcado como ejecutable en git**
+  (`100755`). Windows no guarda ese permiso, así que al commitearlo desde
+  esta máquina sale `100644` y el runner de Linux falla con **exit code
+  126** ("se encontró el comando pero no se puede ejecutar"). Se arregla con
+  `git update-index --chmod=+x android/gradlew`.
 - **`webDir` apunta a `capacitor-web/`, no a `public/`.** El contenido viene
   del sitio en vivo; empacar `public/` metía 1,2 MB de capturas —y el APK
   viejo dentro del APK nuevo— sin que nada de eso se use.
