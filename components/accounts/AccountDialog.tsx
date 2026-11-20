@@ -3,7 +3,8 @@
 import { useId, useState, useTransition } from "react";
 import { Trash } from "@phosphor-icons/react";
 import { createAccount, deleteAccount, updateAccount } from "@/app/dashboard/actions";
-import { IconPicker } from "@/components/ui/IconPicker";
+import { StylePickerDialog, StyleRow } from "@/components/ui/StylePickerDialog";
+import { MATERIAL_SYMBOLS } from "@/lib/materialSymbols";
 import { AccountMark } from "./AccountMark";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useToast } from "@/components/Toast";
@@ -39,6 +40,7 @@ export function AccountDialog({
   const [name, setName] = useState(account?.name ?? "");
   const [type, setType] = useState<AccountType>(account?.type ?? "efectivo");
   const [icon, setIcon] = useState<string | null>(account?.icon ?? null);
+  const [styleOpen, setStyleOpen] = useState(false);
   // Se precarga el saldo de HOY, no el de partida: es el número que la
   // persona puede comparar con su banco.
   const [balance, setBalance] = useState(
@@ -169,20 +171,33 @@ export function AccountDialog({
             <MoneyInput value={balance} onChange={setBalance} placeholder="0" allowNegative />
           </Field>
 
-          {/* Con dos cuentas del mismo tipo —la del banco y la de la
-              planilla— el ícono del tipo las dibujaba iguales. La vista
-              previa de al lado muestra cómo va a verse en la lista. */}
-          <div className="flex flex-col gap-3">
-            <div className="flex items-center gap-2.5">
-              <AccountMark account={{ type, icon }} size={34} />
-              <span className="text-label text-ink-2">Así se va a ver</span>
-            </div>
-            <IconPicker value={icon} onChange={setIcon} autoHint="Por tipo" />
-          </div>
+          {/* La grilla entera de íconos acá adentro tapaba el resto del
+              formulario: había que pasarla toda para llegar a "Guardar".
+              Queda la vista previa y el botón que abre el selector. */}
+          <StyleRow
+            label="Ícono"
+            hint={icon ? MATERIAL_SYMBOLS[icon]?.label : "El que le toca por su tipo"}
+            preview={<AccountMark account={{ type, icon }} size={34} />}
+            onOpen={() => setStyleOpen(true)}
+          />
 
           <FormError>{error}</FormError>
         </form>
       </Dialog>
+
+      <StylePickerDialog
+        key={`estilo-${styleOpen}`}
+        open={styleOpen && open}
+        onClose={() => setStyleOpen(false)}
+        title="Ícono de la cuenta"
+        value={{ icon }}
+        autoHint="Por tipo"
+        preview={(style) => <AccountMark account={{ type, icon: style.icon }} size={34} />}
+        onSave={(style) => {
+          setIcon(style.icon);
+          setStyleOpen(false);
+        }}
+      />
 
       {/* `&& open`: la confirmación no sobrevive al diálogo que la abrió. */}
       <ConfirmDialog

@@ -2857,3 +2857,33 @@ Está todo escrito en las notas del 2026-11-19 (segunda parte). En orden:
    paso **no es escribir parsers**: es capturar texto real de notificaciones
    del teléfono de Camil. Inventar el formato es exactamente como nació el
    bug de 2026-08-15, con compras del Banco Popular registradas como BAC.
+
+## Dónde quedamos (2026-11-20, segunda parte) — el ícono y el color, en su diálogo
+
+Camil, viendo la app: en "Editar cuenta" y en el editor de categorías los
+íconos salían "en la pura cara". Tenía razón, y en los dos lados: treinta y
+siete íconos (más once colores en el de categoría) sueltos entre el nombre
+y el botón de guardar. En el de la cuenta había que pasar la grilla entera
+para llegar a "Guardar".
+
+**`components/ui/StylePickerDialog.tsx`** es ahora el único lugar donde se
+eligen ícono y color, y lo comparten la cuenta y la categoría. En el
+formulario queda **una fila** (`StyleRow`): la vista previa, qué está
+elegido en una palabra, y un botón "Cambiar". El formulario de la cuenta
+pasó de un muro de cuadritos a **497px de contenido** — "Guardar" se ve sin
+desplazarse.
+
+- **Se guarda al confirmar, no al tocar cada cuadrito.** Cancelar deja todo
+  como estaba, y hay una comprobación de eso: antes, al estar en línea, cada
+  toque ya modificaba el formulario de atrás.
+- El color es **opcional** en el componente (`value.color === undefined`):
+  una cuenta no tiene color propio, su marca se tiñe sola. Si algún día se
+  le quiere dar uno, es una columna y pasarle `color` — el diálogo ya lo
+  dibuja.
+- El `ToneButton` que vivía duplicado en `CategoryDialog` se mudó acá.
+
+**Estado**: `npm test` (234), `eslint`, `tsc` y `npm run build` limpios. QA
+con Playwright a 1280 y 390: **25 comprobaciones** — que no quede ninguna
+grilla en los dos formularios, que el selector abra aparte con sus 37
+íconos (y los 11 colores en el de categoría), que quede por encima, que
+confirmar aplique y cancelar no, y que "Guardar" se vea sin desplazarse.

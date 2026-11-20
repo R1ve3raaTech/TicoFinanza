@@ -5,12 +5,13 @@ import { ArrowLeft, Check, PencilSimple, Plus, Trash } from "@phosphor-icons/rea
 import { addCategory, deleteCategory, updateCategory } from "@/app/dashboard/ajustes/actions";
 import { useToast } from "@/components/Toast";
 import { Button } from "@/components/ui/Button";
-import { CategoryMark, toneClasses } from "@/components/ui/CategoryMark";
+import { CategoryMark } from "@/components/ui/CategoryMark";
+import { StylePickerDialog, StyleRow } from "@/components/ui/StylePickerDialog";
 import { Dialog } from "@/components/ui/Dialog";
 import { Field, FormError, inputClass } from "@/components/ui/Field";
 import { Segmented } from "@/components/ui/Segmented";
-import { CATEGORY_TONES, isCategoryTone, type CategoryTone } from "@/lib/categoryStyle";
-import { MATERIAL_SYMBOLS, SYMBOL_NAMES } from "@/lib/materialSymbols";
+import { isCategoryTone, type CategoryTone } from "@/lib/categoryStyle";
+import { MATERIAL_SYMBOLS } from "@/lib/materialSymbols";
 import type { TransactionType, UserCategory } from "@/lib/types";
 
 /**
@@ -236,6 +237,7 @@ function CategoryForm({
     isCategoryTone(category.color) ? category.color : null
   );
   const [error, setError] = useState<string | null>(null);
+  const [styleOpen, setStyleOpen] = useState(false);
   const [pending, startTransition] = useTransition();
 
   const dirty =
@@ -283,59 +285,48 @@ function CategoryForm({
         </Field>
       </div>
 
-      <div role="group" aria-label="Color">
-        <p className="pb-2 text-label text-ink-2">Color</p>
-        <div className="flex flex-wrap gap-1.5">
-          <ToneButton tone={null} selected={color === null} onClick={() => setColor(null)} />
-          {CATEGORY_TONES.map((tone) => (
-            <ToneButton
-              key={tone}
-              tone={tone}
-              selected={color === tone}
-              onClick={() => setColor(tone)}
-            />
-          ))}
-        </div>
-      </div>
+      {/* Las dos grillas vivían acá y tapaban el formulario entero: el
+          nombre quedaba arriba de un muro de cuadritos y había que pasarlo
+          todo para llegar a "Guardar". Ahora son una fila con la vista
+          previa y un diálogo propio. */}
+      <StyleRow
+        label="Ícono y color"
+        hint={
+          icon || color
+            ? [icon ? MATERIAL_SYMBOLS[icon]?.label : null, color].filter(Boolean).join(" · ")
+            : "Los decide la app por el nombre"
+        }
+        preview={
+          <CategoryMark
+            category={name || category.name}
+            size={34}
+            previewIcon={icon}
+            previewTone={color ?? undefined}
+          />
+        }
+        onOpen={() => setStyleOpen(true)}
+      />
 
-      <div role="group" aria-label="Ícono">
-        <p className="pb-2 text-label text-ink-2">Ícono</p>
-        <div className="grid grid-cols-6 gap-1.5 sm:grid-cols-9">
-          <button
-            type="button"
-            aria-pressed={icon === null}
-            aria-label="Ícono automático"
-            onClick={() => setIcon(null)}
-            className={`flex h-10 cursor-pointer items-center justify-center rounded-control border text-micro transition-[border-color,transform] duration-150 active:scale-[0.94] motion-reduce:active:scale-100 ${
-              icon === null ? "border-ink text-ink" : "border-line text-ink-3 hover:border-line-strong"
-            }`}
-          >
-            Auto
-          </button>
-          {SYMBOL_NAMES.map((symbol) => {
-            const selected = icon === symbol;
-            return (
-              <button
-                key={symbol}
-                type="button"
-                aria-pressed={selected}
-                aria-label={MATERIAL_SYMBOLS[symbol].label}
-                title={MATERIAL_SYMBOLS[symbol].label}
-                onClick={() => setIcon(symbol)}
-                className={`flex h-10 cursor-pointer items-center justify-center rounded-control border transition-[border-color,color,transform] duration-150 active:scale-[0.94] motion-reduce:active:scale-100 ${
-                  selected
-                    ? "border-ink text-ink"
-                    : "border-line text-ink-2 hover:border-line-strong hover:text-ink"
-                }`}
-              >
-                <svg viewBox="0 -960 960 960" width={20} height={20} fill="currentColor" aria-hidden>
-                  <path d={MATERIAL_SYMBOLS[symbol].path} />
-                </svg>
-              </button>
-            );
-          })}
-        </div>
-      </div>
+      <StylePickerDialog
+        key={`estilo-${styleOpen}`}
+        open={styleOpen}
+        onClose={() => setStyleOpen(false)}
+        title="Ícono y color"
+        value={{ icon, color }}
+        preview={(style) => (
+          <CategoryMark
+            category={name || category.name}
+            size={34}
+            previewIcon={style.icon}
+            previewTone={style.color ?? undefined}
+          />
+        )}
+        onSave={(style) => {
+          setIcon(style.icon);
+          setColor(style.color ?? null);
+          setStyleOpen(false);
+        }}
+      />
 
       <FormError>{error}</FormError>
 
@@ -361,36 +352,5 @@ function CategoryForm({
         </Button>
       </div>
     </div>
-  );
-}
-
-function ToneButton({
-  tone,
-  selected,
-  onClick,
-}: {
-  tone: CategoryTone | null;
-  selected: boolean;
-  onClick: () => void;
-}) {
-  const classes = tone ? toneClasses(tone) : null;
-  return (
-    <button
-      type="button"
-      aria-pressed={selected}
-      aria-label={tone ? `Color ${tone}` : "Color automático"}
-      onClick={onClick}
-      className={`flex h-9 w-9 cursor-pointer items-center justify-center rounded-control border transition-[border-color,transform] duration-150 active:scale-[0.94] motion-reduce:active:scale-100 ${
-        selected ? "border-ink" : "border-transparent"
-      } ${classes ? classes.soft : "bg-surface-raised"}`}
-    >
-      {tone ? (
-        <span aria-hidden className={`h-4 w-4 rounded-[3px] ${classes?.dot}`} />
-      ) : (
-        <span aria-hidden className="text-micro text-ink-3">
-          Auto
-        </span>
-      )}
-    </button>
   );
 }
