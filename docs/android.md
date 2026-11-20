@@ -73,13 +73,14 @@ Tres cosas del workflow que no son decorativas:
 
 - **`permissions: contents: read`.** Sin eso el token del job sale con los
   permisos por defecto, que incluyen escritura sobre el repositorio.
-- **`android-actions/setup-android` va fijada a un commit**, no a la
-  etiqueta `v3`. Una etiqueta se puede mover, y este job recibe la llave de
-  firma del APK: si ese repositorio se comprometiera, un paso ajeno
-  corriendo acá podría leer la llave ya descifrada en disco. Para
-  actualizarla:
-  `gh api repos/android-actions/setup-android/git/ref/tags/vX --jq .object.sha`.
-  Las acciones `actions/*` son de GitHub y se quedan con etiqueta.
+- **Todas las acciones van fijadas a un commit**, no a una etiqueta. Una
+  etiqueta se puede mover, y este job recibe la llave de firma del APK: si
+  uno de esos repositorios se comprometiera, un paso ajeno corriendo acá
+  podría leer la llave ya descifrada en disco. Para actualizar cualquiera:
+  `gh api repos/<dueño>/<repo>/git/ref/tags/vX --jq .object.sha`.
+- **`setup-android` tiene que ser v4 o más.** La v3 intenta instalar el
+  paquete `tools` del SDK, que Google sacó del repositorio: falla con
+  "Failed to find package 'tools'" antes de compilar nada.
 - **El secreto de la llave entra por `env`**, no interpolado dentro del
   `run`: así no queda escrito en el script que el runner ejecuta.
 

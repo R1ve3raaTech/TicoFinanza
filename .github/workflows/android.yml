@@ -29,26 +29,28 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: 22
           cache: npm
 
       # AGP 8.13 pide JDK 17 o más. El 21 es el que trae soporte largo.
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6
         with:
           distribution: temurin
           java-version: "21"
 
-      # Fijada a un commit y no a `v3`: una etiqueta se puede mover, y este
-      # job recibe la llave de firma del APK. Si el repositorio de la acción
-      # se comprometiera, un paso ajeno corriendo acá podría leer la llave
-      # ya descifrada en disco. Con el commit exacto, lo que corre es lo que
-      # se revisó. Para actualizarla:
-      #   gh api repos/android-actions/setup-android/git/ref/tags/vX --jq .object.sha
-      - uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3.2.2
+      # Todas fijadas a un commit y no a una etiqueta: una etiqueta se puede
+      # mover, y este job recibe la llave de firma del APK. Con el commit
+      # exacto, lo que corre es lo que se revisó. Para actualizarlas:
+      #   gh api repos/<dueño>/<repo>/git/ref/tags/vX --jq .object.sha
+      #
+      # **v4 y no v3**: la v3 intenta instalar el paquete `tools` del SDK,
+      # que Google sacó del repositorio. Falla con "Failed to find package
+      # 'tools'" antes de compilar nada.
+      - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4
 
       - name: Instalar dependencias
         run: npm ci
@@ -100,7 +102,7 @@ jobs:
         run: ./gradlew --no-daemon assembleRelease
 
       - name: Publicar el APK
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: TicoFinanza-${{ inputs.variante }}
           path: android/app/build/outputs/apk/${{ inputs.variante }}/*.apk
