@@ -10,6 +10,12 @@
 # algo del envoltorio: el ícono, un permiso, un plugin nativo.
 name: APK de Android
 
+# El workflow solo lee el repo y sube un artefacto: no escribe nada acá. Sin
+# esto, el token del job sale con los permisos por defecto —que incluyen
+# escritura— y cualquier paso que corra código ajeno podría usarlo.
+permissions:
+  contents: read
+
 on:
   workflow_dispatch:
     inputs:
@@ -36,7 +42,13 @@ jobs:
           distribution: temurin
           java-version: "21"
 
-      - uses: android-actions/setup-android@v3
+      # Fijada a un commit y no a `v3`: una etiqueta se puede mover, y este
+      # job recibe la llave de firma del APK. Si el repositorio de la acción
+      # se comprometiera, un paso ajeno corriendo acá podría leer la llave
+      # ya descifrada en disco. Con el commit exacto, lo que corre es lo que
+      # se revisó. Para actualizarla:
+      #   gh api repos/android-actions/setup-android/git/ref/tags/vX --jq .object.sha
+      - uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3.2.2
 
       - name: Instalar dependencias
         run: npm ci
@@ -65,12 +77,17 @@ jobs:
       #   ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD
       - name: Preparar la llave de firma
         if: inputs.variante == 'release'
+        # El secreto entra por `env` y no interpolado dentro del `run`: así
+        # no queda escrito en el script que el runner ejecuta, donde podría
+        # asomar en un rastreo o en un mensaje de error.
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
         run: |
-          if [ -z "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" ]; then
+          if [ -z "$KEYSTORE_BASE64" ]; then
             echo "::error::Faltan los secretos de firma. Ver docs/android.md"
             exit 1
           fi
-          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > android/app/firma.jks
+          printf '%s' "$KEYSTORE_BASE64" | base64 -d > android/app/firma.jks
 
       - name: Compilar (release firmado)
         if: inputs.variante == 'release'

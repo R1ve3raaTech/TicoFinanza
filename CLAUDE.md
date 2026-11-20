@@ -2939,5 +2939,12 @@ respaldo no existe, el archivo se pierde. `capacitor.config.ts` no estaba
 versionado todavía, así que no había de dónde recuperarlo. Para probar algo
 destructivo: `cp` al scratchpad primero, y recién después tocar.
 
+**Endurecido tras la revisión de seguridad del commit**, y tenía razón: ese
+job recibe la llave de firma del APK, así que `android-actions/setup-android`
+quedó **fijada a un commit** (una etiqueta se puede mover), el workflow
+declara `permissions: contents: read`, y el secreto de la llave entra por
+`env` en vez de interpolado dentro del `run`. Las acciones `actions/*` se
+quedan con etiqueta: son de GitHub.
+
 **Estado**: `npm test` (236, 2 nuevas sobre el envoltorio), `eslint`, `tsc` y
 `npm run build` limpios con `android/` en el árbol.

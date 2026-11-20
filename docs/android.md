@@ -67,6 +67,22 @@ secretos:
 | `ANDROID_KEY_ALIAS` | `ticofinanza` |
 | `ANDROID_KEY_PASSWORD` | la contraseña de la llave |
 
+## El workflow y la llave
+
+Tres cosas del workflow que no son decorativas:
+
+- **`permissions: contents: read`.** Sin eso el token del job sale con los
+  permisos por defecto, que incluyen escritura sobre el repositorio.
+- **`android-actions/setup-android` va fijada a un commit**, no a la
+  etiqueta `v3`. Una etiqueta se puede mover, y este job recibe la llave de
+  firma del APK: si ese repositorio se comprometiera, un paso ajeno
+  corriendo acá podría leer la llave ya descifrada en disco. Para
+  actualizarla:
+  `gh api repos/android-actions/setup-android/git/ref/tags/vX --jq .object.sha`.
+  Las acciones `actions/*` son de GitHub y se quedan con etiqueta.
+- **El secreto de la llave entra por `env`**, no interpolado dentro del
+  `run`: así no queda escrito en el script que el runner ejecuta.
+
 ## Qué hay que saber si se toca el envoltorio
 
 - **`capacitor.config.ts` manda.** Después de cambiarlo hay que correr
