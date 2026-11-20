@@ -1,0 +1,90 @@
+# Compila el APK de Android en la nube.
+#
+# Existe para no tener que instalar Android Studio ni el SDK en la máquina
+# de Camil (varios GB). Se dispara a mano desde la pestaña Actions de
+# GitHub y deja el APK como artefacto para descargar.
+#
+# **Por qué no corre en cada push**: el APK carga el sitio en vivo
+# (`server.url` en capacitor.config.ts), así que un cambio en la web ya sale
+# en el Android sin recompilar. Solo hace falta un APK nuevo cuando cambia
+# algo del envoltorio: el ícono, un permiso, un plugin nativo.
+name: APK de Android
+
+on:
+  workflow_dispatch:
+    inputs:
+      variante:
+        description: "debug (se instala sin configurar nada) o release (firmado, necesita los secretos)"
+        type: choice
+        default: debug
+        options: [debug, release]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # AGP 8.13 pide JDK 17 o más. El 21 es el que trae soporte largo.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Sincronizar Capacitor
+        # Copia capacitor-web/ y regenera capacitor.config.json dentro del
+        # proyecto Android. Sin esto, un cambio en capacitor.config.ts no
+        # llega al APK — y ahí entra la marca del identificador, que es de
+        # lo que depende que la web sepa que está en el APK.
+        run: npx cap sync android
+
+      - name: Comprobar que la marca del identificador llegó al APK
+        # Si esto falla, el APK se comportaría como la web: mostraría la
+        # portada, perdería el cerrojo y volvería el cierre por inactividad.
+        run: |
+          grep -q "TicoFinanzaApp" android/app/src/main/assets/capacitor.config.json \
+            || { echo "::error::capacitor.config.json salió sin la marca TicoFinanzaApp"; exit 1; }
+
+      - name: Compilar (debug)
+        if: inputs.variante == 'debug'
+        working-directory: android
+        run: ./gradlew --no-daemon assembleDebug
+
+      # Firma de verdad. Necesita cuatro secretos en el repo:
+      #   ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD,
+      #   ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD
+      - name: Preparar la llave de firma
+        if: inputs.variante == 'release'
+        run: |
+          if [ -z "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" ]; then
+            echo "::error::Faltan los secretos de firma. Ver docs/android.md"
+            exit 1
+          fi
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > android/app/firma.jks
+
+      - name: Compilar (release firmado)
+        if: inputs.variante == 'release'
+        working-directory: android
+        env:
+          FIRMA_STORE: firma.jks
+          FIRMA_STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          FIRMA_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          FIRMA_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: ./gradlew --no-daemon assembleRelease
+
+      - name: Publicar el APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: TicoFinanza-${{ inputs.variante }}
+          path: android/app/build/outputs/apk/${{ inputs.variante }}/*.apk
+          if-no-files-found: error

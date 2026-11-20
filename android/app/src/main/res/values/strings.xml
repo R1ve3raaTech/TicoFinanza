@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">TicoFinanza</string>
+    <string name="title_activity_main">TicoFinanza</string>
+    <string name="package_name">com.ticofinanza.app</string>
+    <string name="custom_url_scheme">com.ticofinanza.app</string>
+</resources>

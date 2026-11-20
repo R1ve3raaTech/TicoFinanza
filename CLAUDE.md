@@ -2887,3 +2887,57 @@ con Playwright a 1280 y 390: **25 comprobaciones** — que no quede ninguna
 grilla en los dos formularios, que el selector abra aparte con sus 37
 íconos (y los 11 colores en el de categoría), que quede por encima, que
 confirmar aplique y cancelar no, y que "Guardar" se vea sin desplazarse.
+
+## Dónde quedamos (2026-11-20, tercera parte) — arrancó Capacitor
+
+Primer paso del APK nativo. **Todavía no se compiló ninguno**: lo que hay es
+el envoltorio, los íconos y la forma de construirlo sin instalar nada en la
+máquina de Camil. Lo que falta está en `docs/android.md`, en orden.
+
+**El envoltorio** (`capacitor.config.ts`, `android/`)
+
+- **Carga el sitio en vivo** (`server.url` a `https://www.ticofinanza.com`),
+  no una copia empacada: por eso un cambio en la web sale en el Android sin
+  recompilar, que es lo que pidió Camil.
+- **`appId: com.ticofinanza.app`, distinto del TWA viejo**
+  (`com.ticofinanza.www.app`). Reusar el id haría que Android se negara a
+  instalar encima por la firma distinta ("app no instalada"). Con uno propio
+  el APK nuevo entra limpio; el viejo se desinstala aparte.
+- **`webDir` apunta a `capacitor-web/`, no a `public/`.** Con `public/`,
+  `cap sync` empacaba 1,2 MB de capturas **y el APK viejo dentro del APK
+  nuevo**, sin que nada de eso se use. En esa carpeta solo vive la pantalla
+  de "no se pudo conectar".
+- **`appendUserAgent: "TicoFinanzaApp/1"`** es la pieza de la que cuelga todo
+  el modo APK. `lib/appMode.test.ts` lo comprueba **leyendo
+  `capacitor.config.ts`**, no una copia del texto, y el workflow lo vuelve a
+  comprobar sobre el JSON ya generado. Está verificado que la prueba falla si
+  se cambia la marca: si se desajustara, el APK se comportaría como la web
+  —portada en vez de bienvenida, sin cerrojo, con cierre por inactividad— y
+  **nada daría error**.
+
+**Compilar sin Android Studio**: `.github/workflows/android.yml`, a mano
+desde la pestaña Actions. Dos variantes: `debug` (se instala sin configurar
+nada) y `release` (firmado, con cuatro secretos). **No corre en cada push a
+propósito**: el contenido viene del sitio en vivo, así que un APK nuevo solo
+hace falta cuando cambia el envoltorio.
+
+La firma de release se arma sola **solo si existe `FIRMA_STORE`**
+(`android/app/build.gradle`): sin esa variable el bloque no se declara, así
+que compilar en local sigue funcionando sin tener la llave.
+
+**Los íconos** salen de `node scripts/generate-android-icons.mjs`, con la
+misma geometría del símbolo que el resto de la marca. Sin correrlo la app
+queda con el logo de Capacitor. El `foreground` del ícono adaptativo va al
+42 % del lienzo porque Android lo recorta con la forma del launcher y solo
+garantiza el 66 % del centro; y el fondo pasó de blanco a `#0b0b0d`, que con
+el símbolo en tinta clara era lo que lo hacía invisible.
+
+**Un error mío, para no repetirlo**: truncando un archivo con
+`open(dst,"w").write(open(src).read())`. Python evalúa el `open(...,"w")`
+primero, así que **vacía el destino antes de leer el respaldo** — y si el
+respaldo no existe, el archivo se pierde. `capacitor.config.ts` no estaba
+versionado todavía, así que no había de dónde recuperarlo. Para probar algo
+destructivo: `cp` al scratchpad primero, y recién después tocar.
+
+**Estado**: `npm test` (236, 2 nuevas sobre el envoltorio), `eslint`, `tsc` y
+`npm run build` limpios con `android/` en el árbol.
