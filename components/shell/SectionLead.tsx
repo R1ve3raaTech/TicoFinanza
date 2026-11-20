@@ -33,7 +33,10 @@ export function SectionLead({
     tone === "expense" ? "text-expense" : tone === "income" ? "text-income" : "text-ink";
 
   return (
-    <section aria-label={label} className="pb-6 pt-4 md:pt-2">
+    // `rise-in`: la cifra protagonista de cada sección entra una vez al
+    // abrir, igual que los bloques del resumen. Acá y no en cada vista
+    // porque las tres pantallas la usan, y así no se desincronizan.
+    <section aria-label={label} className="rise-in pb-6 pt-4 md:pt-2">
       <p className="text-meta text-ink-3">{label}</p>
       <p className={`mt-1 text-display md:text-display-lg ${color}`}>
         <MoneyDisplay value={value} />

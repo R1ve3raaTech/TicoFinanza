@@ -2558,3 +2558,53 @@ tenían tooltip. **Sí lo tenían, los dos.** Lo que faltaba era lo de arriba.
 `tsc` y `npm run build` limpios. QA con Playwright contra el build de
 producción a 1440 y 390, más una pasada con movimiento reducido: **27
 comprobaciones**.
+
+## Dónde quedamos (2026-11-19, cuarta parte) — pulido, tanda 2
+
+Fijos, Movimientos y Plan, con el mismo lenguaje de la tanda 1. Igual que
+antes, se miraron las pantallas con datos de ejemplo antes de tocar nada.
+
+**El hallazgo que vale para toda la app**: en Fijos, el botón del estado
+**pagado** llevaba borde (`secondary`) y el de **marcar pagado** iba plano
+(`ghost`). O sea que lo ya hecho se veía más accionable que lo que uno viene
+a hacer. Se invirtió: la acción pendiente con borde, el estado hecho plano
+con su check. *Si aparece otra lista con acción y estado, va así.*
+
+**Fijos**: cada fila dice ahora **de qué cuenta sale** el cobro. El dato
+estaba guardado (`account_id`) y no se mostraba en ningún lado; solo se
+dibuja de `sm` para arriba, porque en teléfono esa línea ya va justa.
+
+**Plan → Metas**, dos arreglos de lo que se veía vacío o torcido:
+- La fila de acciones lleva `mt-auto`: las tarjetas de una hilera miden lo
+  que mide la más alta, y sin eso los botones quedaban a distinta altura en
+  cada una.
+- Una meta **sin fecha objetivo** mostraba el porcentaje y nada más. Ahora
+  dice cuánto falta, que es un número que siempre se puede calcular.
+
+**La entrada escalonada vive en `SectionLead`**, no copiada en las tres
+vistas: las tres usan ese componente para su cifra protagonista, así que
+poniéndola ahí no se pueden desincronizar.
+
+**Lo que NO se tocó, y por qué**: el botón "Saldar" de Deudas sigue plano.
+Está posicionado en absoluto y la fila le reserva el ancho con `pr-*` (ver la
+nota del 2026-11-01 sobre `md:pr-24`): darle borde lo ensancha y es
+exactamente la forma de reabrir ese bug. En Deudas además no hay la
+inconsistencia de Fijos — ahí todos los botones son planos.
+
+**Un falso positivo para no repetir**: en la vista de prueba todos los
+movimientos mostraban "06:00 p. m.". No es un bug de la app:
+`transaction_date` es `timestamptz` y los datos reales traen hora de verdad;
+lo que pasaba es que la vista de prueba usaba fechas sin hora, que se leen
+como medianoche UTC = 6 p.m. de Costa Rica. **Antes de "arreglar" algo raro
+en una vista de prueba, revisar si lo raro son los datos de prueba.**
+
+**Otra vez la trampa del puerto**: `next start` en el 3100 no falla de forma
+visible si ya hay otro escuchando — el viejo siguió sirviendo un build
+anterior y la captura salió sin CSS y con la pantalla equivocada. Hay que
+matar **todos** los procesos del puerto (`Get-NetTCPConnection -LocalPort
+3100 | Stop-Process`) antes de levantar el nuevo.
+
+**Estado**: `npm test` (201), `eslint`, `tsc` y `npm run build` limpios. QA
+con Playwright a 1440 y 390 sobre las seis vistas (fijos, fijos→ingresos,
+movimientos, plan→topes, plan→metas, plan→deudas), más una pasada con
+movimiento reducido: **23 comprobaciones**.

@@ -39,6 +39,13 @@ export function FixedExpensesList({
 }) {
   const toast = useToast();
   const { edit } = useFixedExpenseEntry();
+  // Nombre de la cuenta de cada fijo, para la línea de abajo. En un Map y
+  // no buscando en el array por fila: con pocas cuentas da igual, pero así
+  // la lista no depende del largo de las dos cosas a la vez.
+  const accountName = useMemo(() => {
+    const porId = new Map(accounts.map((a) => [a.id, a.name]));
+    return (id: string | null) => (id ? porId.get(id) : undefined);
+  }, [accounts]);
   const [pending, startTransition] = useTransition();
   const [marking, setMarking] = useState<FixedExpense | null>(null);
   const [session, setSession] = useState(0);
@@ -131,6 +138,17 @@ export function FixedExpensesList({
                       </span>
                       <span aria-hidden>·</span>
                       <span className="shrink-0">{expense.category ?? "Sin categoría"}</span>
+                      {/* De qué cuenta sale. El dato ya estaba guardado y no
+                          se mostraba en ningún lado. Solo de `sm` para
+                          arriba: en teléfono esta línea ya va justa. */}
+                      {accountName(expense.account_id) && (
+                        <>
+                          <span aria-hidden className="hidden sm:inline">·</span>
+                          <span className="hidden shrink-0 sm:inline">
+                            {accountName(expense.account_id)}
+                          </span>
+                        </>
+                      )}
                     </span>
                   </span>
                 </button>
@@ -140,8 +158,12 @@ export function FixedExpensesList({
                   className="order-last text-right text-sm font-medium text-ink sm:order-none"
                 />
 
+                {/* Al revés de como estaba: el **pendiente** va con borde,
+                    que es lo que uno viene a hacer, y el **pagado** queda
+                    plano con su check, que es un estado. Antes el estado
+                    terminado se veía más accionable que la acción. */}
                 <Button
-                  variant={paid ? "secondary" : "ghost"}
+                  variant={paid ? "ghost" : "secondary"}
                   size="sm"
                   aria-pressed={paid}
                   disabled={pending}

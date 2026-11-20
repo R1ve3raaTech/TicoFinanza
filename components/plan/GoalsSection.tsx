@@ -197,10 +197,25 @@ export function GoalsSection({
                     />
                   </div>
 
-                  <div className="flex items-end justify-between gap-3">
+                  {/* `mt-auto` empuja la fila de acciones al fondo: las
+                      tarjetas de una misma hilera miden lo que mide la más
+                      alta, y sin esto los botones quedaban a distinta
+                      altura en cada una. */}
+                  <div className="mt-auto flex items-end justify-between gap-3">
                     <p className="min-w-0 text-meta text-ink-3">
                       <span className="money">{percent}%</span>
-                      {pace && <span className="block truncate">{pace}</span>}
+                      {pace ? (
+                        <span className="block truncate">{pace}</span>
+                      ) : (
+                        // Sin fecha de meta no hay ritmo que calcular, y la
+                        // tarjeta se quedaba con el porcentaje y nada más.
+                        // Cuánto falta sí se puede decir siempre.
+                        !progress.complete && (
+                          <span className="block truncate">
+                            Te faltan <Money value={goal.target_amount - goal.current_amount} />
+                          </span>
+                        )
+                      )}
                       {/* Ir atrasado en el prorrateo no es una alarma: es un
                           dato para ponerse al día, así que va en tinta y no
                           en rosa, que acá significa plata que sale. */}
