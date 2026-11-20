@@ -1686,7 +1686,7 @@ solo escrita.
 
 ## Dónde quedamos (2026-11-07, séptima parte)
 
-### ⚠️ HAY UNA MIGRACIÓN SIN CORRER: `0025_category_icon_color.sql`
+### `0025_category_icon_color.sql` — ya corrida (2026-11-08)
 
 Agrega `user_categories.icon` y `user_categories.color`, las dos NULL por
 defecto. **Es segura de correr en cualquier momento y también es segura de
@@ -1893,7 +1893,7 @@ la imagen), y que sin marcar la casilla avise y no entre.
 
 ## Dónde quedamos (2026-11-08, bienvenida y primeros pasos)
 
-### ⚠️ MIGRACIÓN SIN CORRER: `0026_onboarding.sql`
+### `0026_onboarding.sql` — ya corrida (2026-11-08)
 
 Agrega `user_settings.onboarding_seen`. **Segura de correr y segura de NO
 correr**: sin ella la guía de bienvenida simplemente no sale y nada más
@@ -2079,7 +2079,7 @@ bienvenida a pedido traiga el contador.
 
 ## Dónde quedamos (2026-11-08, quinta parte)
 
-### ⚠️ HAY UNA MIGRACIÓN SIN CORRER: `0027_user_categories_update_policy.sql`
+### `0027_user_categories_update_policy.sql` — ya corrida (2026-11-08)
 
 **Es la causa del bug que reportó Camil** ("edito el ícono, me dice guardado
 y no guarda nada"). Hasta que no se corra, editar una categoría propia sigue
@@ -2264,7 +2264,7 @@ PID (`netstat -ano | grep :3100`) antes de levantar el nuevo.
 
 ## Dónde quedamos (2026-11-19, segunda parte) — modo APK
 
-### ⚠️ MIGRACIÓN SIN CORRER: `0028_app_lock.sql`
+### `0028_app_lock.sql` — ya corrida (2026-11-19)
 
 Agrega `user_settings.app_lock_pin_hash` y `app_lock_when`. **Segura de
 correr y segura de NO correr**: sin ella el bloque "Bloqueo" de Ajustes no
@@ -2374,7 +2374,7 @@ acceso prestado en acceso para siempre.
   operación. Comprobarlo antes sería un viaje de más y gastaría un intento
   del límite por gusto.
 
-**⚠️ HAY UNA SEGUNDA MIGRACIÓN SIN CORRER: `0029_pin_reset_code.sql`.**
+**`0029_pin_reset_code.sql` — ya corrida (2026-11-19).**
 Agrega `purpose` a `account_deletion_codes`. Segura de correr y segura de no
 correr: sin ella el borrado de cuenta sigue igual (se detecta y se cae al
 camino viejo) y lo único que no anda es recuperar el PIN olvidado, que lo
@@ -2611,7 +2611,7 @@ movimiento reducido: **23 comprobaciones**.
 
 ## Dónde quedamos (2026-11-19, quinta parte) — el formulario de anotar
 
-### ⚠️ MIGRACIÓN SIN CORRER: `0030_account_icon.sql`
+### `0030_account_icon.sql` — ya corrida (2026-11-19)
 
 Agrega `accounts.icon`. **Segura de correr y segura de NO correrla**: sin
 ella cada cuenta sigue con el ícono de su tipo y lo único que falla es
@@ -2726,7 +2726,7 @@ sus cuatro retrasos escalonados; y todo quieto con movimiento reducido.
 
 ## Dónde quedamos (2026-11-20) — las dos primeras automatizaciones
 
-### ⚠️ MIGRACIÓN SIN CORRER: `0031_recurring_movements.sql`
+### `0031_recurring_movements.sql` — ya corrida (2026-11-20)
 
 **Ojo: la primera versión no se podía correr.** La columna `weekday` tenía
 un `check` en línea, y Postgres a esos les pone de nombre
@@ -2805,3 +2805,55 @@ propuesta muestre el movimiento que la justifica, que decir que no la saque
 sin tocar el servidor, que el monto de una recurrencia se pueda cambiar,
 que "Anotar" llegue a la acción, y que el formulario ofrezca las tres
 frecuencias sin ninguna mensual.
+
+
+## Estado al 2026-11-20 — todo al día antes de Capacitor
+
+**No queda ninguna migración pendiente.** Camil corrió a mano las 31 en
+Supabase Studio; las últimas (0027 a 0031) el 19 y el 20 de noviembre. Los
+avisos de "MIGRACIÓN SIN CORRER" que quedan más arriba en este archivo son
+**historia de la sesión en que se escribieron**, no tareas abiertas: se
+dejaron con su explicación porque lo que cuentan —por qué existe cada
+columna y qué se rompía sin ella— sigue valiendo.
+
+**Todo lo commiteado está en producción**: `main` y el remoto en el mismo
+commit, y `www.ticofinanza.com` sirviendo el despliegue de ese commit.
+Humo verificado: portada, `/entrar`, `/privacidad`, `/terminos`,
+`/sin-conexion`, `/sw.js` y el manifiesto en 200; `/dashboard` en 307 al
+login y `/api/reminders` sin secreto en 401.
+
+**Lo que NUNCA se ha podido probar desde este entorno**, y que sigue
+pendiente de mirar en producción con la cuenta de verdad (el `.env.local`
+trae marcadores en vez de las claves de Supabase, ver la nota del
+2026-09-13):
+
+- La subida real de un comprobante a Storage **sí se confirmó** (2026-11-02).
+- El envío real de un push y la corrida del cron.
+- El prorrateo de una meta anual y el panel de aguinaldo con datos reales.
+- La salida de impresión del reporte mensual.
+- Las dos automatizaciones nuevas: que un gasto fijo se empareje de verdad
+  con su movimiento, y que una recurrencia vuelva a proponerse al día
+  siguiente.
+
+### Lo que falta del lado nativo, para cuando se arme el APK
+
+Está todo escrito en las notas del 2026-11-19 (segunda parte). En orden:
+
+1. **Envoltorio Capacitor** con `server.url` a producción y
+   `appendUserAgent` con la marca `TicoFinanzaApp` — tiene que coincidir con
+   `APP_UA_MARKER` en `lib/appMode.ts` o el APK se comporta como la web.
+2. **Login nativo de Google** (Play Services). El flujo web no funciona
+   dentro de una vista embebida; la buena noticia es que `/auth/callback` ya
+   canjea un `id_token` con `signInWithIdToken`.
+3. **Huella** con `capacitor-native-biometric`: `lib/native.ts` ya está
+   escrito contra su forma y es el único archivo que hay que tocar.
+4. **Push a FCM**: dentro de un WebView no existe la API de push del
+   navegador.
+5. **`FLAG_SECURE`**, para que los saldos no salgan en la miniatura de la
+   lista de apps recientes.
+6. **Revisar el caché sin conexión** dentro del WebView, y con él la
+   insignia "Funciona sin señal" de la portada.
+7. **Lector de notificaciones** (`NotificationListenerService`). El primer
+   paso **no es escribir parsers**: es capturar texto real de notificaciones
+   del teléfono de Camil. Inventar el formato es exactamente como nació el
+   bug de 2026-08-15, con compras del Banco Popular registradas como BAC.
