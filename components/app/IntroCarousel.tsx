@@ -115,7 +115,13 @@ function Puntos({ items }: { items: readonly string[] }) {
   );
 }
 
-export function IntroCarousel({ authDisabled = false }: { authDisabled?: boolean }) {
+export function IntroCarousel({
+  authDisabled = false,
+  googleClientId,
+}: {
+  authDisabled?: boolean;
+  googleClientId?: string | null;
+}) {
   const [index, setIndex] = useState(0);
   // Hacia dónde se mueve, para que la lámina entre por el lado correcto.
   const [direction, setDirection] = useState(1);
@@ -201,7 +207,7 @@ export function IntroCarousel({ authDisabled = false }: { authDisabled?: boolean
                     {/* La casilla y su etiqueta a la izquierda: centradas se
                         leen torcidas, y así queda igual que /entrar. */}
                     <div className="w-full text-left">
-                      <GoogleSignIn disabled={authDisabled} />
+                      <GoogleSignIn disabled={authDisabled} googleClientId={googleClientId} />
                     </div>
 
                     <div className="w-full border-t border-line pt-4">

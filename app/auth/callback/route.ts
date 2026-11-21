@@ -1,9 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
 import { exchangeGoogleAuthCode } from "@/lib/google/oauth";
-import { sendWelcomeEmailIfFirstTime } from "@/lib/email/welcomeEmail";
-import { resolveFirstName } from "@/lib/profile";
+import { welcomeIfFirstTime } from "@/lib/auth/welcome";
 
 const STATE_COOKIE = "login_state";
 const NONCE_COOKIE = "login_nonce";
@@ -51,20 +49,7 @@ export async function GET(request: NextRequest) {
     // El token de Google solo sirvió para identificar a la persona: no se
     // guarda nada de Google del lado de la app (ningún refresh token, ningún
     // permiso sobre sus datos).
-    if (data.user.email) {
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("full_name")
-        .eq("id", data.user.id)
-        .maybeSingle();
-      const firstName = resolveFirstName(data.user, profile?.full_name);
-      try {
-        const admin = createAdminClient();
-        await sendWelcomeEmailIfFirstTime(admin, data.user.id, data.user.email, firstName);
-      } catch {
-        console.error("[auth/callback] no se pudo enviar la bienvenida");
-      }
-    }
+    await welcomeIfFirstTime(supabase, data.user);
 
     return redirectAndClearState(`${origin}/dashboard`);
   } catch {

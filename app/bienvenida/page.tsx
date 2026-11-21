@@ -5,6 +5,7 @@ import { IntroCarousel } from "@/components/app/IntroCarousel";
 import { isAppUserAgent } from "@/lib/appMode";
 import { createClient } from "@/lib/supabase/server";
 import { getSupabaseConfig } from "@/lib/supabase/config";
+import { googleClientId } from "@/lib/google/oauth";
 
 export const metadata: Metadata = { title: "Bienvenido", robots: { index: false } };
 
@@ -30,5 +31,5 @@ export default async function BienvenidaPage() {
     if (user) redirect("/dashboard");
   }
 
-  return <IntroCarousel authDisabled={!configured} />;
+  return <IntroCarousel authDisabled={!configured} googleClientId={googleClientId()} />;
 }

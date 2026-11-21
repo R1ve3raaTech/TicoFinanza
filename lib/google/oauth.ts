@@ -15,6 +15,22 @@ export function googleOAuthConfigured(): boolean {
 export const LOGIN_SCOPE = "openid email profile";
 
 /**
+ * El ID del cliente **web** de Google.
+ *
+ * No es un secreto —viaja en la URL de consentimiento, a la vista de
+ * cualquiera que mire la barra de direcciones— y por eso se puede bajar al
+ * navegador. El que sí lo es, `GOOGLE_CLIENT_SECRET`, nunca sale de acá.
+ *
+ * Lo necesita el inicio de sesión nativo del APK: es el "público" al que va
+ * dirigido el token que pide (ver `lib/googleNative.ts`).
+ */
+export function googleClientId(): string | null {
+  const id = process.env.GOOGLE_CLIENT_ID?.trim();
+  if (!id || !id.endsWith(".apps.googleusercontent.com")) return null;
+  return id;
+}
+
+/**
  * Flujo de OAuth directo contra Google (no vía Supabase Auth). No pasar por
  * Supabase Auth es lo que evita que la pantalla de consentimiento de Google
  * muestre "...continuar a tu-proyecto.supabase.co" en vez del dominio real

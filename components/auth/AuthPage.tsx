@@ -1,6 +1,9 @@
+import { headers } from "next/headers";
 import Link from "next/link";
 import { Logo } from "@/components/Logo";
 import { AUTH_CONFIGURATION_ERROR, getSupabaseConfig } from "@/lib/supabase/config";
+import { googleClientId } from "@/lib/google/oauth";
+import { isAppUserAgent } from "@/lib/appMode";
 import { GoogleSignIn } from "./GoogleSignIn";
 import { IdleNoticeDialog } from "./IdleNoticeDialog";
 
@@ -25,7 +28,7 @@ import { IdleNoticeDialog } from "./IdleNoticeDialog";
  * En teléfono no hay fondo: una captura de escritorio reducida a 390px no
  * se lee, y de paso la página pesa menos justo donde la conexión es peor.
  */
-export function AuthPage({
+export async function AuthPage({
   initialError,
   signOutWarning,
   idleNotice,
@@ -36,6 +39,14 @@ export function AuthPage({
   idleNotice?: boolean;
 }) {
   const configured = Boolean(getSupabaseConfig());
+
+  // **Solo baja al APK.** Esta pantalla también se usa dentro de la app
+  // (quien ya pasó la bienvenida entra por acá), así que no alcanza con no
+  // mandarlo nunca: se decide por petición. En la web no lo usa nadie, y lo
+  // que no hace falta mandar no se manda — aunque no sea secreto, cada cosa
+  // de más en el HTML es una cosa de más que mantener y explicar.
+  const esApp = isAppUserAgent((await headers()).get("user-agent"));
+  const clientId = esApp ? googleClientId() : null;
 
   return (
     <main className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden bg-ground px-4 py-10 sm:px-6">
@@ -69,6 +80,7 @@ export function AuthPage({
             disabled={!configured}
             initialError={configured ? initialError : AUTH_CONFIGURATION_ERROR}
             signOutWarning={signOutWarning}
+            googleClientId={clientId}
           />
         </div>
       </div>

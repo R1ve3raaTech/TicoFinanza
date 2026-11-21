@@ -5,6 +5,8 @@ import Link from "next/link";
 import { GoogleMark } from "@/components/GoogleMark";
 import { Button } from "@/components/ui/Button";
 import { signInWithGoogle } from "@/lib/supabase/client";
+import { useIsApp } from "@/components/app/AppModeProvider";
+import { hasNativeBridge, signInWithGoogleNative } from "@/lib/googleNative";
 
 /**
  * Único camino de entrada a la app: Google, con los permisos básicos de
@@ -21,25 +23,40 @@ import { signInWithGoogle } from "@/lib/supabase/client";
  * los enlaces legales van **fuera** de esa etiqueta: un enlace dentro de un
  * label hace que tocarlo marque la casilla además de abrir la página, y
  * según el navegador termina marcando dos veces o ninguna.
+ *
+ * **Dentro del APK el camino es otro** (`lib/googleNative.ts`): se le pide
+ * el token al sistema en vez de abrir una página de Google. Si se abriera,
+ * Capacitor se la entregaría al navegador del teléfono y la sesión quedaría
+ * en Brave o en Chrome, no en la app — que es exactamente lo que pasaba
+ * antes de esto. El botón, la casilla y los textos son los mismos: lo único
+ * que cambia es de dónde sale el token.
  */
 export function GoogleSignIn({
   disabled = false,
   initialError,
   signOutWarning = false,
+  googleClientId,
 }: {
   /** Falta configurar Supabase o Google en el servidor. */
   disabled?: boolean;
   initialError?: string;
   signOutWarning?: boolean;
+  /**
+   * El ID del cliente web de Google. Solo lo usa el camino nativo. No es un
+   * secreto: ya viaja en la URL de consentimiento del flujo de la web.
+   */
+  googleClientId?: string | null;
 }) {
+  const isApp = useIsApp();
   const [starting, setStarting] = useState(false);
+  const [failure, setFailure] = useState<string | null>(null);
   const [accepted, setAccepted] = useState(false);
   const [missing, setMissing] = useState(false);
   const boxRef = useRef<HTMLInputElement>(null);
   const boxId = useId();
   const errorId = useId();
 
-  function start() {
+  async function start() {
     if (!accepted) {
       // El botón queda habilitado a propósito: uno deshabilitado no recibe
       // foco ni explica por qué no anda. Mejor dejar que se toque y decir
@@ -48,7 +65,43 @@ export function GoogleSignIn({
       boxRef.current?.focus();
       return;
     }
+    setFailure(null);
     setStarting(true);
+
+    // `isApp` lo decide el servidor por el identificador, pero el que manda
+    // acá es `hasNativeBridge()`: el puente o está o no está. Si alguien
+    // falsea el identificador desde un navegador, cae al camino de la web y
+    // entra igual, en vez de quedarse mirando un botón que no hace nada.
+    if (isApp && hasNativeBridge() && googleClientId) {
+      const resultado = await signInWithGoogleNative(googleClientId);
+
+      if (resultado.estado === "ok") {
+        // Recarga entera, no router.push: la sesión se escribió en cookies
+        // desde una ruta del servidor, fuera del router. Un push navega con
+        // el árbol que ya tiene en memoria —dibujado cuando NO había
+        // sesión— y el cerrojo y el layout de /dashboard se montarían con
+        // los datos de alguien sin cuenta.
+        // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+        window.location.href = "/dashboard";
+        return;
+      }
+      if (resultado.estado === "cancelado") {
+        // Cerró el selector de cuentas. No pasó nada malo y no hay nada que
+        // decirle: un mensaje de error acá sería culpar a alguien por
+        // cambiar de opinión.
+        setStarting(false);
+        return;
+      }
+      if (resultado.estado === "error") {
+        setFailure(resultado.motivo);
+        setStarting(false);
+        return;
+      }
+      // "no-disponible": el envoltorio no expone el plugin. Sigue por el
+      // camino de la web, que al menos deja entrar aunque sea en el
+      // navegador del sistema.
+    }
+
     signInWithGoogle();
   }
 
@@ -90,6 +143,12 @@ export function GoogleSignIn({
       {missing && (
         <p id={errorId} role="alert" className="text-meta text-expense">
           Marcá la casilla para continuar.
+        </p>
+      )}
+
+      {failure && (
+        <p role="alert" className="text-meta text-expense">
+          {failure}
         </p>
       )}
 

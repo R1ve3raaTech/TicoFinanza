@@ -55,7 +55,16 @@ keytool -genkeypair -v -keystore ticofinanza.jks \
 
 Guardá ese archivo y la contraseña **fuera del repositorio y sin perderlos**:
 si se pierden, un APK nuevo ya no se puede instalar encima del viejo — hay
-que desinstalar y volver a entrar.
+que desinstalar y volver a entrar. Y además **el login con Google dejaría de
+funcionar** hasta registrar la huella de la llave nueva en Google Cloud.
+
+La huella SHA-1 de esa llave va registrada en Google Cloud Console, en un
+cliente de OAuth de tipo **Android** con el paquete `com.ticofinanza.app`.
+Se saca con:
+
+```bash
+keytool -list -v -keystore ticofinanza.jks -alias ticofinanza | grep SHA1
+```
 
 Después, en GitHub → Settings → Secrets and variables → Actions, cuatro
 secretos:
@@ -111,19 +120,47 @@ Tres cosas del workflow que no son decorativas:
 
 En orden, y cada uno con su razón en el CLAUDE.md:
 
-1. **Login con Google.** El flujo web **no funciona** dentro de una vista
-   embebida: Google lo bloquea a propósito. Hace falta el inicio de sesión
-   nativo de Play Services. La pieza difícil ya está hecha —`/auth/callback`
-   canjea un `id_token` con `signInWithIdToken`—, así que es un agregado.
-2. **Huella.** `lib/native.ts` ya está escrito contra
-   `capacitor-native-biometric`: es el único archivo que hay que tocar.
-3. **Notificaciones push.** Dentro de un WebView no existe la API de push del
+1. **Huella.** Ojo: `lib/native.ts` está escrito contra
+   `capacitor-native-biometric`, que **peerea contra Capacitor 3** y está
+   abandonado. El mantenido es `@aparajita/capacitor-biometric-auth` v10.
+   Sigue siendo un solo archivo, pero la forma del plugin cambia.
+2. **Notificaciones push.** Dentro de un WebView no existe la API de push del
    navegador; hay que pasarlas a Firebase.
-4. **`FLAG_SECURE`**, para que los saldos no salgan en la miniatura de la
+3. **`FLAG_SECURE`**, para que los saldos no salgan en la miniatura de la
    lista de apps recientes.
-5. **Revisar el caché sin conexión** adentro del WebView, y con él la
+4. **Revisar el caché sin conexión** adentro del WebView, y con él la
    insignia "Funciona sin señal" de la portada.
-6. **Leer las notificaciones de Wallet y de los bancos.** El primer paso no
+5. **Leer las notificaciones de Wallet y de los bancos.** El primer paso no
    es escribir código: es capturar texto real de notificaciones del teléfono.
    Inventar el formato es exactamente como nació el bug de agosto, con
    compras del Banco Popular registradas como BAC.
+
+## El login con Google (hecho)
+
+El flujo de la web manda el navegador a `accounts.google.com`. Adentro del
+APK ese dominio no es el del sitio, así que Capacitor se lo entrega al
+navegador del sistema: la persona entraba **en Brave**, la cookie quedaba
+ahí y la app seguía sin sesión. Forzarlo a cargar dentro del WebView no es
+salida: Google rechaza su pantalla de login en vistas embebidas
+(`disallowed_useragent`).
+
+Ahora el token se le pide al sistema (Play Services) con
+`@capgo/capacitor-social-login`, y se canja en `/auth/nativo`, que hace
+**lo mismo** que `/auth/callback`: `signInWithIdToken`. No hubo que tocar
+nada de Supabase.
+
+- **Se le pasa el ID del cliente WEB, no el de Android.** Ese es el público
+  al que va dirigido el token y el que el backend ya valida. El cliente de
+  Android no se nombra en el código: Google lo usa por detrás para
+  comprobar que quien pide es esta app, firmada con esta llave.
+- **Por eso el APK tiene que ir firmado con la llave registrada.** Con la
+  firma de debug —que el runner genera nueva en cada corrida— el login
+  nativo no funciona. La variante `release` dejó de ser "lo recomendable"
+  y pasó a ser requisito.
+- El `nonce` sigue la misma danza que el flujo web: a Google va el hash, a
+  Supabase el valor crudo (ver `app/auth/login/route.ts`).
+- El ID de cliente **solo baja al APK**, decidido por petición en
+  `AuthPage`: `/entrar` también se usa dentro de la app, así que no
+  alcanzaba con no mandarlo nunca.
+- Si el puente nativo no está, el botón cae al camino de la web. Alguien
+  que falsee el identificador entra igual, en vez de mirar un botón muerto.
