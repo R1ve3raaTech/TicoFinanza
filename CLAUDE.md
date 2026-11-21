@@ -3268,3 +3268,110 @@ XML. Un doble guion es ilegal ahí y el build de Android falla entero
 
 **Estado**: `npm test` (259), `eslint`, `tsc` y `npm run build` limpios. APK
 release compilado, publicado y verificado en producción.
+
+## Dónde quedamos (2026-11-21, cuarta parte) — Ajustes pantalla, FCM, y un logo de más
+
+### El logo del arranque salía de fondo en cada diálogo del sistema
+
+Un selector o un calendario de Android aparecían con el símbolo de
+TicoFinanza gigante detrás de las opciones. **Fue un destrozo mío de la
+nota anterior**: al reescribir `res/values/styles.xml` para poner las
+franjas negras se perdió una línea que traía la plantilla de Capacitor,
+`<item name="android:background">@null</item>`.
+
+`android:background` en un tema **no es el fondo de la ventana**: es el
+fondo por defecto de cualquier vista que no declare el suyo. El tema de
+arranque lo pone en `@drawable/splash`, la actividad conserva ese atributo
+después del arranque, y de ahí el logo en cada diálogo. **Lección: al
+reescribir un archivo de la plantilla, mirar qué líneas había y por qué,
+no solo agregar las nuevas.**
+
+### Notificaciones a Android por Firebase (migración 0032)
+
+El push del navegador no existe dentro de un WebView, así que en el APK no
+llegaba nada. Ahora conviven los dos caminos: `push_subscriptions` para el
+navegador y `fcm_tokens` para la app, y `sendToAllDevices` manda por los
+dos y suma. Son dispositivos distintos; además, cada camino falla por su
+cuenta, porque que falte una credencial no puede dejar a alguien sin
+ningún aviso.
+
+- **Sin el SDK de Firebase**: son decenas de megas para lo que acá es
+  firmar un JWT y canjearlo por un token de acceso (`lib/push/fcm.ts`).
+- **La credencial es una cuenta de servicio**, no la "clave del servidor"
+  de la API vieja. `FCM_PROJECT_ID`, `FCM_CLIENT_EMAIL`, `FCM_PRIVATE_KEY`.
+- **La clave privada se normaliza** (`normalizarClave`, con pruebas que
+  generan una clave de verdad y exigen que OpenSSL la acepte). Falló en
+  producción con `DECODER routines::unsupported` porque yo le dije a Camil
+  que la pusiera entre comillas: eso vale en un `.env`, **en la interfaz de
+  Vercel no** — ahí el valor es el texto tal cual y las comillas quedan
+  dentro. Se arreglan solas las tres formas de romperla al copiar: comillas
+  envolventes, saltos escritos como texto, y todo en una sola línea.
+- **Y el fallo quedó contenido.** Firmar puede tirar, y esa excepción subía
+  hasta la pantalla: el botón de prueba terminaba en la pantalla de error de
+  la app, y el aviso del navegador tampoco salía. `sendToAllDevices` usa
+  `allSettled`.
+- **Dos cosas invisibles hacían parecer que no funcionaba**: Android **no
+  dibuja un aviso si la app está abierta** (se lo entrega a la app en
+  silencio — ahora sale como aviso flotante), y el total tapaba el
+  desglose, así que un aviso que salió al navegador contaba como éxito
+  aunque a Firebase no hubiera salido ninguno.
+- **El token se reasigna con la clave de servicio** y solo como excepción:
+  primero se intenta con la sesión, y si queda sin guardar Y SIN ERROR —la
+  firma exacta de "la fila existe a nombre de otra cuenta"— se reasigna.
+  Google le da al mismo teléfono el mismo token aunque cambie la cuenta, y
+  sin eso los recordatorios de la cuenta vieja le seguirían llegando. El
+  borrado, en cambio, va con la sesión: es destructivo y no tiene ese caso.
+
+### El Service Worker se comía la marca del APK
+
+El servidor decide con una marca en el identificador del navegador si esto
+es la app o la web. El WebView la agrega, **pero los pedidos que nacen
+dentro del Service Worker salen con el identificador de fábrica**: ese
+contexto tiene sus propios ajustes y Android no deja copiarle el del
+WebView. Como las pantallas de adentro pasan por el Service Worker, el
+servidor las veía llegar como si fueran la web — sin cerrojo y con "No
+disponible en este navegador" en los avisos.
+
+Fue un efecto de arreglar el caché sin conexión: antes Capacitor desviaba
+esos pedidos a su servidor local y nunca llegaban. Ahora la señal viaja
+**además en una cookie** (`APP_COOKIE`), que va en todo pedido nazca donde
+nazca; la pone el navegador cuando reconoce el puente nativo y recarga una
+sola vez. Se miran las dos señales: la cookie llega después del primer
+dibujo, y ese primero decide si la raíz muestra la portada.
+
+### El cerrojo pasa a ser solo PIN, de seis dígitos
+
+Lo pidió Camil después de que la huella no se pidiera nunca al entrar. **El
+lector andaba** —el diagnóstico en pantalla contestaba "disponible: sí,
+decisión: pedir"—; lo que fallaba era todo lo que lo rodea. Se borró
+`lib/native.ts` y el plugin; `lib/nativeBridge.ts` se queda, lo usa Google.
+
+**Y la causa de fondo de que el cerrojo no se enterara de nada: Capacitor
+no pausa el WebView.** Su `Bridge.onPause()` solo avisa a los plugins, así
+que la página sigue viva en segundo plano. Los cuatro detectores que tenía
+—tres eventos del navegador y un latido que buscaba un hueco en el reloj—
+esperaban una señal que el sistema no manda. Ahora se usa el ciclo de vida
+de la Activity (`@capacitor/app`, `lib/appState.ts`); los detectores web se
+quedan para la web.
+
+**Sin PIN puesto no hay cerrojo**, y el "cada cuánto" queda apagado: un
+control que se mueve y no hace nada hace creer que está cerrado.
+
+### Ajustes vuelve a ser pantalla, con índice y panel
+
+Ocho bloques apilados en una ventana chica dejaban cerrar sesión y la zona
+de peligro a varios scrolls. Ahora: en teléfono el índice y la sección sola
+con flecha para volver; desde `lg`, índice a la izquierda y panel a la
+derecha. **La sección vive en la URL** (`?s=perfil`), así el botón de atrás
+vuelve al índice en vez de salirse.
+
+- Cada entrada **dice su valor** ("Oscuro", "3 propias", "Siempre"): la
+  mitad de las veces uno entra solo a comprobar algo.
+- **Siete secciones, ninguna de una sola fila.** Apariencia + avisos =
+  "Preferencias"; cerrojo + sesión = "Cuenta y acceso". Por separado eran
+  pantallas enteras con un interruptor solo en el medio, que es el error
+  que ya había costado las pestañas del 2026-11-08.
+- La guía y las categorías dejan de abrir diálogos encima.
+
+**Estado**: `npm test` (254), `eslint`, `tsc` y `npm run build` limpios.
+APK release compilado, publicado y verificado en producción.
