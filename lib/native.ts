@@ -17,10 +17,22 @@
  * el 8. Nunca llegó a correr —se descubrió al revisar, no al fallar—, así
  * que el cambio no rompió nada en producción.
  *
- * Se carga con `import()` dinámico y no arriba del archivo: así su código
- * **no entra en el bundle de la web**, que nunca lo va a usar.
+ * ### Por qué se importa arriba y no con `import()` dinámico
+ *
+ * El dinámico era más fino —el código no entraba en el bundle de la web—
+ * y estaba mal: **bajaba el lector justo en el momento de desbloquear**, y
+ * ese momento es, muchas veces, sin señal o con una pésima. Si ese pedazo
+ * no estaba ya guardado, la pantalla se quedaba en "Abriendo el lector de
+ * huella..." esperando una descarga que no llegaba, con la persona afuera
+ * de sus propios datos.
+ *
+ * Importado arriba, viaja dentro de la página, que el Service Worker ya
+ * guarda entera. El costo son unos pocos KB en la web, que nunca lo usa.
+ * Es un intercambio claramente bueno: un cerrojo que depende de la red
+ * para abrirse no es un cerrojo, es una tranca.
  */
 
+import { BiometricAuth } from "@aparajita/capacitor-biometric-auth";
 import { hasNativeBridge } from "./nativeBridge";
 
 export { hasNativeBridge } from "./nativeBridge";
@@ -187,18 +199,15 @@ function conTope<T>(
   ]);
 }
 
-async function plugin() {
-  if (!hasNativeBridge()) return null;
-  try {
-    const { BiometricAuth } = await conTope(
-      import("@aparajita/capacitor-biometric-auth"),
-      8000,
-      "cargar el plugin",
-    );
-    return BiometricAuth;
-  } catch {
-    return null;
-  }
+/**
+ * El lector, si estamos adentro del APK.
+ *
+ * Sigue siendo una función y no una constante porque `hasNativeBridge()`
+ * solo tiene respuesta en el navegador: en el servidor, durante el
+ * renderizado, no hay ningún puente.
+ */
+function plugin() {
+  return hasNativeBridge() ? BiometricAuth : null;
 }
 
 /**
@@ -236,7 +245,7 @@ export async function unlockWithBiometrics(
   if (!hasNativeBridge()) return { estado: "no-disponible" };
 
   onEtapa?.("cargando");
-  const bio = await plugin();
+  const bio = plugin();
   // **Adentro del APK, un plugin que no carga es un error, no una
   // ausencia.** Devolver "no-disponible" acá dejaba entrar a quien no
   // tuviera PIN, por una falla nuestra y sin que nadie se enterara.
