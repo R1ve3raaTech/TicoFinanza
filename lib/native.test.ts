@@ -15,15 +15,28 @@ import { biometricResultFor } from "./native";
  * carga— tiene que dejar el cerrojo puesto.
  */
 
-test("sin huella registrada ni hardware: respuesta definitiva, el PIN es el único camino", () => {
-  for (const code of [
-    "biometryNotAvailable",
-    "biometryNotEnrolled",
-    "passcodeNotSet",
-    "noDeviceCredential",
-  ]) {
+test("sin huella registrada: respuesta definitiva, el PIN es el único camino", () => {
+  for (const code of ["biometryNotEnrolled", "passcodeNotSet", "noDeviceCredential"]) {
     assert.equal(biometricResultFor(code), "no-disponible", `con "${code}"`);
   }
+});
+
+/**
+ * **`biometryNotAvailable` parece definitivo por el nombre y no lo es.**
+ *
+ * Leyendo el Android del plugin, en ese código caen tres situaciones:
+ * `ERROR_HW_NOT_PRESENT` (no hay sensor, permanente),
+ * `ERROR_HW_UNAVAILABLE` ("el sensor existe pero ahora no está disponible",
+ * temporal) y `BIOMETRIC_STATUS_UNKNOWN` ("no se pudo determinar"), que cae
+ * ahí por el `default` del mapa.
+ *
+ * Abrir la app de alguien sin PIN ante un "ahora no" o un "no sé" es
+ * justamente lo que no hay que hacer. El caso legítimo que cubría —un
+ * teléfono sin sensor— se resuelve con `biometryType`, que sale de las
+ * capacidades del hardware y no del estado del momento.
+ */
+test("un sensor ocupado o un estado desconocido NO abren la app", () => {
+  assert.equal(biometricResultFor("biometryNotAvailable"), "cancelado");
 });
 
 /**
@@ -65,14 +78,14 @@ test("un código desconocido se queda del lado cerrado", () => {
 /**
  * Red de seguridad sobre la lista entera: si alguien agrega un código nuevo
  * a `SIN_HUELLA`, esta prueba lo obliga a pasar por acá y a justificarlo.
- * Son los únicos cuatro que pueden abrir la app sin PIN.
+ * Son los únicos tres que pueden abrir la app sin PIN.
  *
  * Y valen para **las dos puertas**: el error de `authenticate()` y el
  * `code` con que `checkBiometry()` explica un `isAvailable: false`. Las dos
  * pasan por esta misma función justamente para que no puedan divergir —
  * cerrar una sola fue el bug de la vuelta anterior.
  */
-test("solo cuatro códigos en toda la app pueden abrir el cerrojo sin PIN", () => {
+test("solo tres códigos en toda la app pueden abrir el cerrojo sin PIN", () => {
   const abren = [
     "biometryNotAvailable",
     "biometryNotEnrolled",
@@ -90,7 +103,6 @@ test("solo cuatro códigos en toda la app pueden abrir el cerrojo sin PIN", () =
   ].filter((c) => biometricResultFor(c) === "no-disponible");
 
   assert.deepEqual(abren.sort(), [
-    "biometryNotAvailable",
     "biometryNotEnrolled",
     "noDeviceCredential",
     "passcodeNotSet",

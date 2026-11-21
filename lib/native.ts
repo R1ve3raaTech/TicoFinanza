@@ -46,28 +46,47 @@ export type BiometricResult =
   | "error";
 
 /**
- * Códigos que significan **"este teléfono no tiene huella registrada"**, y
- * nada más que eso.
+ * Códigos que significan **"acá no hay con qué abrir, y no va a cambiar"**.
  *
  * La lista es corta a propósito y no hay que ensancharla sin pensarlo: con
  * estos valores, y sin PIN puesto, el cerrojo **se abre**. Es la única
  * puerta de ese tipo en la app.
  *
- * **`biometryLockout` estaba acá y era un agujero de verdad.** Ese código
- * lo tira Android tras varios intentos fallidos, y mi razonamiento era
- * "durante ese rato la huella no es un camino, así que al PIN". Correcto
- * mientras haya PIN; catastrófico cuando no lo hay, porque entonces el
- * mismo valor quiere decir "dejalo entrar". O sea que fallar la huella
- * cinco veces abría la app — exactamente lo que el cerrojo existe para
- * evitar. Ahora cae en "cancelado": se queda cerrado y se puede reintentar
- * cuando Android lo permita.
+ * **Dos códigos estuvieron acá y eran agujeros, cada uno por su lado.**
+ * Vale la pena dejar escrito el porqué, porque el patrón se repite:
+ *
+ * - `biometryLockout` lo tira Android tras varios intentos fallidos. Es
+ *   temporal, así que mi razonamiento fue "durante ese rato la huella no
+ *   es un camino, al PIN". Correcto mientras haya PIN; catastrófico
+ *   cuando no lo hay, porque entonces el mismo valor quiere decir "dejalo
+ *   entrar". Fallar la huella cinco veces abría la app.
+ * - `biometryNotAvailable` parecía definitivo por el nombre, y no lo es:
+ *   leyendo el Android del plugin, **ahí caen tres cosas distintas** —
+ *   `ERROR_HW_NOT_PRESENT` (no hay sensor, permanente),
+ *   `ERROR_HW_UNAVAILABLE` ("el sensor existe pero ahora no está
+ *   disponible", temporal) y, por el `default` del mapa,
+ *   `BIOMETRIC_STATUS_UNKNOWN` ("no se pudo determinar"). Abrir la app
+ *   ante un "no sé" es exactamente lo que no hay que hacer.
+ *
+ * Para el caso legítimo que ese código cubría —un teléfono sin sensor— se
+ * usa otra señal, que sí es inequívoca: `biometryType`, que el plugin saca
+ * de las capacidades del hardware (`hasSystemFeature`) y no del estado del
+ * momento.
  */
 const SIN_HUELLA = new Set([
-  "biometryNotAvailable",
   "biometryNotEnrolled",
   "passcodeNotSet",
   "noDeviceCredential",
 ]);
+
+/**
+ * `BiometryType.none`. El teléfono no tiene ningún sensor biométrico.
+ *
+ * Esto sí es una respuesta sobre el hardware y no sobre el momento: sale
+ * de `hasSystemFeature(FINGERPRINT | FACE | IRIS)`, así que no cambia
+ * porque el sensor esté ocupado ni porque alguien haya fallado el dedo.
+ */
+const SIN_SENSOR = 0;
 
 /**
  * Qué hacer ante el código de error del plugin.
@@ -79,9 +98,9 @@ const SIN_HUELLA = new Set([
  */
 export function biometricResultFor(code: unknown): BiometricResult {
   if (typeof code === "string" && SIN_HUELLA.has(code)) return "no-disponible";
-  // userCancel, appCancel, systemCancel, userFallback ("Usar PIN") y
-  // authenticationFailed (el dedo no coincidió): en todos se queda cerrado,
-  // con el botón de reintentar y el PIN si lo tiene.
+  // Cancelar, fallar el dedo, un bloqueo temporal, un sensor ocupado, un
+  // estado que no se pudo determinar: en todos se queda cerrado, con el
+  // botón de reintentar y el PIN si lo tiene.
   return "cancelado";
 }
 
@@ -115,6 +134,13 @@ export async function unlockWithBiometrics(reason: string): Promise<BiometricRes
 
   try {
     const info = await bio.checkBiometry();
+
+    // Sin sensor en el teléfono no hay nada que preguntar, ahora ni nunca.
+    // Es la única comprobación de "no se puede" que mira el hardware en vez
+    // del estado del momento, y por eso es la única en la que se puede
+    // confiar para abrir.
+    if (info.biometryType === SIN_SENSOR) return "no-disponible";
+
     if (!info.isAvailable) {
       // **`isAvailable: false` por sí solo no dice que no haya huella.**
       // También sale así cuando Android tiene la huella bloqueada por
@@ -125,7 +151,8 @@ export async function unlockWithBiometrics(reason: string): Promise<BiometricRes
       // Por eso se mira el `code`, que es justamente el campo donde el
       // plugin explica el motivo, y se pasa por la misma tabla que los
       // errores de `authenticate()`. Una sola regla para las dos puertas:
-      // si se agrega un caso, vale para ambas.
+      // si se agrega un caso, vale para ambas. Tenerlas separadas ya fue
+      // un bug una vez.
       return biometricResultFor(info.code);
     }
   } catch {
