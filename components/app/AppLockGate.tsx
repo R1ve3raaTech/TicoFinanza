@@ -49,6 +49,8 @@ export function AppLockGate({
   // que es justo lo que el compilador de React no permite.
   const [asking, setAsking] = useState(enabled);
   const [showPin, setShowPin] = useState(false);
+  /** Qué falló al pedir la huella, para mostrarlo en la pantalla. */
+  const [issue, setIssue] = useState<string | null>(null);
 
   // Cuándo se fue la app a segundo plano. Se compara contra el reloj y no
   // con un temporizador: si Android congela la app, un `setTimeout` se
@@ -56,10 +58,11 @@ export function AppLockGate({
   const hiddenAt = useRef<number | null>(null);
 
   const runBiometrics = useCallback(async () => {
-    const result = await unlockWithBiometrics("Desbloqueá TicoFinanza");
+    const { estado, detalle } = await unlockWithBiometrics("Desbloqueá TicoFinanza");
     setAsking(false);
+    setIssue(detalle ?? null);
 
-    if (result === "ok") {
+    if (estado === "ok") {
       setLocked(false);
       setShowPin(false);
       return;
@@ -74,7 +77,7 @@ export function AppLockGate({
     // varios intentos, un plugin que no carga— cae más abajo y se queda
     // cerrado. Tratar el bloqueo por intentos como "no hay huella" fue un
     // agujero real: fallar cinco veces abría la app. Ver lib/native.ts.
-    if (result === "no-disponible") {
+    if (estado === "no-disponible") {
       if (hasPin) setShowPin(true);
       else setLocked(false);
       return;
@@ -86,6 +89,7 @@ export function AppLockGate({
 
   /** Volver a pedir la huella desde un botón o al volver a la app. */
   const askAgain = useCallback(() => {
+    setIssue(null);
     setAsking(true);
     void runBiometrics();
   }, [runBiometrics]);
@@ -142,6 +146,7 @@ export function AppLockGate({
       </div>
       <LockScreen
         asking={asking}
+        issue={issue}
         showPin={showPin}
         hasPin={hasPin}
         onRetry={askAgain}
@@ -163,6 +168,7 @@ export function AppLockGate({
  */
 function LockScreen({
   asking,
+  issue,
   showPin,
   hasPin,
   onRetry,
@@ -170,6 +176,8 @@ function LockScreen({
   onUsePin,
 }: {
   asking: boolean;
+  /** Qué falló al pedir la huella, si falló. */
+  issue: string | null;
   showPin: boolean;
   hasPin: boolean;
   onRetry: () => void;
@@ -265,15 +273,35 @@ function LockScreen({
             </div>
           ) : (
             /* Una sola acción principal, como en cualquier otra pantalla. */
-            <Button variant="primary" className="h-11 w-full" onClick={onRetry} disabled={asking}>
-              <Fingerprint size={18} />
-              Desbloquear
-            </Button>
+            <div className="flex w-full flex-col items-center gap-2">
+              <Button
+                variant="primary"
+                className="h-11 w-full"
+                onClick={onRetry}
+                disabled={asking}
+              >
+                <Fingerprint size={18} />
+                Desbloquear
+              </Button>
+              {issue && (
+                <p role="alert" className="text-center text-meta leading-snug text-expense">
+                  {issue}
+                </p>
+              )}
+            </div>
           )}
         </div>
 
         {/* Las salidas, debajo del panel y más calladas: son el camino de
-            atrás, no lo que uno viene a hacer acá. */}
+            atrás, no lo que uno viene a hacer acá.
+
+            **"Usar el PIN" nunca va deshabilitado, ni mientras espera la
+            huella.** El diálogo del sistema es modal: si aparece, tapa
+            esto y no se puede tocar igual; si NO aparece —que es justo
+            cuando hace falta— este enlace es la única salida. Estuvo
+            deshabilitado mientras se pedía la huella, y una vez que el
+            diálogo no apareció la pantalla quedó sin escape, diciendo
+            "esperando tu huella..." para siempre. */}
         <div className="flex flex-col items-center gap-0.5 pt-4">
           {showPin ? (
             <Button variant="ghost" size="sm" onClick={onRetry} disabled={checking}>
@@ -282,7 +310,7 @@ function LockScreen({
             </Button>
           ) : (
             hasPin && (
-              <Button variant="ghost" size="sm" onClick={onUsePin} disabled={asking}>
+              <Button variant="ghost" size="sm" onClick={onUsePin}>
                 <LockKey size={14} />
                 Usar el PIN
               </Button>

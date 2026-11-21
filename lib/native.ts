@@ -159,10 +159,36 @@ export function biometricResultFor(code: unknown): BiometricResult {
   return "cancelado";
 }
 
+/**
+ * Un tope para los pasos que **no** esperan a una persona.
+ *
+ * Cargar el plugin y preguntarle al sistema si hay huella tienen que
+ * tardar milisegundos. Si no contestan, algo se rompió, y quedarse
+ * esperando para siempre deja la pantalla del cerrojo diciendo "esperando
+ * tu huella..." sin que nunca aparezca nada.
+ *
+ * **`authenticate()` no lleva tope a propósito**: ese sí espera a que
+ * alguien ponga el dedo, y cortarlo a los N segundos sería cancelar la
+ * decisión de la persona por reloj. Lo que cubre ese caso es que la
+ * pantalla deja siempre el PIN a mano.
+ */
+function conTope<T>(promesa: Promise<T>, ms: number, etapa: string): Promise<T> {
+  return Promise.race([
+    promesa,
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error(`sin respuesta al ${etapa}`)), ms)
+    ),
+  ]);
+}
+
 async function plugin() {
   if (!hasNativeBridge()) return null;
   try {
-    const { BiometricAuth } = await import("@aparajita/capacitor-biometric-auth");
+    const { BiometricAuth } = await conTope(
+      import("@aparajita/capacitor-biometric-auth"),
+      8000,
+      "cargar el plugin"
+    );
     return BiometricAuth;
   } catch {
     return null;
@@ -176,23 +202,37 @@ async function plugin() {
  * a propósito se vería igual que un teléfono sin huella, y la app le
  * ofrecería el PIN a quien solo quiso volver a intentar con el dedo.
  */
-export async function unlockWithBiometrics(reason: string): Promise<BiometricResult> {
+export interface IntentoBiometrico {
+  estado: BiometricResult;
+  /**
+   * Qué pasó, cuando no fue lo esperado. **Va a la pantalla, no solo al
+   * registro**: dentro del APK no hay consola a la que asomarse, y un
+   * cerrojo que falla en silencio no se puede arreglar. Es la misma
+   * lección que la entrada con Google.
+   */
+  detalle?: string;
+}
+
+export async function unlockWithBiometrics(reason: string): Promise<IntentoBiometrico> {
   // Fuera del APK no hay nada que preguntar y el PIN es el único camino:
   // esa sí es una respuesta definitiva.
-  if (!hasNativeBridge()) return "no-disponible";
+  if (!hasNativeBridge()) return { estado: "no-disponible" };
 
   const bio = await plugin();
   // **Adentro del APK, un plugin que no carga es un error, no una
   // ausencia.** Devolver "no-disponible" acá dejaba entrar a quien no
   // tuviera PIN, por una falla nuestra y sin que nadie se enterara.
-  if (!bio) return "error";
+  if (!bio) {
+    return { estado: "error", detalle: "No se pudo cargar el lector de huella." };
+  }
 
   try {
-    const decision = decidirDisponibilidad(await bio.checkBiometry());
-    if (decision !== "pedir") return decision;
-  } catch {
+    const estado = await conTope(bio.checkBiometry(), 8000, "consultar la huella");
+    const decision = decidirDisponibilidad(estado);
+    if (decision !== "pedir") return { estado: decision };
+  } catch (error) {
     // Preguntar falló. No sabemos si hay huella o no, así que no se abre.
-    return "error";
+    return { estado: "error", detalle: textoDe(error) };
   }
 
   try {
@@ -207,8 +247,30 @@ export async function unlockWithBiometrics(reason: string): Promise<BiometricRes
       // mismo desbloqueo como llave lo volvería decorativo.
       allowDeviceCredential: false,
     });
-    return "ok";
+    return { estado: "ok" };
   } catch (error) {
-    return biometricResultFor((error as { code?: unknown })?.code);
+    const estado = biometricResultFor((error as { code?: unknown })?.code);
+    // Si canceló, no hay nada que contarle: fue su decisión.
+    if (estado === "cancelado" && esCancelacion(error)) return { estado };
+    return { estado, detalle: textoDe(error) };
   }
+}
+
+/** Códigos que son una decisión de la persona, no una falla. */
+function esCancelacion(error: unknown): boolean {
+  const code = (error as { code?: unknown })?.code;
+  return (
+    typeof code === "string" &&
+    ["userCancel", "appCancel", "systemCancel", "userFallback", "authenticationFailed"].includes(
+      code
+    )
+  );
+}
+
+/** El motivo, recortado: algunos mensajes de Android son larguísimos. */
+function textoDe(error: unknown): string {
+  const base = error instanceof Error ? error.message : String(error);
+  const code = (error as { code?: unknown })?.code;
+  const texto = typeof code === "string" && code ? `${code}: ${base}` : base;
+  return texto.replace(/\s+/g, " ").trim().slice(0, 160);
 }

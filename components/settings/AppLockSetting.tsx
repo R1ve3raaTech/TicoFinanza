@@ -83,8 +83,19 @@ export function AppLockSetting({ lockWhen, hasPin }: { lockWhen: AppLockWhen; ha
       return;
     }
     // Sin PIN, el único control posible es la huella de este teléfono.
-    const result = await unlockWithBiometrics("Confirmá para aflojar el cerrojo");
-    if (result === "cancelado") return;
+    //
+    // **Solo se afloja con un "sí" explícito o cuando no hay con qué
+    // preguntar.** Antes bastaba con que el resultado no fuera "cancelado",
+    // así que un error del lector —o un plugin que no cargara— aflojaba el
+    // cerrojo sin que nadie confirmara nada. Es el mismo fail-open que ya
+    // había en el cerrojo mismo: lo que no es una confirmación no puede
+    // valer como confirmación.
+    //
+    // "no-disponible" sí pasa, y es coherente con el resto: significa que
+    // este teléfono no tiene huella registrada, o sea que no hay control
+    // que ejercer. Es la misma puerta que deja entrar a `AppLockGate`.
+    const { estado } = await unlockWithBiometrics("Confirmá para aflojar el cerrojo");
+    if (estado !== "ok" && estado !== "no-disponible") return;
     applyWhen(value);
   }
 
