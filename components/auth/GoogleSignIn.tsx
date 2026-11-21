@@ -5,8 +5,7 @@ import Link from "next/link";
 import { GoogleMark } from "@/components/GoogleMark";
 import { Button } from "@/components/ui/Button";
 import { signInWithGoogle } from "@/lib/supabase/client";
-import { useIsApp } from "@/components/app/AppModeProvider";
-import { hasNativeBridge, signInWithGoogleNative } from "@/lib/googleNative";
+import { signInWithGoogleNative } from "@/lib/googleNative";
 
 /**
  * Único camino de entrada a la app: Google, con los permisos básicos de
@@ -42,12 +41,19 @@ export function GoogleSignIn({
   initialError?: string;
   signOutWarning?: boolean;
   /**
-   * El ID del cliente web de Google. Solo lo usa el camino nativo. No es un
-   * secreto: ya viaja en la URL de consentimiento del flujo de la web.
+   * El ID del cliente web de Google.
+   *
+   * **Su presencia ES la señal de que esto es el APK.** El servidor solo lo
+   * manda en ese caso (ver `AuthPage`), así que acá no hay que volver a
+   * preguntarlo. Se intentó con `useIsApp()` y fue un bug: ese contexto
+   * solo está montado dentro de `/dashboard`, y estas dos pantallas
+   * —`/entrar` y `/bienvenida`— quedan afuera, así que devolvía `false` y
+   * el camino nativo no se intentaba nunca. El login se iba al navegador.
+   *
+   * No es un secreto: ya viaja en la URL de consentimiento del flujo web.
    */
   googleClientId?: string | null;
 }) {
-  const isApp = useIsApp();
   const [starting, setStarting] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
   const [accepted, setAccepted] = useState(false);
@@ -68,11 +74,11 @@ export function GoogleSignIn({
     setFailure(null);
     setStarting(true);
 
-    // `isApp` lo decide el servidor por el identificador, pero el que manda
-    // acá es `hasNativeBridge()`: el puente o está o no está. Si alguien
-    // falsea el identificador desde un navegador, cae al camino de la web y
-    // entra igual, en vez de quedarse mirando un botón que no hace nada.
-    if (isApp && hasNativeBridge() && googleClientId) {
+    // Que haya ID de cliente quiere decir que el servidor reconoció el APK.
+    // Si el puente nativo igual no está, la función contesta
+    // "no-disponible" y se sigue por el camino de la web: nadie se queda
+    // mirando un botón que no hace nada.
+    if (googleClientId) {
       const resultado = await signInWithGoogleNative(googleClientId);
 
       if (resultado.estado === "ok") {

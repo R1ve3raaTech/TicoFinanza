@@ -55,16 +55,9 @@ export type NativeSignInResult =
   | { estado: "no-disponible" }
   | { estado: "error"; motivo: string };
 
-interface CapacitorGlobal {
-  isNativePlatform?: () => boolean;
-}
+import { hasNativeBridge } from "./nativeBridge";
 
-/** ¿Estamos dentro del envoltorio nativo? */
-export function hasNativeBridge(): boolean {
-  if (typeof window === "undefined") return false;
-  const cap = (window as unknown as { Capacitor?: CapacitorGlobal }).Capacitor;
-  return Boolean(cap?.isNativePlatform?.());
-}
+export { hasNativeBridge } from "./nativeBridge";
 
 /**
  * Pide el token al sistema y lo canjea por una sesión de Supabase.
@@ -79,6 +72,12 @@ export async function signInWithGoogleNative(
   if (!webClientId) return { estado: "error", motivo: "Falta el ID de cliente de Google." };
 
   try {
+    // Confirmación de segunda mano: ya cargado el core, él mismo dice en
+    // qué plataforma está. Si dijera que no es nativa, mejor caer al camino
+    // de la web que quedarse esperando un plugin que no va a contestar.
+    const { Capacitor } = await import("@capacitor/core");
+    if (!Capacitor.isNativePlatform()) return { estado: "no-disponible" };
+
     const { SocialLogin } = await import("@capgo/capacitor-social-login");
 
     // El nonce de este intento. Viene del servidor, que se queda con el

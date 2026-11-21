@@ -36,7 +36,6 @@ interface NativeBiometricPlugin {
 }
 
 interface CapacitorGlobal {
-  isNativePlatform?: () => boolean;
   Plugins?: { NativeBiometric?: NativeBiometricPlugin };
 }
 
@@ -45,10 +44,15 @@ function capacitor(): CapacitorGlobal | undefined {
   return (window as unknown as { Capacitor?: CapacitorGlobal }).Capacitor;
 }
 
-/** ¿Estamos corriendo dentro del envoltorio nativo, con sus plugins? */
-export function hasNativeBridge(): boolean {
-  return Boolean(capacitor()?.isNativePlatform?.());
-}
+/**
+ * ¿Estamos corriendo dentro del envoltorio nativo?
+ *
+ * Se reexporta desde `lib/nativeBridge.ts`, que es donde vive el criterio.
+ * **No volver a escribirlo acá**: tenerlo copiado, y mirando
+ * `window.Capacitor` en vez de `androidBridge`, es lo que hizo que la
+ * entrada con Google se fuera al navegador adentro del APK.
+ */
+export { hasNativeBridge } from "./nativeBridge";
 
 /** ¿Este teléfono tiene huella o cara registrada? */
 export async function biometricsAvailable(): Promise<boolean> {
