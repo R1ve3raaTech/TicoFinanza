@@ -3222,3 +3222,49 @@ nada más.
    insignia "Funciona sin señal" de la portada.
 3. **Leer las notificaciones de Wallet y de los bancos.** El primer paso
    sigue siendo capturar texto real de notificaciones del teléfono.
+
+## Dónde quedamos (2026-11-21, tercera parte) — cuatro cosas del APK
+
+**La sesión se perdía al cerrar la app.** El WebView acepta las cookies de
+sesión y las guarda en disco **por su cuenta, cada tanto**. Al deslizar la
+app fuera de recientes Android mata el proceso, y lo que no alcanzó a
+volcarse se pierde. `CookieManager.getInstance().flush()` en `onPause`, que
+es el último momento garantizado —`onStop` y `onDestroy` pueden no correr
+si el sistema tiene prisa—.
+
+**Y eso era la causa de que la huella no se pidiera nunca.** Sin sesión no
+se dibuja el panel, así que `AppLockGate` no llegaba a montarse. El cerrojo
+estaba bien; lo que fallaba era que nunca se mostraba. **Lección: antes de
+depurar una pantalla que "no aparece", comprobar que llegue a montarse.**
+
+**Las franjas de arriba y de abajo salían grises.** Era el
+`windowBackground` de fábrica de `Theme.AppCompat.DayNight`, cerca de
+`#121212`, asomando por los bordes. Ahora la ventana, el WebView y las dos
+barras van al mismo `#0A0A0B` que `--ground` del tema oscuro
+(`res/values/colors.xml`). **Si cambia `--ground`, cambia ahí.**
+
+- `statusBarColor`/`navigationBarColor` se ponen igual aunque desde Android
+  15 el sistema las ignore: el APK corre desde Android 7.
+- `enforceStatusBarContrast`/`enforceNavigationBarContrast` en `false`:
+  apagan el velo translúcido que Android pone detrás de la barra de gestos,
+  que sobre negro era justamente la banda más clara que se veía.
+- El WebView se pinta aparte (`setBackgroundColor`): el tema pinta la
+  ventana, pero el WebView dibuja encima con blanco de fábrica y eso es un
+  destello al abrir.
+- **Contra conocida**: las barras quedan oscuras siempre. Si alguna vez se
+  usa el tema claro de la app, no acompañan.
+
+**La pastilla de la sección activa entraba volando desde abajo.** Las dos
+barras de navegación son `fixed` y el scroll vuelve a cero al navegar, así
+que framer medía la posición vieja y la nueva **separadas por todo el
+scroll de la página** — peor en Resumen, que es la más larga. Se arregla
+con `layoutRoot` en el `<nav>` de las dos: framer pasa a medir a los hijos
+relativos a esa barra y el scroll deja de contar. **Regla: una animación de
+`layoutId` dentro de un contenedor `fixed` lleva `layoutRoot`.**
+
+**Un error mío en el camino**: `--ground` escrito dentro de un comentario
+XML. Un doble guion es ilegal ahí y el build de Android falla entero
+(`The string "--" is not permitted within comments`).
+
+**Estado**: `npm test` (259), `eslint`, `tsc` y `npm run build` limpios. APK
+release compilado, publicado y verificado en producción.
