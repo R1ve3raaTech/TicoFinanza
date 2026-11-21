@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { dayKey } from "@/lib/fixedExpenses";
-import { pushConfigured, sendPushToUser } from "@/lib/push/send";
+import { anyPushConfigured, sendToAllDevices } from "@/lib/push/send";
 import { dueReminders } from "@/lib/reminders";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { FixedExpense } from "@/lib/types";
@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
   }
   if (request.headers.get("authorization") !== `Bearer ${secret}`) return unauthorized();
 
-  if (!pushConfigured()) {
+  if (!(await anyPushConfigured())) {
     return NextResponse.json({ error: "Claves VAPID sin configurar" }, { status: 503 });
   }
 
@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
   const todayKey = dayKey();
 
   // Quiénes quieren recordatorios. El flag es por usuario; que tenga algún
-  // dispositivo suscrito lo resuelve sendPushToUser (si no hay, no manda).
+  // dispositivo suscrito lo resuelve sendToAllDevices (si no hay, no manda).
   const { data: settings, error: settingsError } = await admin
     .from("user_settings")
     .select("user_id")
@@ -94,7 +94,7 @@ export async function GET(request: NextRequest) {
         continue;
       }
 
-      const result = await sendPushToUser(admin, userId, {
+      const result = await sendToAllDevices(admin, userId, {
         title: reminder.title,
         body: reminder.body,
         url: reminder.url,

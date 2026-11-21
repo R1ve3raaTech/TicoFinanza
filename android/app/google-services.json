@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "225386540650",
+    "project_id": "ticofinanza",
+    "storage_bucket": "ticofinanza.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:225386540650:android:9f83bc58ec47597fcbe413",
+        "android_client_info": {
+          "package_name": "com.ticofinanza.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAxpWWjg9RJYdLg7UvqSo3cFbNpK77jRpg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

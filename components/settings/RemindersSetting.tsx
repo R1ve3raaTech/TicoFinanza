@@ -3,11 +3,15 @@
 import { useEffect, useState, useSyncExternalStore, useTransition } from "react";
 import { BellRinging } from "@phosphor-icons/react";
 import {
+  registerFcmToken,
   sendTestReminder,
   setRemindersEnabled,
   subscribeToPush,
+  unregisterFcmToken,
   unsubscribeFromPush,
 } from "@/app/dashboard/ajustes/actions";
+import { useIsApp } from "@/components/app/AppModeProvider";
+import { activarAvisosAndroid, desactivarAvisosAndroid } from "@/lib/push/android";
 import { useToast } from "@/components/Toast";
 import { Button } from "@/components/ui/Button";
 import { FormError } from "@/components/ui/Field";
@@ -38,8 +42,21 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array<ArrayBuffer> {
  * dispositivo). El interruptor refleja lo segundo, que es lo que el usuario
  * está mirando: activarlo en la compu no hace que lleguen al teléfono.
  */
+/**
+ * Dónde queda anotado el token de ESTE teléfono.
+ *
+ * Hace falta para poder darlo de baja: el servidor guarda los tokens de
+ * todos los aparatos de la cuenta, y para borrar el de acá hay que saber
+ * cuál es el de acá. Firebase no lo recuerda entre arranques.
+ */
+const TOKEN_LOCAL = "tf_fcm_token";
+
 export function RemindersSetting({ initialEnabled }: { initialEnabled: boolean }) {
   const toast = useToast();
+  // **Dentro del APK el camino es otro.** El push del navegador no existe
+  // en un WebView, así que ahí los avisos van por Firebase y este
+  // interruptor gobierna el registro del teléfono, no una suscripción.
+  const isApp = useIsApp();
   const [enabled, setEnabled] = useState(false);
   const [subscriptionChecked, setSubscriptionChecked] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -55,12 +72,33 @@ export function RemindersSetting({ initialEnabled }: { initialEnabled: boolean }
     () => true,
     () => false
   );
-  const supported = mounted && isPushSupported();
-  const checked = mounted && (!supported || subscriptionChecked);
+  const supported = mounted && (isApp || isPushSupported());
+  const checked = mounted && (!supported || isApp || subscriptionChecked);
+
+  /**
+   * El token de este teléfono, leído del almacenamiento del navegador.
+   *
+   * Va por `useSyncExternalStore` y no por un efecto con `setState`: el
+   * primer render tiene que coincidir con el del servidor (que no tiene
+   * `localStorage`), y escribir estado desde un efecto por un dato que ya
+   * está ahí es justo lo que React pide no hacer.
+   */
+  const tokenLocal = useSyncExternalStore(
+    () => () => {},
+    () => window.localStorage.getItem(TOKEN_LOCAL),
+    () => null
+  );
+
+  /** Lo que el interruptor muestra: en el APK manda el token guardado. */
+  const activo = isApp ? Boolean(tokenLocal) : enabled;
   const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
 
   useEffect(() => {
     if (!supported) return;
+    // En el APK no hay suscripción que consultar: lo que dice si este
+    // teléfono está dado de alta es el token guardado, y eso se lee abajo
+    // sin pasar por el estado.
+    if (isApp) return;
     let cancelled = false;
     navigator.serviceWorker
       .getRegistration()
@@ -75,7 +113,54 @@ export function RemindersSetting({ initialEnabled }: { initialEnabled: boolean }
     return () => {
       cancelled = true;
     };
-  }, [supported]);
+  }, [supported, isApp]);
+
+  /** El alta dentro del APK: permiso de Android, token de Firebase y listo. */
+  async function enableAndroid() {
+    const alta = await activarAvisosAndroid();
+
+    if (alta.estado === "denegado") {
+      const message = "Necesitás aceptar el permiso de notificaciones de Android.";
+      setError(message);
+      toast.error(message);
+      return;
+    }
+    if (alta.estado !== "ok") {
+      // El motivo va a la pantalla: adentro del APK no hay consola.
+      const message =
+        alta.estado === "error"
+          ? `No se pudieron activar. ${alta.detalle}`
+          : "No se pudieron activar en este dispositivo.";
+      setError(message);
+      toast.error(message);
+      return;
+    }
+
+    const result = await registerFcmToken(alta.token);
+    if (result.error) {
+      // Si el servidor no lo guardó, el teléfono se da de baja: dejarlo
+      // registrado diría "activados" y no llegaría nunca nada.
+      await desactivarAvisosAndroid();
+      setError(result.error);
+      toast.error(result.error);
+      return;
+    }
+
+    window.localStorage.setItem(TOKEN_LOCAL, alta.token);
+    await setRemindersEnabled(true);
+    setEnabled(true);
+    toast.success("Notificaciones activadas");
+  }
+
+  async function disableAndroid() {
+    const token = window.localStorage.getItem(TOKEN_LOCAL);
+    if (token) await unregisterFcmToken(token);
+    window.localStorage.removeItem(TOKEN_LOCAL);
+    await desactivarAvisosAndroid();
+    await setRemindersEnabled(false);
+    setEnabled(false);
+    toast.success("Notificaciones desactivadas");
+  }
 
   async function enable() {
     if (!publicKey) {
@@ -135,11 +220,17 @@ export function RemindersSetting({ initialEnabled }: { initialEnabled: boolean }
 
   function toggle() {
     setError(null);
-    const next = !enabled;
+    const next = !activo;
     startTransition(async () => {
       try {
-        if (next) await enable();
-        else await disable();
+        if (isApp) {
+          if (next) await enableAndroid();
+          else await disableAndroid();
+        } else if (next) {
+          await enable();
+        } else {
+          await disable();
+        }
       } catch {
         const message = "No se pudieron cambiar las notificaciones en este dispositivo.";
         setError(message);
@@ -180,14 +271,14 @@ export function RemindersSetting({ initialEnabled }: { initialEnabled: boolean }
           {status}
         </span>
         <Switch
-          checked={enabled}
+          checked={activo}
           onChange={toggle}
           disabled={pending || !supported || !checked}
           label="Notificaciones de gastos fijos en este dispositivo"
         />
       </SettingsRow>
 
-      {enabled && (
+      {activo && (
         <SettingsRow inline label="Probar">
           <Button variant="secondary" size="sm" onClick={test} disabled={pending}>
             <BellRinging size={14} />

@@ -91,3 +91,44 @@ export async function sendPushToUser(
 export function pushConfigured(): boolean {
   return ensureConfigured();
 }
+
+/**
+ * Manda un aviso **por los dos caminos**: el push del navegador y el de
+ * Android.
+ *
+ * Son dispositivos distintos, no dos formas de llegar al mismo: alguien
+ * puede tener la app en el teléfono y la web abierta en la compu, y las
+ * dos tienen que sonar. Por eso se suman y no se elige una.
+ *
+ * Cada camino falla por su cuenta: si FCM está sin configurar o el
+ * navegador no tiene suscripciones, el otro sale igual. Es a propósito —
+ * que falte una credencial no puede dejar a alguien sin ningún aviso.
+ */
+export async function sendToAllDevices(
+  admin: SupabaseClient,
+  userId: string,
+  payload: PushPayload
+): Promise<PushResult> {
+  const { sendFcmToUser } = await import("./fcm");
+  const [web, android] = await Promise.all([
+    sendPushToUser(admin, userId, payload),
+    sendFcmToUser(admin, userId, payload),
+  ]);
+  return {
+    sent: web.sent + android.sent,
+    removed: web.removed + android.removed,
+  };
+}
+
+/**
+ * ¿Hay algún camino de envío configurado?
+ *
+ * **Alcanza con uno.** Antes el cron se cortaba entero si faltaban las
+ * claves VAPID; ahora eso dejaría sin avisos a los Android, que no las
+ * usan para nada.
+ */
+export async function anyPushConfigured(): Promise<boolean> {
+  if (ensureConfigured()) return true;
+  const { fcmConfigured } = await import("./fcm");
+  return fcmConfigured();
+}

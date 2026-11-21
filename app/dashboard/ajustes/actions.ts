@@ -6,10 +6,10 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { issueEmailCode, verifyEmailCode } from "@/lib/emailCodes";
-import { sendPushToUser } from "@/lib/push/send";
+import { sendToAllDevices } from "@/lib/push/send";
 import { categoryClash } from "@/lib/categories";
 import { isCategoryTone } from "@/lib/categoryStyle";
-import { isMissingColumnError } from "@/lib/supabase/errors";
+import { isMissingColumnError, isMissingTableError } from "@/lib/supabase/errors";
 import { isValidPin, parseLockWhen, weakensLock, type AppLockWhen } from "@/lib/appLock";
 import { hashPin, verifyPin } from "@/lib/pin";
 import { isSymbolName } from "@/lib/materialSymbols";
@@ -351,6 +351,64 @@ export async function subscribeToPush(subscription: {
   return { error: null };
 }
 
+/**
+ * Guarda el token de Firebase de ESTE Android.
+ *
+ * **Upsert por token, no por usuario.** Google le da el mismo token a un
+ * teléfono aunque cambie la cuenta que usa la app: sin reasignarlo, los
+ * recordatorios de la cuenta nueva le seguirían llegando a la vieja — o
+ * sea, a nadie.
+ *
+ * `last_seen_at` se refresca en cada registro. No se usa todavía; está
+ * para poder distinguir un teléfono que dejó de abrirse de uno que Google
+ * aún no declaró muerto.
+ */
+export async function registerFcmToken(token: string) {
+  const { supabase, user } = await requireUser();
+
+  // Un token de FCM es largo y opaco; lo único que se puede comprobar
+  // desde acá es que venga algo con forma de token y no una cadena vacía
+  // o un trozo de HTML de un error.
+  if (!token || token.length < 20 || token.length > 4096 || /\s/.test(token)) {
+    return { error: GENERIC_ERROR };
+  }
+
+  const { error } = await supabase.from("fcm_tokens").upsert(
+    { user_id: user.id, token, last_seen_at: new Date().toISOString() },
+    { onConflict: "token" }
+  );
+
+  if (error) {
+    // La 0032 puede no estar corrida todavía. Decirlo en pantalla, no
+    // tragárselo: un interruptor que se prende y no manda nada es
+    // indistinguible de uno que funciona.
+    if (isMissingTableError(error)) {
+      return { error: "Falta correr la migración 0032 en Supabase." };
+    }
+    logFailure("registerFcmToken", error);
+    return { error: GENERIC_ERROR };
+  }
+
+  revalidatePath("/dashboard", "layout");
+  return { error: null };
+}
+
+/** Saca este Android de la lista. Los demás dispositivos siguen igual. */
+export async function unregisterFcmToken(token: string) {
+  const { supabase, user } = await requireUser();
+
+  const { error } = await supabase
+    .from("fcm_tokens")
+    .delete()
+    .eq("token", token)
+    .eq("user_id", user.id);
+
+  if (error) return { error: GENERIC_ERROR };
+
+  revalidatePath("/dashboard", "layout");
+  return { error: null };
+}
+
 /** Saca este navegador de la lista. Los demás dispositivos siguen igual. */
 export async function unsubscribeFromPush(endpoint: string) {
   const { supabase, user } = await requireUser();
@@ -394,7 +452,7 @@ export async function sendTestReminder() {
   const { user } = await requireUser();
 
   const admin = createAdminClient();
-  const { sent } = await sendPushToUser(admin, user.id, {
+  const { sent } = await sendToAllDevices(admin, user.id, {
     title: "Notificaciones activadas",
     body: "Así te vamos a avisar un día antes de cada gasto fijo.",
     url: "/dashboard/fijos",

@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    El ícono chico de la barra de estado, para las notificaciones.
+
+    Android lo dibuja como una **silueta**: toma la forma y la pinta del
+    color del sistema, ignorando los colores que traiga. Por eso va todo en
+    blanco opaco — un ícono a color acá sale como un cuadrado blanco, que
+    es el error clásico.
+
+    Misma geometría que `public/brand/mark.svg` y `BrandMark.tsx`, con el
+    lienzo de 24 llevado a 32 y el símbolo centrado: Android recorta los
+    bordes de este ícono, así que sin margen las barras de los extremos se
+    comen.
+
+    Si cambia el símbolo, cambia también acá.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="32"
+    android:viewportHeight="32">
+    <group android:translateX="4" android:translateY="4">
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M10.5,2.5H21.5V7.5H10.5A2.5,2.5 0 0 1 10.5,2.5Z" />
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M2.5,9.5H15.5V14.5H2.5Z" />
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M17.5,9.5H21.5V14.5H17.5Z" />
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M2.5,16.5H21.5V21.5H2.5Z" />
+    </group>
+</vector>

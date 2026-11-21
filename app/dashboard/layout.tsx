@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { AppLockGate } from "@/components/app/AppLockGate";
+import { AndroidPushRouter } from "@/components/push/AndroidPushRouter";
 import { AppModeProvider } from "@/components/app/AppModeProvider";
 import { OfflineBanner } from "@/components/offline/OfflineBanner";
 import { MovementEntryProvider } from "@/components/movements/MovementEntry";
@@ -163,6 +164,8 @@ export default async function DashboardLayout({ children }: { children: ReactNod
               la sesión se queda viva y lo que protege es el cerrojo con
               el PIN. Un teléfono propio no es una compu prestada. */}
           {!isApp && <IdleLogout />}
+          {/* Tocar un recordatorio abre la pantalla que le toca. Solo APK. */}
+          {isApp && <AndroidPushRouter />}
           {/* De quién es lo que quedó sin enviar. IndexedDB es del origen y
               sobrevive al cierre de sesión, así que la cola se filtra por el
               usuario de la sesión (ver components/offline/QueueOwner.tsx). */}
