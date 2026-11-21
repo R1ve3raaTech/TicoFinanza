@@ -2948,3 +2948,135 @@ quedan con etiqueta: son de GitHub.
 
 **Estado**: `npm test` (236, 2 nuevas sobre el envoltorio), `eslint`, `tsc` y
 `npm run build` limpios con `android/` en el árbol.
+
+## Dónde quedamos (2026-11-21) — el APK nativo entra con Google
+
+**Funciona de punta a punta.** Camil instaló el APK release firmado con su
+llave, entró con el selector de cuentas de Android —sin que se abra ningún
+navegador— y cayó en el resumen dentro de la app.
+
+### La bienvenida del APK, rehecha
+
+Camil: "se ve un poco vacía". Lo era: cada lámina era un ícono de 64px, un
+título y una línea centrados con `flex-1`, o sea ~280px muertos arriba y
+~230 abajo en un teléfono de 844. Ahora cada lámina **muestra la pantalla de
+la que habla** (`components/app/IntroVisuals.tsx`: el saldo, el formulario
+de anotar, los fijos con su día de cobro, un tope con una meta y una deuda)
+más tres puntos concretos debajo del título.
+
+- **Son maquetas dibujadas, no capturas.** Una captura envejece sola —ya
+  pasó con la de `/entrar`, que seguía mostrando el rail lateral eliminado—
+  y los componentes de verdad piden contexto, sesión y datos.
+- **`h-full` no estira a un hijo de `AnimatePresence`**: se queda en la
+  altura del contenido, así que el `justify-between` no tenía contra qué
+  repartir y todo se apilaba arriba. Va `absolute inset-0`.
+- Y con `justify-between` el vacío de los bordes aparecía **entero en el
+  medio**: 500px entre el dibujo y su título, que separa dos cosas que se
+  leen juntas. Va `justify-center`: lo que llena la pantalla es que el
+  bloque ahora es grande, no que esté estirado.
+- El movimiento va bajo `MotionConfig reducedMotion="user"`, así ninguna
+  lámina tiene que acordarse de apagar su animación.
+
+### El login nativo (`lib/googleNative.ts` + `/auth/nativo`)
+
+El flujo web manda el navegador a `accounts.google.com`; adentro del APK ese
+dominio no es el del sitio, así que Capacitor se lo entrega al navegador del
+sistema y la sesión queda **en Brave**, no en la app. Forzarlo dentro del
+WebView tampoco: Google lo rechaza a propósito (`disallowed_useragent`).
+
+Ahora el token se le pide a Play Services y se canja en `/auth/nativo`, que
+hace **lo mismo** que `/auth/callback`: `signInWithIdToken`. No se tocó nada
+de Supabase. El correo de bienvenida se extrajo a `lib/auth/welcome.ts` para
+que las dos puertas no diverjan.
+
+**Costó cuatro intentos, y cada uno dejó una lección:**
+
+1. **`scopes` rompe el login en Android.** Le pasaba
+   `scopes: ["email","profile"]` y el plugin contesta *"You CANNOT use
+   scopes without modifying the main activity"* — **cualquier** lista se
+   interpreta como "quiero permisos extra" y exige tocar la `MainActivity`,
+   sin importar que sean los básicos. Y no hacían falta: el plugin ya pide
+   `openid`, `userinfo.email` y `userinfo.profile`, que son exactamente los
+   de `LOGIN_SCOPE`. **No volver a nombrarlos.** El día que la app necesite
+   un permiso de verdad sobre datos de Google, ahí sí hay que modificar el
+   nativo y recompilar.
+2. **La detección del puente va por `window.androidBridge`, no por
+   `window.Capacitor`** (`lib/nativeBridge.ts`). Este último lo *crea* el JS
+   de `@capacitor/core`, que en una app empacada viene en su `index.html`;
+   la nuestra carga el sitio en vivo, así que la página es nuestro HTML de
+   Next y no trae ese script. Por eso `@capacitor/core` reconoce la
+   plataforma mirando `androidBridge`, y por eso nosotros también. El
+   criterio vive en **un solo archivo** y lo comparte el cerrojo con huella,
+   que tenía la misma copia mal.
+3. **`useIsApp()` devolvía `false` justo donde importaba.**
+   `AppModeProvider` solo está montado en `app/dashboard/layout.tsx`, y
+   `/entrar` y `/bienvenida` quedan afuera. Se quitó esa dependencia en vez
+   de subir el provider: **el servidor ya manda `googleClientId` solo en
+   modo APK, así que su presencia ES la señal**. Una decisión tomada una vez
+   en el servidor y entregada como dato, en lugar de dos fuentes que pueden
+   discrepar.
+4. **El error real tiene que verse en pantalla.** El motivo iba a
+   `console.error` y dentro del APK no hay consola a la que asomarse: lo que
+   se veía era un "no se pudo" que no dice nada, y diagnosticar así es
+   adivinar. Ahora el detalle del plugin sale recortado a 160 caracteres —
+   fue lo que resolvió el punto 1 en un intento. De paso: la lista de lo que
+   cuenta como "canceló" incluía `16:`, que se come cualquier mensaje con
+   ese número y convierte una falla real en silencio absoluto.
+
+### Login CSRF en `/auth/nativo` — lo levantó la revisión y era real
+
+El ataque no es robar la sesión: es **meter a la víctima en la cuenta del
+atacante**, que después le lee los gastos. Lo permitía que un `<form>` de
+otro sitio puede mandar `Content-Type: text/plain` con un cuerpo que es JSON
+válido, y `request.json()` parsea igual sin mirar la cabecera: sin
+preflight, sin CORS, con las cookies de la víctima. **Comprobado con curl
+contra el build vulnerable: llegaba hasta Supabase.**
+
+Tres cierres: mismo origen (`Origin` o `Sec-Fetch-Site`, y si no hay ninguna
+de las dos se rechaza — falla cerrado), `Content-Type: application/json`
+comprobado **antes** de parsear, y **el nonce lo pone el servidor** en una
+cookie httpOnly SameSite=Strict, obligatorio y de un solo uso. Antes lo
+generaba el navegador y lo mandaba junto al token, o sea que un atacante
+mandaba los dos suyos y la comprobación no comprobaba nada.
+
+### La firma, y por qué el `release` dejó de ser opcional
+
+Google ata el login nativo a la huella SHA-1 de la llave que firma el APK
+más el nombre del paquete. El debug se firma con una llave que **el runner
+genera nueva en cada corrida**, así que ahí el login nativo no puede
+funcionar nunca.
+
+- La llave de Camil está en `Desktop\ticofinanza.jks` y en los cuatro
+  secretos del repo. Su huella:
+  `9A:A2:A9:5C:F7:3E:9B:D3:40:A6:04:B1:72:E4:D7:F5:18:9D:DF:66`, registrada
+  en un cliente OAuth de tipo **Android** con el paquete
+  `com.ticofinanza.app`. **Si se pierde la llave, además de no poder
+  actualizar la app, el login deja de funcionar hasta registrar la nueva.**
+- `Desktop\firma-ticofinanza.ps1` rehace los secretos: pide la contraseña,
+  **la comprueba contra la llave antes de cargar nada** y escupe la huella.
+- Al plugin se le pasa el ID del cliente **web**, no el de Android: es el
+  público (`aud`) al que va dirigido el token y el que el backend ya valida.
+  El de Android no se nombra en el código.
+- **`keytool -printcert -jarfile` dice "no es un archivo jar firmado" y eso
+  NO significa que el APK esté sin firmar**: solo entiende la firma v1
+  (JAR), y los APK modernos usan v2/v3, que viven en el APK Signing Block.
+  Se comprueba sacando el certificado de ahí.
+
+### Lo que falta del lado nativo
+
+1. **Huella.** `lib/native.ts` está escrito contra
+   `capacitor-native-biometric`, que **peerea contra Capacitor 3 y está
+   abandonado**; estamos en 8. El mantenido es
+   `@aparajita/capacitor-biometric-auth` v10.
+2. **Push a FCM**: dentro de un WebView no existe la API de push del
+   navegador.
+3. **`FLAG_SECURE`**, para que los saldos no salgan en la miniatura de
+   recientes.
+4. **Revisar el caché sin conexión** dentro del WebView, y con él la
+   insignia "Funciona sin señal" de la portada.
+5. **Lector de notificaciones.** El primer paso sigue siendo capturar texto
+   real de notificaciones del teléfono, no escribir parsers.
+
+**Recordar**: todo lo anterior es código web y sale sin recompilar el APK,
+porque carga el sitio en vivo. Solo hace falta un APK nuevo cuando cambia el
+envoltorio: el ícono, un permiso, un plugin nativo.
