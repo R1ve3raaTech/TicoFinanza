@@ -3375,3 +3375,91 @@ vuelve al índice en vez de salirse.
 
 **Estado**: `npm test` (254), `eslint`, `tsc` y `npm run build` limpios.
 APK release compilado, publicado y verificado en producción.
+
+## Dónde quedamos (2026-11-21, quinta parte) — cerrar lo que quedó a medias
+
+Repaso de las seis funciones que se habían construido y nunca se habían
+visto con datos reales. **Las seis tenían algo**, en dos commits.
+
+### Los dos bugs de fecha (primer commit)
+
+El mismo de siempre: **medianoche UTC son las 6 de la tarde del día
+anterior en Costa Rica**.
+
+- **El aguinaldo perdía el salario de fin de mes.** `lib/aguinaldo.ts`
+  cortaba `transaction_date` a diez caracteres, o sea en UTC. Un salario
+  anotado el 30 de noviembre por la tarde llegaba como 1.º de diciembre, o
+  sea **fuera de la ventana del aguinaldo**, y desaparecía del total sin
+  dejar rastro. En cualquier otro mes caía en el mes siguiente de la tira de
+  doce. Y el salario se paga justo a fin de mes, que es cuando pega.
+- **Todos los días de cobro salían corridos un día hacia atrás.**
+  `lib/autoPayments.ts` tenía **su propia copia** de `chargeDayKey` que hacía
+  `dayKey(new Date(Date.UTC(...)))`. El original de `lib/fixedExpenses.ts`
+  arma la cadena con los números y está bien; la copia se borró. Con la
+  ventana de 3 días antes y 6 después el corrimiento casi nunca se notaba
+  —**y por eso las pruebas pasaban**— pero en los bordes descartaba pagos
+  buenos y corría la elección de cuál movimiento es "el más cercano".
+
+Se agregó `dayKeyOfISO()` al lado de `dayKey()`. **Regla: una fecha que
+viene de la base (`timestamptz`) nunca se corta con `.slice(0, 10)`.**
+
+### Los cuatro del segundo commit
+
+- **La cola sin señal podía dejar un movimiento trabado para siempre.** Un
+  pendiente marcado "en camino" quedaba fuera de los reintentos para no
+  mandarlo dos veces; el problema era el envío que **nunca termina** —en el
+  APK, Android mata el proceso en cuanto se desliza la app fuera de
+  recientes—. Ni se reintentaba (lo saltaba `sendable`) ni salía como
+  atascado (`stuck` mira los intentos, que seguían en cero), así que la
+  única salida era descartarlo: perder el gasto. Ahora la marca lleva la
+  hora (`claimedAt`) y a los dos minutos se da por muerta (`STALE_CLAIM_MS`).
+  Si llegara a robarle el turno a un envío vivo, el `clientId` de la
+  migración 0024 hace que el segundo no inserte nada.
+- **`confirmRecurring` recibía el día del navegador.** La pantalla puede
+  venir del caché sin conexión: una copia de ayer escribía
+  `last_confirmed_date` con la fecha de ayer, con lo cual la propuesta de hoy
+  seguía saliendo después de haberla anotado y el gasto entraba dos veces.
+  Ahora el día lo pone el servidor con `dayKey()`, como todas las demás
+  acciones (`monthKey()` en fijos e ingresos). Era la única excepción.
+  **Regla: ninguna acción toma del navegador un dato de calendario que el
+  servidor ya sabe.**
+- **El reporte desperdiciaba una hoja.** `break-inside: avoid` sobre la tabla
+  de movimientos no se puede respetar cuando el bloque es más alto que la
+  página: el navegador la empuja a la hoja siguiente, deja la primera casi en
+  blanco y la parte igual. Las tablas largas pasaron a `.reporte-tabla`
+  (`break-inside: auto`); lo que las mantiene legibles es repetir el `thead` y
+  no partir filas, que ya estaba. **Comprobado generando el PDF de verdad con
+  Playwright**: con 45 movimientos daba 4 páginas y ahora da 3.
+- **Dos fechas más en UTC**: el cierre de ciclo de una meta anual (una meta
+  que vence justo hoy, pagada de noche, se saltaba un año) y el corte que
+  decide qué gastos fijos existían en el mes del reporte. De paso, el nombre
+  del archivo del CSV y el tope del campo de fecha de nacimiento.
+
+### Dos trampas nuevas, anotadas
+
+- **El CSS de impresión vive en un template literal de JSX**
+  (`ReportPrintStyles.tsx`), así que **un backtick dentro de un comentario
+  corta la cadena** y el archivo deja de compilar. Pasó escribiendo un
+  comentario con `break-inside: avoid` entre backticks.
+- **Para generar el PDF con Playwright, el script tiene que vivir dentro del
+  proyecto**: desde el scratchpad, Node no resuelve `playwright` y falla con
+  ERR_MODULE_NOT_FOUND. Se escribe en la raíz y se borra después.
+
+**Estado**: `npm test` (266, 11 nuevas entre las fechas y las marcas viejas
+de la cola), `eslint`, `tsc` y `npm run build` limpios. Impresión del reporte
+verificada contra el build de producción generando PDFs reales y mirando el
+render en modo print a ancho de A4: sin desborde, el cromo de navegación
+oculto, papel blanco con la app en oscuro, y "Octubre de 2026" con mayúscula
+solo en la primera letra. **Commiteado y deployado.**
+
+### Lo que sigue sin poder probarse desde acá
+
+Nada de esto cambió: sigue sin haber sesión real en este entorno. Para mirar
+en producción, con la cuenta de verdad:
+
+- Que un gasto fijo se empareje solo con su movimiento, y que una recurrencia
+  vuelva a proponerse al día siguiente.
+- El prorrateo de una meta anual y el panel de aguinaldo con datos reales
+  (ojo: la meta que se creó para probarlo quedó como meta normal, sin
+  recurrencia).
+- El envío real de un push y la corrida del cron.
