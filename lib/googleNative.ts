@@ -96,9 +96,19 @@ export async function signInWithGoogleNative(
 
     await SocialLogin.initialize({ google: { webClientId } });
 
+    // **Sin `scopes`, a propósito.** El plugin ya pide por su cuenta
+    // `openid`, `userinfo.email` y `userinfo.profile`, que son exactamente
+    // los tres permisos de la app — los mismos que pide el flujo de la web
+    // (`LOGIN_SCOPE` en lib/google/oauth.ts). Nombrarlos igual no agrega
+    // nada y rompe: el plugin trata cualquier lista de scopes como "querés
+    // permisos extra" y rechaza con "You CANNOT use scopes without
+    // modifying the main activity", porque para pedir más hace falta tocar
+    // la MainActivity de Android. Si algún día se necesita un permiso de
+    // verdad sobre datos de Google, ahí sí hay que modificar el nativo y
+    // recompilar el APK.
     const { result } = await SocialLogin.login({
       provider: "google",
-      options: { scopes: ["email", "profile"], nonce },
+      options: { nonce },
     });
 
     const idToken = (result as { idToken?: string | null }).idToken;
