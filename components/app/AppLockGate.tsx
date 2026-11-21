@@ -16,6 +16,7 @@ import {
   shouldAskOnReturn,
   type AppLockWhen,
 } from "@/lib/appLock";
+import { onAppResume } from "@/lib/appState";
 import { endSession } from "@/lib/pageCache";
 
 /**
@@ -90,7 +91,29 @@ export function AppLockGate({
     [lockWhen]
   );
 
-  // Volver a la app después de un rato afuera.
+  // **El aviso que de verdad llega dentro del APK**, y el único que
+  // funciona: el ciclo de vida de la Activity.
+  //
+  // Los de abajo son los del navegador y acá no sirven, por un motivo que
+  // costó dos vueltas encontrar: **Capacitor no pausa el WebView**. Su
+  // `Bridge.onPause()` solo avisa a los plugins, así que la página sigue
+  // viva en segundo plano — nunca se la declara oculta y sus
+  // temporizadores nunca se congelan. Los cuatro detectores de abajo
+  // esperaban una señal que el sistema no manda.
+  //
+  // En la web no hay plugin y `onAppResume` devuelve `null`; ahí los de
+  // abajo sí funcionan y son los que quedan.
+  useEffect(() => {
+    if (!enabled) return;
+    return onAppResume((afueraMs) => {
+      // El latido se pone al día para que no vuelva a contar el mismo rato.
+      ultimoLatido.current = Date.now();
+      hiddenAt.current = null;
+      volvio(afueraMs);
+    }) ?? undefined;
+  }, [enabled, volvio]);
+
+  // Volver a la app después de un rato afuera, por el camino del navegador.
   //
   // **Hay tres avisos para el mismo momento, y ninguno sobra.**
   // `visibilitychange` es el camino de la web y adentro de un WebView de
