@@ -3080,3 +3080,145 @@ funcionar nunca.
 **Recordar**: todo lo anterior es código web y sale sin recompilar el APK,
 porque carga el sitio en vivo. Solo hace falta un APK nuevo cuando cambia el
 envoltorio: el ícono, un permiso, un plugin nativo.
+
+## Dónde quedamos (2026-11-21, segunda parte) — huella, recientes, y cinco fail-opens
+
+Los dos pendientes nativos chicos. **Hay que recompilar el APK para que
+tomen efecto** (son código nativo); el resto de los arreglos de esta nota
+es web y sale solo.
+
+### Huella
+
+`capacitor-native-biometric` pedía `@capacitor/core` 3 y está abandonado;
+vamos por el 8. Se cambió por **`@aparajita/capacitor-biometric-auth` v10**.
+Nunca había llegado a correr, así que no arregló nada roto: habilitó algo
+que no existía. El contrato de `lib/native.ts` no cambió, así que
+`AppLockGate` no se tocó.
+
+- **`allowDeviceCredential: false`.** Aceptar el desbloqueo del teléfono
+  como alternativa volvería el cerrojo decorativo: existe justo para el
+  caso de que alguien tenga el teléfono ya desbloqueado en la mano.
+- **`@capacitor/app` entra como dependencia transitiva del plugin**, así
+  que está en JS pero `cap sync` **no lo registra del lado nativo** (solo
+  registra las directas). Hoy no molesta porque lo único que lo usa es
+  `addResumeListener`, que no llamamos. Si algún día se usa: agregarlo al
+  `package.json` y recompilar.
+
+### Los saldos fuera de la lista de recientes
+
+Android guarda una miniatura de la última pantalla, y acá esa foto es el
+saldo — visible para quien agarre el teléfono y toque el botón de cambiar
+de app, sin pasar por el cerrojo.
+
+`FLAG_SECURE` lo evita, pero **puesta de forma permanente —como se explica
+en todos lados— también prohíbe las capturas de pantalla**, y eso tiene un
+costo real: es como se reportan los problemas. Toda esta app se depuró con
+capturas. Así que se pone en `onPause` (**antes** de `super`, porque el
+sistema puede tomar la miniatura apenas empieza la pausa) y se quita en
+`onResume`.
+
+### Cinco fail-opens en el cerrojo, todos míos, todos del mismo día
+
+La revisión automática los levantó en cinco rondas. **El patrón: cada vez
+arreglé el caso que tenía delante en vez de la regla.** Vale la pena
+leerlos juntos, porque la causa es una sola.
+
+`"no-disponible"` es el **único** valor con el que `AppLockGate` abre la app
+sola cuando no hay PIN —decisión tomada: trabar a alguien afuera de sus
+propios datos es peor que el riesgo—. Así que cualquier cosa que devuelva
+ese valor **es una puerta**, y yo le fui metiendo significados de más:
+
+1. **`biometryLockout`** (Android tras varios intentos fallidos). Mi
+   razonamiento: "durante ese rato la huella no es un camino, al PIN".
+   Correcto con PIN, catastrófico sin él: **fallar la huella cinco veces
+   abría la app**, o sea que el ataque del que el cerrojo protege era
+   también la forma de saltárselo.
+2. **Un plugin que no carga, o `checkBiometry()` que tira.** Dentro del APK
+   eso es un error nuestro, no ausencia de hardware. Ahora → `"error"`.
+3. **`isAvailable: false` tomado como definitivo.** También sale así con la
+   huella bloqueada. Se arregló `authenticate()` y quedó abierta esta otra
+   puerta, que es por donde pasa el arranque en frío.
+4. **`biometryNotAvailable` no significa lo que el nombre sugiere.**
+   Leyendo el Android del plugin, ahí caen **tres** cosas:
+   `ERROR_HW_NOT_PRESENT` (permanente), `ERROR_HW_UNAVAILABLE` ("el sensor
+   existe pero ahora no está disponible") y `BIOMETRIC_STATUS_UNKNOWN`, que
+   cae por el `default` del mapa. Abrir ante un "ahora no" es malo; ante un
+   "no sé", peor.
+5. **El orden de las comprobaciones.** La de hardware corría antes que la
+   del sistema, y Android es inconsistente declarando características —hay
+   teléfonos con reconocimiento facial que no declaran `FEATURE_FACE`—, así
+   que ese teléfono abría la app **sin preguntar nada**.
+
+**Cómo quedó**: `isAvailable` manda sobre todo; el hardware
+(`biometryType`, que sale de `hasSystemFeature`) solo cuenta cuando las dos
+señales están de acuerdo; y **tres** códigos pueden abrir sin PIN, fijados
+por una prueba de lista cerrada. La decisión completa vive en
+`decidirDisponibilidad()`, una función pura — **el orden quedaba fuera de
+toda prueba, y ahí aparecieron los dos últimos fallos**.
+
+De paso, uno sin reportar: en Ajustes, aflojar el cerrojo sin PIN solo se
+bloqueaba si el resultado era `"cancelado"`, así que un error del lector lo
+aflojaba sin que nadie confirmara nada.
+
+### Tres bugs del cerrojo en producción, en orden
+
+Encontrados uno tras otro con Camil probando en su teléfono.
+
+1. **Se quedaba en "Esperando tu huella..." sin salida.** Lo peor no era
+   colgarse: **"Usar el PIN" estaba `disabled={asking}`**, así que mientras
+   esperaba una huella que no iba a llegar, el único camino alternativo
+   estaba apagado. Ese enlace **nunca** va deshabilitado: el diálogo del
+   sistema es modal —si aparece, lo tapa igual— y si no aparece, es la
+   única salida.
+2. **Bajaba el lector justo al desbloquear.** Estaba con `import()`
+   dinámico "para que no entre en el bundle de la web". Bonito y mal: el
+   momento de desbloquear es muchas veces sin señal, y si ese pedazo no
+   estaba guardado, la pantalla esperaba una descarga que no llegaba. Ahora
+   se importa arriba y viaja dentro de la página. **Un cerrojo que depende
+   de la red para abrirse no es un cerrojo, es una tranca.**
+3. **No pedía huella al volver a la app.** El único aviso era
+   `visibilitychange`, y **dentro de un WebView de Android ese evento no es
+   fiable**: cuando el sistema pausa la actividad, muchas veces nunca llega.
+   Se agregó un detector que no depende de eventos: **un latido cada 2 s
+   contra el reloj**; un hueco de 6 s o más quiere decir que congelaron la
+   app. Mientras el cerrojo está en pantalla no mide, porque el propio
+   diálogo de huella pausa la app y si no entraría en bucle.
+
+### Y la causa de que nada de eso se notara
+
+`revalidatePath("/dashboard")` **no alcanza un layout**, y el cerrojo lee
+`app_lock_when` ahí. Se guardaba bien en la base y la app seguía con el
+valor viejo. Peor: **Capacitor no recarga la página al volver desde la
+lista de recientes** —el WebView sigue vivo con el mismo documento—, así
+que ese valor viejo no se corregía ni "cerrando" la app, solo si Android
+mataba el proceso.
+
+Las nueve revalidaciones del archivo de ajustes pasaron a
+`revalidatePath("/dashboard", "layout")`. **Regla para el futuro: si el
+dato lo lee un layout, la revalidación va con `"layout"`.**
+
+Consecuencia atendida: ahora que el valor llega en vivo, activar el cerrojo
+desde Ajustes hacía saltar el diálogo de huella encima de esa pantalla. El
+arranque en frío se guarda contra `lockedRef`, así que corre al montar y
+nada más.
+
+### Lecciones que se repitieron toda la sesión
+
+- **El error real tiene que verse en pantalla.** Dentro del APK no hay
+  consola a la que asomarse; un fallo en silencio no se puede arreglar.
+  Costó cuatro rondas con el login de Google y se volvió a repetir con el
+  cerrojo. Las dos veces, mostrar el motivo lo resolvió en un intento.
+- **Decir el paso en curso** ("Abriendo el lector...", "Consultando...",
+  "Esperando tu huella...") convirtió "no carga" en un diagnóstico exacto.
+- **Ir a leer el código del plugin** en vez de razonar sobre los nombres de
+  sus constantes. Eso resolvió lo de `scopes` y lo de
+  `biometryNotAvailable`.
+
+### Lo que falta del lado nativo
+
+1. **Push a FCM**: dentro de un WebView no existe la API de push del
+   navegador.
+2. **Revisar el caché sin conexión** dentro del WebView, y con él la
+   insignia "Funciona sin señal" de la portada.
+3. **Leer las notificaciones de Wallet y de los bancos.** El primer paso
+   sigue siendo capturar texto real de notificaciones del teléfono.
