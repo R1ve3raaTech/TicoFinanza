@@ -125,7 +125,9 @@ export type DecisionBiometria =
  * declare ningún sensor. Tenerlo al revés hacía que un teléfono con
  * reconocimiento facial no declarado abriera la app **sin preguntar nada**.
  */
-export function decidirDisponibilidad(info: EstadoBiometria): DecisionBiometria {
+export function decidirDisponibilidad(
+  info: EstadoBiometria,
+): DecisionBiometria {
   // Lo primero y lo que manda: si se puede, se pide.
   if (info.isAvailable) return "pedir";
 
@@ -172,11 +174,15 @@ export function biometricResultFor(code: unknown): BiometricResult {
  * decisión de la persona por reloj. Lo que cubre ese caso es que la
  * pantalla deja siempre el PIN a mano.
  */
-function conTope<T>(promesa: Promise<T>, ms: number, etapa: string): Promise<T> {
+function conTope<T>(
+  promesa: Promise<T>,
+  ms: number,
+  etapa: string,
+): Promise<T> {
   return Promise.race([
     promesa,
     new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error(`sin respuesta al ${etapa}`)), ms)
+      setTimeout(() => reject(new Error(`sin respuesta al ${etapa}`)), ms),
     ),
   ]);
 }
@@ -187,7 +193,7 @@ async function plugin() {
     const { BiometricAuth } = await conTope(
       import("@aparajita/capacitor-biometric-auth"),
       8000,
-      "cargar el plugin"
+      "cargar el plugin",
     );
     return BiometricAuth;
   } catch {
@@ -213,21 +219,41 @@ export interface IntentoBiometrico {
   detalle?: string;
 }
 
-export async function unlockWithBiometrics(reason: string): Promise<IntentoBiometrico> {
+/**
+ * En qué paso va el intento. Se informa hacia afuera para que la pantalla
+ * lo muestre: un cerrojo que dice "esperando tu huella..." para siempre no
+ * deja ver si lo que falla es cargar el lector, consultarlo o el diálogo
+ * del sistema, y sin eso no hay forma de arreglarlo desde acá.
+ */
+export type EtapaBiometria = "cargando" | "consultando" | "esperando";
+
+export async function unlockWithBiometrics(
+  reason: string,
+  onEtapa?: (etapa: EtapaBiometria) => void,
+): Promise<IntentoBiometrico> {
   // Fuera del APK no hay nada que preguntar y el PIN es el único camino:
   // esa sí es una respuesta definitiva.
   if (!hasNativeBridge()) return { estado: "no-disponible" };
 
+  onEtapa?.("cargando");
   const bio = await plugin();
   // **Adentro del APK, un plugin que no carga es un error, no una
   // ausencia.** Devolver "no-disponible" acá dejaba entrar a quien no
   // tuviera PIN, por una falla nuestra y sin que nadie se enterara.
   if (!bio) {
-    return { estado: "error", detalle: "No se pudo cargar el lector de huella." };
+    return {
+      estado: "error",
+      detalle: "No se pudo cargar el lector de huella.",
+    };
   }
 
+  onEtapa?.("consultando");
   try {
-    const estado = await conTope(bio.checkBiometry(), 8000, "consultar la huella");
+    const estado = await conTope(
+      bio.checkBiometry(),
+      8000,
+      "consultar la huella",
+    );
     const decision = decidirDisponibilidad(estado);
     if (decision !== "pedir") return { estado: decision };
   } catch (error) {
@@ -235,18 +261,29 @@ export async function unlockWithBiometrics(reason: string): Promise<IntentoBiome
     return { estado: "error", detalle: textoDe(error) };
   }
 
+  onEtapa?.("esperando");
   try {
-    await bio.authenticate({
-      reason,
-      androidTitle: "TicoFinanza",
-      androidSubtitle: reason,
-      cancelTitle: "Usar PIN",
-      // **Sin el desbloqueo del teléfono como alternativa.** Suena cómodo y
-      // sería un agujero: el cerrojo existe para el caso de que alguien
-      // tenga el teléfono ya desbloqueado en la mano, así que aceptar ese
-      // mismo desbloqueo como llave lo volvería decorativo.
-      allowDeviceCredential: false,
-    });
+    await conTope(
+      bio.authenticate({
+        reason,
+        androidTitle: "TicoFinanza",
+        androidSubtitle: reason,
+        cancelTitle: "Usar PIN",
+        // **Sin el desbloqueo del teléfono como alternativa.** Suena cómodo y
+        // sería un agujero: el cerrojo existe para el caso de que alguien
+        // tenga el teléfono ya desbloqueado en la mano, así que aceptar ese
+        // mismo desbloqueo como llave lo volvería decorativo.
+        allowDeviceCredential: false,
+      }),
+      // **Tope largo y a propósito.** Este paso sí espera a una persona,
+      // así que cortarlo rápido sería cancelarle la decisión. Pero sin
+      // ningún tope, un diálogo del sistema que nunca aparece deja la
+      // pantalla girando para siempre — y a quien no tenga PIN, afuera de
+      // sus propios datos. Un minuto es más de lo que nadie tarda en poner
+      // el dedo, y mucho menos que "nunca".
+      60000,
+      "mostrar el diálogo de huella",
+    );
     return { estado: "ok" };
   } catch (error) {
     const estado = biometricResultFor((error as { code?: unknown })?.code);
@@ -261,9 +298,13 @@ function esCancelacion(error: unknown): boolean {
   const code = (error as { code?: unknown })?.code;
   return (
     typeof code === "string" &&
-    ["userCancel", "appCancel", "systemCancel", "userFallback", "authenticationFailed"].includes(
-      code
-    )
+    [
+      "userCancel",
+      "appCancel",
+      "systemCancel",
+      "userFallback",
+      "authenticationFailed",
+    ].includes(code)
   );
 }
 

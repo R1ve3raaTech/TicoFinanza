@@ -10,7 +10,7 @@ import { ForgotPinDialog } from "./ForgotPinDialog";
 import { Button } from "@/components/ui/Button";
 import { cleanPinInput, isValidPin, lockEnabled, shouldAskOnReturn, type AppLockWhen } from "@/lib/appLock";
 import { endSession } from "@/lib/pageCache";
-import { unlockWithBiometrics } from "@/lib/native";
+import { unlockWithBiometrics, type EtapaBiometria } from "@/lib/native";
 
 /**
  * El cerrojo del APK: huella o cara, y el PIN de cinco dígitos como
@@ -51,6 +51,8 @@ export function AppLockGate({
   const [showPin, setShowPin] = useState(false);
   /** Qué falló al pedir la huella, para mostrarlo en la pantalla. */
   const [issue, setIssue] = useState<string | null>(null);
+  /** En qué paso va el intento, para que la pantalla lo diga. */
+  const [etapa, setEtapa] = useState<EtapaBiometria>("cargando");
 
   // Cuándo se fue la app a segundo plano. Se compara contra el reloj y no
   // con un temporizador: si Android congela la app, un `setTimeout` se
@@ -58,7 +60,7 @@ export function AppLockGate({
   const hiddenAt = useRef<number | null>(null);
 
   const runBiometrics = useCallback(async () => {
-    const { estado, detalle } = await unlockWithBiometrics("Desbloqueá TicoFinanza");
+    const { estado, detalle } = await unlockWithBiometrics("Desbloqueá TicoFinanza", setEtapa);
     setAsking(false);
     setIssue(detalle ?? null);
 
@@ -90,6 +92,7 @@ export function AppLockGate({
   /** Volver a pedir la huella desde un botón o al volver a la app. */
   const askAgain = useCallback(() => {
     setIssue(null);
+    setEtapa("cargando");
     setAsking(true);
     void runBiometrics();
   }, [runBiometrics]);
@@ -146,6 +149,7 @@ export function AppLockGate({
       </div>
       <LockScreen
         asking={asking}
+        etapa={etapa}
         issue={issue}
         showPin={showPin}
         hasPin={hasPin}
@@ -166,8 +170,23 @@ export function AppLockGate({
  * como los diálogos, con **una sola acción principal** y el resto callado
  * abajo — la misma regla que el resto de la app.
  */
+/**
+ * Qué está haciendo, paso a paso.
+ *
+ * Decir siempre "Esperando tu huella..." escondía dónde se trababa: si el
+ * lector no carga, si el sistema no contesta o si el diálogo nunca aparece
+ * son tres fallas distintas con tres arreglos distintos, y desde adentro
+ * del APK no hay consola para distinguirlas.
+ */
+const ETAPA_TEXTO: Record<EtapaBiometria, string> = {
+  cargando: "Abriendo el lector de huella...",
+  consultando: "Consultando el lector...",
+  esperando: "Esperando tu huella...",
+};
+
 function LockScreen({
   asking,
+  etapa,
   issue,
   showPin,
   hasPin,
@@ -176,6 +195,7 @@ function LockScreen({
   onUsePin,
 }: {
   asking: boolean;
+  etapa: EtapaBiometria;
   /** Qué falló al pedir la huella, si falló. */
   issue: string | null;
   showPin: boolean;
@@ -251,7 +271,7 @@ function LockScreen({
                 {showPin
                   ? "Escribí tu PIN"
                   : asking
-                    ? "Esperando tu huella..."
+                    ? ETAPA_TEXTO[etapa]
                     : "Tocá para desbloquear"}
               </p>
             </div>
