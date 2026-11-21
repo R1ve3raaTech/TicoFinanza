@@ -59,6 +59,16 @@ export function AppLockGate({
   // congela con ella y al volver nunca vencería.
   const hiddenAt = useRef<number | null>(null);
 
+  // Cuándo corrió el latido por última vez. Es la marca contra la que se
+  // mide el hueco, y la comparten los tres detectores de abajo: así, el que
+  // se entere primero de que volvimos puede decidir solo, sin esperar al
+  // siguiente latido.
+  // Arranca en 0 y no en `Date.now()`: leer el reloj mientras se dibuja es
+  // un efecto secundario durante el render, y el lint lo marca. Lo pone en
+  // hora el latido, que corre en un efecto; hasta entonces, 0 quiere decir
+  // "todavía no hay nada que medir".
+  const ultimoLatido = useRef(0);
+
   // Espejos de `locked` y `asking` para que el latido los consulte sin
   // tener que reiniciarse en cada cambio de estado. Se escriben en un
   // efecto y no durante el render: tocar una ref mientras se dibuja es
@@ -154,30 +164,63 @@ export function AppLockGate({
   useEffect(() => {
     if (!enabled) return;
 
+    /**
+     * Volvimos al frente: ¿cuánto estuvimos afuera?
+     *
+     * **Se mide contra el latido y no solo contra `hiddenAt`.** Ese dato
+     * solo existe si el evento de "me fui" llegó, y adentro del WebView
+     * muchas veces no llega. El latido, en cambio, se congela con la app:
+     * el tiempo desde el último es el tiempo que estuvimos afuera, lo
+     * haya anunciado alguien o no.
+     */
+    function volviAlFrente() {
+      const ahora = Date.now();
+      const desdeEvento = hiddenAt.current;
+      hiddenAt.current = null;
+      const afuera = Math.max(
+        desdeEvento === null ? 0 : ahora - desdeEvento,
+        ultimoLatido.current === 0 ? 0 : ahora - ultimoLatido.current
+      );
+      // El latido se pone al día acá mismo: si no, el intervalo volvería a
+      // ver el mismo hueco en su primer tick y pediría la huella dos veces.
+      ultimoLatido.current = ahora;
+      if (afuera <= 0) return;
+      volvio(afuera);
+    }
+
     function onVisibility() {
       if (document.visibilityState === "hidden") {
         hiddenAt.current = Date.now();
         return;
       }
-      const since = hiddenAt.current;
-      hiddenAt.current = null;
-      if (since === null) return;
-      volvio(Date.now() - since);
+      volviAlFrente();
     }
 
+    // **Tres avisos para el mismo momento, y ninguno sobra.**
+    // `visibilitychange` es el de la web y adentro del WebView falla;
+    // `focus` llega cuando Android devuelve el foco a la ventana, que es
+    // el caso de volver desde la lista de recientes; `pageshow` cubre la
+    // vuelta desde el historial. El que llegue primero decide, y los demás
+    // ya no encuentran hueco que medir.
     document.addEventListener("visibilitychange", onVisibility);
-    return () => document.removeEventListener("visibilitychange", onVisibility);
+    window.addEventListener("focus", volviAlFrente);
+    window.addEventListener("pageshow", volviAlFrente);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("focus", volviAlFrente);
+      window.removeEventListener("pageshow", volviAlFrente);
+    };
   }, [enabled, volvio]);
 
   // El latido. Ver el comentario de arriba.
   useEffect(() => {
     if (!enabled) return;
 
-    let ultimo = Date.now();
+    ultimoLatido.current = Date.now();
     const id = setInterval(() => {
       const ahora = Date.now();
-      const hueco = ahora - ultimo;
-      ultimo = ahora;
+      const hueco = ahora - ultimoLatido.current;
+      ultimoLatido.current = ahora;
 
       // **Mientras el cerrojo está en pantalla no se mide nada.** El
       // diálogo de huella de Android pausa la app, así que produce un hueco

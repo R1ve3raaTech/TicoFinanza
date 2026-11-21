@@ -211,6 +211,33 @@ function plugin() {
 }
 
 /**
+ * Espera a que el puente nativo aparezca, hasta `ms`.
+ *
+ * **El arranque en frío es una carrera.** Android inyecta `androidBridge`
+ * en el contexto de la página, y el cerrojo pregunta por él en cuanto
+ * React monta. Si pregunta un instante antes, `hasNativeBridge()` contesta
+ * que no —que es lo mismo que contesta la web— y el cerrojo concluye que
+ * no hay con qué abrir. Sin PIN puesto, esa conclusión **abre la app sin
+ * preguntar nada**, en silencio y sin dejar rastro: exactamente el
+ * síntoma de "no me pide huella nunca".
+ *
+ * Desde un botón de Ajustes el puente lleva rato listo, y por eso ahí la
+ * huella siempre funcionó. La diferencia no estaba en el lector.
+ *
+ * Esperar un poco no cuesta nada: si de verdad es la web, el puente no va
+ * a aparecer nunca y se pierden unos milisegundos una sola vez; si es el
+ * APK, se gana la respuesta correcta.
+ */
+async function esperarPuente(ms: number): Promise<boolean> {
+  const hasta = Date.now() + ms;
+  while (!hasNativeBridge()) {
+    if (Date.now() >= hasta) return false;
+    await new Promise((r) => setTimeout(r, 50));
+  }
+  return true;
+}
+
+/**
  * Pide huella o cara.
  *
  * **Distingue "canceló" de "no se puede".** Si fuera un booleano, cancelar
@@ -236,15 +263,28 @@ export interface IntentoBiometrico {
  */
 export type EtapaBiometria = "cargando" | "consultando" | "esperando";
 
+/**
+ * Cuánto se le da al puente nativo para aparecer en el arranque en frío.
+ *
+ * Generoso a propósito: el costo de esperar de más es un instante en la
+ * pantalla del cerrojo, que de todos modos está esperando a una persona.
+ * El costo de esperar de menos es abrir la app sin identificar a nadie.
+ */
+const ESPERA_PUENTE_MS = 3000;
+
 export async function unlockWithBiometrics(
   reason: string,
   onEtapa?: (etapa: EtapaBiometria) => void,
 ): Promise<IntentoBiometrico> {
-  // Fuera del APK no hay nada que preguntar y el PIN es el único camino:
-  // esa sí es una respuesta definitiva.
-  if (!hasNativeBridge()) return { estado: "no-disponible" };
-
   onEtapa?.("cargando");
+  // Fuera del APK no hay nada que preguntar y el PIN es el único camino:
+  // esa sí es una respuesta definitiva. Pero **solo después de darle al
+  // puente la oportunidad de aparecer**: en el arranque en frío puede no
+  // estar todavía, y darlo por ausente abre la app sin preguntar.
+  if (!(await esperarPuente(ESPERA_PUENTE_MS))) {
+    return { estado: "no-disponible" };
+  }
+
   const bio = plugin();
   // **Adentro del APK, un plugin que no carga es un error, no una
   // ausencia.** Devolver "no-disponible" acá dejaba entrar a quien no
@@ -323,4 +363,42 @@ function textoDe(error: unknown): string {
   const code = (error as { code?: unknown })?.code;
   const texto = typeof code === "string" && code ? `${code}: ${base}` : base;
   return texto.replace(/\s+/g, " ").trim().slice(0, 160);
+}
+
+/**
+ * Qué contesta el lector, en una línea que se pueda leer en pantalla.
+ *
+ * **Existe porque adentro del APK no hay consola a la que asomarse.** Es la
+ * misma lección que dejó la entrada con Google y el primer intento del
+ * cerrojo: un fallo que no se ve no se puede arreglar, y las dos veces que
+ * se mostró el motivo en pantalla el problema se resolvió en un intento.
+ *
+ * No decide nada: solo cuenta lo que hay. La decisión sigue estando en
+ * `decidirDisponibilidad`, que es la que tiene pruebas.
+ */
+export async function diagnosticoBiometria(): Promise<string> {
+  const puente = hasNativeBridge();
+  if (!puente) {
+    // Puede ser la web (respuesta correcta) o el APK preguntando
+    // demasiado pronto, que era el bug.
+    const aparecio = await esperarPuente(ESPERA_PUENTE_MS);
+    if (!aparecio) return "Puente nativo: no (esto es la web, no el APK)";
+  }
+
+  const bio = plugin();
+  if (!bio) return "Puente nativo: sí · el plugin no cargó";
+
+  try {
+    const estado = await conTope(bio.checkBiometry(), 8000, "consultar");
+    const partes = [
+      `Puente: sí${puente ? "" : " (tardó en aparecer)"}`,
+      `disponible: ${estado.isAvailable ? "sí" : "no"}`,
+      `sensores: ${estado.biometryType ?? "?"}`,
+      `motivo: ${estado.code ?? "ninguno"}`,
+      `decisión: ${decidirDisponibilidad(estado)}`,
+    ];
+    return partes.join(" · ");
+  } catch (error) {
+    return `Puente: sí · falló al consultar · ${textoDe(error)}`;
+  }
 }

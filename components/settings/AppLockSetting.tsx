@@ -15,7 +15,7 @@ import {
   weakensLock,
   type AppLockWhen,
 } from "@/lib/appLock";
-import { unlockWithBiometrics } from "@/lib/native";
+import { diagnosticoBiometria, unlockWithBiometrics } from "@/lib/native";
 import { SettingsRow } from "./SettingsSection";
 
 /**
@@ -55,6 +55,14 @@ export function AppLockSetting({ lockWhen, hasPin }: { lockWhen: AppLockWhen; ha
   const [pinSet, setPinSet] = useState(hasPin);
   const [prompt, setPrompt] = useState<Prompt | null>(null);
   const [forgot, setForgot] = useState(false);
+  /**
+   * Qué contesta el lector de huella, escrito en la pantalla.
+   *
+   * No es una explicación de cómo funciona la app —de esas no van— sino un
+   * dato del teléfono que no se puede ver de ninguna otra forma: adentro
+   * del APK no hay consola. Aparece solo cuando se aprieta el botón.
+   */
+  const [diagnostico, setDiagnostico] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   /** Guarda el "cada cuánto". `currentPin` solo viaja si el cambio afloja. */
@@ -135,6 +143,22 @@ export function AppLockSetting({ lockWhen, hasPin }: { lockWhen: AppLockWhen; ha
           </Button>
         )}
       </SettingsRow>
+
+      <SettingsRow inline label="Lector de huella">
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={async () => {
+            setDiagnostico("Consultando...");
+            setDiagnostico(await diagnosticoBiometria());
+          }}
+        >
+          Probar
+        </Button>
+      </SettingsRow>
+      {diagnostico && (
+        <p className="pb-3 text-meta text-ink-3 break-words">{diagnostico}</p>
+      )}
 
       {prompt && (
         <PinFlow
