@@ -364,29 +364,51 @@ export async function subscribeToPush(subscription: {
  * aún no declaró muerto.
  */
 export async function registerFcmToken(token: string) {
-  const { user } = await requireUser();
+  const { supabase, user } = await requireUser();
+  if (!tokenConForma(token)) return { error: GENERIC_ERROR };
 
-  // Un token de FCM es largo y opaco; lo único que se puede comprobar
-  // desde acá es que venga algo con forma de token y no una cadena vacía
-  // o un trozo de HTML de un error.
-  if (!token || token.length < 20 || token.length > 4096 || /\s/.test(token)) {
-    return { error: GENERIC_ERROR };
+  // **Primero con la sesión, que es lo que RLS puede verificar.** Alcanza
+  // para el caso normal: este teléfono es nuevo, o ya estaba a nombre de
+  // quien lo está registrando.
+  const propio = await supabase
+    .from("fcm_tokens")
+    .upsert(
+      { user_id: user.id, token, last_seen_at: new Date().toISOString() },
+      { onConflict: "token" }
+    )
+    .select("id")
+    .maybeSingle();
+
+  if (propio.error && isMissingTableError(propio.error)) {
+    // La 0032 puede no estar corrida todavía. Decirlo en pantalla, no
+    // tragárselo: un interruptor que se prende y no manda nada es
+    // indistinguible de uno que funciona.
+    return { error: "Falta correr la migración 0032 en Supabase." };
+  }
+  if (propio.data) {
+    revalidatePath("/dashboard", "layout");
+    return { error: null };
   }
 
-  // **La reasignación va con la clave de servicio, y hay un motivo.**
+  // Quedó sin guardar y sin error. **Eso tiene un solo significado**: la
+  // fila de este token existe a nombre de otra cuenta, y la política de
+  // UPDATE no deja ni verla — así que el upsert no alcanzó ninguna fila y
+  // PostgREST contestó bien igual. Es el mismo fallo silencioso que ya
+  // mordió con `user_categories` (ver la 0027).
   //
-  // Un teléfono que cambia de cuenta recibe de Google el MISMO token. Con
-  // la sesión de quien se acaba de conectar, un upsert no puede tocar la
-  // fila de la cuenta anterior: la política de UPDATE solo deja ver las
-  // filas propias, así que la reasignación no alcanza ninguna fila **y no
-  // da error**. El resultado sería el peor posible: los recordatorios de
-  // la cuenta vieja —con los nombres de sus gastos— seguirían llegando a
-  // un teléfono que ahora usa otra persona, y la nueva no recibiría nada.
+  // Pasa de verdad: Google le da al mismo teléfono el MISMO token aunque
+  // cambie la cuenta que usa la app. Si no se reasigna, los recordatorios
+  // de la cuenta vieja —con los nombres de sus gastos— seguirían llegando
+  // a un aparato que ahora usa otra persona, y la nueva no recibiría nada.
   //
-  // Hacerlo con la clave de servicio es seguro porque **solo el aparato
-  // que tiene el token puede presentarlo**: no es un identificador que se
-  // pueda adivinar ni enumerar, y quien lo tiene es, por definición, el
-  // teléfono al que le van a llegar los avisos.
+  // La reasignación necesita la clave de servicio, no hay otra forma. **El
+  // criterio es que tener el token ES ser el aparato**: no se adivina ni
+  // se enumera, y la app nunca lo muestra. El residuo, que queda dicho:
+  // quien consiguiera el token de otro por fuera (un registro filtrado,
+  // por ejemplo) podría llevarse sus avisos a su propia cuenta. Cerrarlo
+  // del todo pediría mandarle un desafío al teléfono por FCM y que lo
+  // devuelva, que es bastante maquinaria para un caso que empieza con una
+  // filtración.
   const admin = createAdminClient();
   const { error } = await admin
     .from("fcm_tokens")
@@ -396,12 +418,6 @@ export async function registerFcmToken(token: string) {
     );
 
   if (error) {
-    // La 0032 puede no estar corrida todavía. Decirlo en pantalla, no
-    // tragárselo: un interruptor que se prende y no manda nada es
-    // indistinguible de uno que funciona.
-    if (isMissingTableError(error)) {
-      return { error: "Falta correr la migración 0032 en Supabase." };
-    }
     logFailure("registerFcmToken", error);
     return { error: GENERIC_ERROR };
   }
@@ -410,24 +426,47 @@ export async function registerFcmToken(token: string) {
   return { error: null };
 }
 
-/** Saca este Android de la lista. Los demás dispositivos siguen igual. */
+/**
+ * Saca este Android de la lista. Los demás dispositivos siguen igual.
+ *
+ * **Va con la sesión, no con la clave de servicio.** Borrar es destructivo
+ * y no tiene el caso que obliga a reasignar: una fila que figura a nombre
+ * de otra cuenta se arregla sola cuando ese teléfono se vuelve a
+ * registrar. Con la clave de servicio, en cambio, cualquiera con sesión y
+ * con un token ajeno podría dejar a otra persona sin recordatorios, en
+ * silencio y sin que ella tuviera forma de notarlo.
+ */
 export async function unregisterFcmToken(token: string) {
-  // La sesión se exige igual: dar de baja un aparato es una acción de la
-  // app, no algo que pueda pedir cualquiera que pase.
-  await requireUser();
+  const { supabase, user } = await requireUser();
+  if (!tokenConForma(token)) return { error: GENERIC_ERROR };
 
-  // Sin filtrar por usuario, y a propósito: lo que se está dando de baja
-  // es **este aparato**, y la fila puede figurar a nombre de la cuenta
-  // que lo usó antes. Dejarla sería seguir mandándole a este teléfono los
-  // avisos de alguien que ya no lo tiene. Vale el mismo razonamiento de
-  // arriba: tener el token es la prueba de ser el aparato.
-  const admin = createAdminClient();
-  const { error } = await admin.from("fcm_tokens").delete().eq("token", token);
+  const { error } = await supabase
+    .from("fcm_tokens")
+    .delete()
+    .eq("token", token)
+    .eq("user_id", user.id);
 
   if (error) return { error: GENERIC_ERROR };
 
   revalidatePath("/dashboard", "layout");
   return { error: null };
+}
+
+/**
+ * ¿Esto se parece a un token de Firebase?
+ *
+ * Un token es largo y opaco, así que no hay mucho que comprobar; lo que
+ * esto descarta es lo que de verdad llega cuando algo salió mal — una
+ * cadena vacía, un trozo de HTML de una página de error, algo con
+ * espacios. La comprobación de verdad la hace Google al mandar.
+ */
+function tokenConForma(token: string): boolean {
+  return (
+    typeof token === "string" &&
+    token.length >= 20 &&
+    token.length <= 4096 &&
+    !/\s/.test(token)
+  );
 }
 
 /** Saca este navegador de la lista. Los demás dispositivos siguen igual. */
