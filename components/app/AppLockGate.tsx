@@ -59,6 +59,17 @@ export function AppLockGate({
   // congela con ella y al volver nunca vencería.
   const hiddenAt = useRef<number | null>(null);
 
+  // Espejos de `locked` y `asking` para que el latido los consulte sin
+  // tener que reiniciarse en cada cambio de estado. Se escriben en un
+  // efecto y no durante el render: tocar una ref mientras se dibuja es
+  // justo lo que React pide no hacer.
+  const lockedRef = useRef(locked);
+  const askingRef = useRef(asking);
+  useEffect(() => {
+    lockedRef.current = locked;
+    askingRef.current = asking;
+  }, [locked, asking]);
+
   const runBiometrics = useCallback(async () => {
     const { estado, detalle } = await unlockWithBiometrics("Desbloqueá TicoFinanza", setEtapa);
     setAsking(false);
@@ -112,6 +123,31 @@ export function AppLockGate({
   }, [enabled, runBiometrics]);
 
   // Volver a la app después de un rato afuera.
+  //
+  // **Hay dos detectores, y el segundo es el que de verdad funciona en el
+  // APK.** `visibilitychange` es el camino normal de la web y adentro de un
+  // WebView de Android **no es fiable**: cuando el sistema pausa la
+  // actividad, muchas veces ese evento nunca llega. El síntoma fue
+  // exactamente ese — con el cerrojo en "Siempre", al arrancar en frío
+  // pedía la huella, pero al volver a la app desde segundo plano no pedía
+  // nada, porque `hiddenAt` seguía en `null` y la función salía por la
+  // primera puerta.
+  //
+  // El segundo detector no depende de ningún evento: **mira el reloj**. Un
+  // latido cada dos segundos; si entre dos latidos pasó mucho más que eso,
+  // es que a la app la congelaron, que es justo lo que pasa al mandarla al
+  // fondo. El mismo razonamiento que el cierre por inactividad: contra el
+  // reloj, no contra un temporizador que se congela con la app.
+  const volvio = useCallback(
+    (afueraMs: number) => {
+      if (!shouldAskOnReturn(lockWhen, afueraMs)) return;
+      setLocked(true);
+      setShowPin(false);
+      askAgain();
+    },
+    [lockWhen, askAgain]
+  );
+
   useEffect(() => {
     if (!enabled) return;
 
@@ -123,15 +159,34 @@ export function AppLockGate({
       const since = hiddenAt.current;
       hiddenAt.current = null;
       if (since === null) return;
-      if (!shouldAskOnReturn(lockWhen, Date.now() - since)) return;
-      setLocked(true);
-      setShowPin(false);
-      askAgain();
+      volvio(Date.now() - since);
     }
 
     document.addEventListener("visibilitychange", onVisibility);
     return () => document.removeEventListener("visibilitychange", onVisibility);
-  }, [enabled, lockWhen, askAgain]);
+  }, [enabled, volvio]);
+
+  // El latido. Ver el comentario de arriba.
+  useEffect(() => {
+    if (!enabled) return;
+
+    let ultimo = Date.now();
+    const id = setInterval(() => {
+      const ahora = Date.now();
+      const hueco = ahora - ultimo;
+      ultimo = ahora;
+
+      // **Mientras el cerrojo está en pantalla no se mide nada.** El
+      // diálogo de huella de Android pausa la app, así que produce un hueco
+      // igual que irse a otra app: sin esta guarda, cada intento de
+      // desbloquear volvería a cerrar el cerrojo, en bucle.
+      if (lockedRef.current || askingRef.current) return;
+
+      if (hueco >= HUECO_MINIMO_MS) volvio(hueco);
+    }, LATIDO_MS);
+
+    return () => clearInterval(id);
+  }, [enabled, volvio]);
 
   if (!locked) return <>{children}</>;
 
@@ -183,6 +238,20 @@ const ETAPA_TEXTO: Record<EtapaBiometria, string> = {
   consultando: "Consultando el lector...",
   esperando: "Esperando tu huella...",
 };
+
+/** Cada cuánto late el detector de "me congelaron". */
+const LATIDO_MS = 2000;
+
+/**
+ * Hueco a partir del cual se considera que la app estuvo en segundo plano.
+ *
+ * Tres latidos. Con menos, una pausa del recolector de basura o un momento
+ * de carga pesada podrían leerse como "volvió de segundo plano" y cerrar el
+ * cerrojo sin motivo. La contra es que salir y volver en menos de seis
+ * segundos no lo dispara; `visibilitychange` cubre ese caso cuando sí
+ * llega.
+ */
+const HUECO_MINIMO_MS = 6000;
 
 function LockScreen({
   asking,
