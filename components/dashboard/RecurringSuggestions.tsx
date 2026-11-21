@@ -24,10 +24,8 @@ import { frequencyLabel, type RecurringMovement } from "@/lib/recurring";
  */
 export function RecurringSuggestions({
   movements,
-  todayKey,
 }: {
   movements: RecurringMovement[];
-  todayKey: string;
 }) {
   const toast = useToast();
   const [pending, startTransition] = useTransition();
@@ -41,7 +39,7 @@ export function RecurringSuggestions({
     const escrito = montos[movement.id];
     const amount = escrito ? parseAmount(escrito) : movement.amount;
     startTransition(async () => {
-      const result = await confirmRecurring(movement.id, amount, todayKey);
+      const result = await confirmRecurring(movement.id, amount);
       if (result.error) {
         toast.error(result.error);
         return;

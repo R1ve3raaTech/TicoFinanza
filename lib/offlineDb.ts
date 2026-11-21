@@ -1,4 +1,4 @@
-import type { PendingMovement, PendingStatus } from "./offline";
+import { isStaleClaim, type PendingMovement, type PendingStatus } from "./offline";
 
 /**
  * IndexedDB a mano, sin librería.
@@ -92,6 +92,10 @@ export async function deletePending(id: string): Promise<void> {
  * dos pasos deja una ventana en la que dos vaciados de la cola (el de abrir
  * la app y el de recuperar la señal, por ejemplo) mandan el mismo
  * movimiento y queda anotado dos veces.
+ *
+ * **Una marca vieja sí se puede tomar.** Un envío que nunca terminó
+ * —Android mató el proceso, se recargó la página a medio camino— dejaba el
+ * movimiento trabado sin forma de reintentarlo. Ver `STALE_CLAIM_MS`.
  */
 export async function claimPending(id: string): Promise<boolean> {
   if (!isSupported()) return false;
@@ -103,9 +107,14 @@ export async function claimPending(id: string): Promise<boolean> {
     const get = store.get(id);
     get.onsuccess = () => {
       const item = get.result as PendingMovement | undefined;
-      if (!item || item.status === "sending") return;
+      if (!item) return;
+      if (item.status === "sending" && !isStaleClaim(item)) return;
       claimed = true;
-      store.put({ ...item, status: "sending" satisfies PendingStatus });
+      store.put({
+        ...item,
+        status: "sending" satisfies PendingStatus,
+        claimedAt: Date.now(),
+      });
     };
     get.onerror = () => reject(get.error);
     // Se resuelve cuando la marca ya está escrita, no apenas se decidió:
@@ -148,7 +157,9 @@ export async function releasePending(
         resolve();
         return;
       }
-      store.put({ ...item, ...update });
+      // La marca de "en camino" se va con el envío que la puso: si quedara,
+      // el próximo reclamo la leería como una marca vieja de verdad.
+      store.put({ ...item, ...update, claimedAt: undefined });
     };
     get.onerror = () => reject(get.error);
     tx.oncomplete = () => resolve();

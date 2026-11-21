@@ -31,6 +31,13 @@ export interface PendingMovement {
   status: PendingStatus;
   /** Intentos fallidos seguidos. */
   attempts: number;
+  /**
+   * Cuándo se marchó como "en camino", en milisegundos.
+   *
+   * Existe para que un envío que nunca terminó no deje el movimiento
+   * trabado: ver `STALE_CLAIM_MS`.
+   */
+  claimedAt?: number;
   /** Último error que devolvió el servidor, si lo rechazó. */
   lastError?: string;
 }
@@ -98,10 +105,39 @@ export function sendOrder(items: PendingMovement[]): PendingMovement[] {
   return [...items].sort((a, b) => a.queuedAt - b.queuedAt || a.id.localeCompare(b.id));
 }
 
+/**
+ * Cuánto se le da a un envío antes de darlo por muerto.
+ *
+ * Un pendiente marcado "en camino" queda fuera de los reintentos para que
+ * dos vaciados no lo manden dos veces. El problema es lo que pasa si ese
+ * envío **nunca termina**: en el APK, Android mata el proceso en cuanto se
+ * desliza la app fuera de recientes, y el movimiento se quedaba en "en
+ * camino" para siempre — ni se reintentaba (lo saltaba `sendable`) ni
+ * salía como atascado (`stuck` mira los intentos, que seguían en cero), así
+ * que la única salida era descartarlo, o sea perder el gasto.
+ *
+ * Dos minutos es mucho más de lo que tarda una Server Action y mucho
+ * menos de lo que tarda alguien en volver a abrir la app, así que no le
+ * roba el turno a una pestaña que de verdad está mandando. Y si se lo
+ * robara, la clave de deduplicación (`clientId`, índice único de la
+ * migración 0024) hace que el segundo envío no inserte nada.
+ */
+export const STALE_CLAIM_MS = 120_000;
+
+/** Un "en camino" tan viejo que el envío ya no puede estar vivo. */
+export function isStaleClaim(item: PendingMovement, now: number = Date.now()): boolean {
+  if (item.status !== "sending") return false;
+  // Sin marca es de antes de que esto existiera: se da por muerto.
+  if (typeof item.claimedAt !== "number") return true;
+  return now - item.claimedAt >= STALE_CLAIM_MS;
+}
+
 /** Los que todavía tiene sentido intentar. */
-export function sendable(items: PendingMovement[]): PendingMovement[] {
+export function sendable(items: PendingMovement[], now: number = Date.now()): PendingMovement[] {
   return sendOrder(items).filter(
-    (item) => item.status !== "sending" && item.attempts < MAX_ATTEMPTS
+    (item) =>
+      item.attempts < MAX_ATTEMPTS &&
+      (item.status !== "sending" || isStaleClaim(item, now))
   );
 }
 

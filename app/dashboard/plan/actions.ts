@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { settlementType } from "@/lib/debts";
+import { dayKey } from "@/lib/fixedExpenses";
 import { nextCycleDate } from "@/lib/goals";
 import { ownsRow } from "@/lib/supabase/ownership";
 import { createClient } from "@/lib/supabase/server";
@@ -262,7 +263,13 @@ export async function completeGoalCycle(input: {
   // El salto de ciclo va primero y condicionado al estado que se leyó: así
   // dos toques seguidos no registran el pago dos veces. El segundo no
   // encuentra la fila en ese estado y se va sin hacer nada.
-  const today = new Date().toISOString().slice(0, 10);
+  // En hora de Costa Rica, como el resto del calendario de la app:
+  // `toISOString()` después de las 6 de la tarde devuelve el día siguiente.
+  // Pega en un solo caso —una meta que vence justo hoy, pagada de noche:
+  // `nextCycleDate` descarta los candidatos que no son posteriores a "hoy",
+  // así que ese ciclo se saltaba un año— pero no hay razón para que esta
+  // sea la única acción que lee el día distinto que las demás.
+  const today = dayKey();
   const { data: rolled, error: rollError } = await supabase
     .from("savings_goals")
     .update({

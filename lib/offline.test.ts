@@ -9,8 +9,10 @@ import {
   MAX_ATTEMPTS,
   pendingLabel,
   pendingNet,
+  isStaleClaim,
   sendOrder,
   sendable,
+  STALE_CLAIM_MS,
   stuck,
   WRONG_SESSION,
   type PendingMovement,
@@ -50,7 +52,9 @@ it("dos anotados en el mismo milisegundo tienen un orden estable", () => {
 });
 
 it("no se vuelve a mandar lo que ya va en camino: si no, entraría dos veces", () => {
-  const list = sendable([item({ id: "a" }), item({ id: "b", status: "sending" })]);
+  // Con su marca de cuándo: un "en camino" sin marca, o con una vieja, es un
+  // envío que nunca terminó y sí se vuelve a intentar (ver más abajo).
+  const list = sendable([item({ id: "a" }), item({ id: "b", status: "sending", claimedAt: Date.now() })]);
   assert.deepEqual(list.map((i) => i.id), ["a"]);
 });
 
@@ -121,4 +125,52 @@ it("el rechazo por sesión distinta se reconoce y no se confunde con otro error"
   assert.equal(isWrongSession("No se pudo guardar el movimiento. Intentá de nuevo."), false);
   assert.equal(isWrongSession(null), false);
   assert.equal(isWrongSession(undefined), false);
+});
+
+/**
+ * **Un envío que nunca terminó no puede dejar el movimiento trabado.**
+ *
+ * En el APK, Android mata el proceso en cuanto se desliza la app fuera de
+ * recientes. Si eso pasa a medio envío, el pendiente se queda marcado "en
+ * camino": `sendable` lo saltaba y `stuck` tampoco lo mostraba, porque sus
+ * intentos seguían en cero. La única salida era descartarlo, o sea perder
+ * el gasto.
+ */
+it("un 'en camino' vivo no se le roba a la pestaña que lo está mandando", () => {
+  const ahora = 1_000_000;
+  const enVuelo = item({ id: "a", status: "sending", claimedAt: ahora - 5_000 });
+  assert.equal(isStaleClaim(enVuelo, ahora), false);
+  assert.deepEqual(sendable([enVuelo], ahora), []);
+});
+
+it("un 'en camino' viejo vuelve a la cola", () => {
+  const ahora = 1_000_000;
+  const muerto = item({ id: "a", status: "sending", claimedAt: ahora - STALE_CLAIM_MS });
+  assert.equal(isStaleClaim(muerto, ahora), true);
+  assert.deepEqual(sendable([muerto], ahora).map((i) => i.id), ["a"]);
+});
+
+it("un 'en camino' sin marca de cuándo se da por muerto", () => {
+  // Los que quedaron encolados antes de que `claimedAt` existiera.
+  const viejo = item({ id: "a", status: "sending" });
+  assert.equal(isStaleClaim(viejo, 1_000_000), true);
+  assert.deepEqual(sendable([viejo], 1_000_000).map((i) => i.id), ["a"]);
+});
+
+it("una marca vieja no resucita algo que ya quedó sin intentos", () => {
+  // El tope de intentos manda igual: si el servidor lo rechazó, reintentarlo
+  // solo no lo arregla y tiene que seguir saliendo a la vista.
+  const ahora = 1_000_000;
+  const quemado = item({
+    id: "a",
+    status: "sending",
+    claimedAt: ahora - STALE_CLAIM_MS,
+    attempts: MAX_ATTEMPTS,
+  });
+  assert.deepEqual(sendable([quemado], ahora), []);
+});
+
+it("lo que no está 'en camino' nunca cuenta como marca vieja", () => {
+  assert.equal(isStaleClaim(item({ id: "a", status: "pending" }), 1_000_000), false);
+  assert.equal(isStaleClaim(item({ id: "b", status: "failed" }), 1_000_000), false);
 });

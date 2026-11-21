@@ -164,7 +164,7 @@ export function DashboardView({
           </div>
 
           <div className="rise-in empty:hidden" style={{ "--d": "170ms" } as CSSProperties}>
-            <RecurringSuggestions movements={recurringToday} todayKey={todayKey} />
+            <RecurringSuggestions movements={recurringToday} />
           </div>
 
           {/* Sin ninguna cuenta el panel no aparece: su estado vacío decía

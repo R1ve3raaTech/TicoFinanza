@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
+import { dayKey } from "@/lib/fixedExpenses";
 import { ownsReceiptPath, RECEIPTS_BUCKET } from "@/lib/receipts";
 import { isProjectAuthCookie } from "@/lib/supabase/cookies";
 import { WRONG_SESSION } from "@/lib/offline";
@@ -546,10 +547,18 @@ export async function createRecurring(input: RecurringInput) {
  * **El día se escribe aunque el monto cambie**: lo que evita que la
  * propuesta vuelva a salir hoy es `last_confirmed_date`, no el movimiento.
  */
-export async function confirmRecurring(id: string, amount: number, todayKey: string) {
+export async function confirmRecurring(id: string, amount: number) {
   const { supabase, user } = await requireUser();
 
   if (!(amount > 0)) return { error: "El monto tiene que ser mayor que cero." };
+
+  // **El día lo pone el servidor.** Antes lo mandaba la pantalla, y la
+  // pantalla puede venir del caché sin conexión: una copia de ayer
+  // escribiría `last_confirmed_date` con la fecha de ayer, con lo cual la
+  // propuesta de hoy seguiría saliendo después de haberla anotado y el
+  // gasto entraría dos veces. Es el único dato de calendario que esta
+  // acción necesita y el servidor ya lo sabe.
+  const todayKey = dayKey();
 
   const { data: recurring } = await supabase
     .from("recurring_movements")

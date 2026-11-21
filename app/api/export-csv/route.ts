@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { accountNames } from "@/lib/accounts";
 import { endOfDayISO, startOfDayISO } from "@/lib/dateRange";
-import { CR_TZ } from "@/lib/fixedExpenses";
+import { CR_TZ, dayKey } from "@/lib/fixedExpenses";
 import { createClient } from "@/lib/supabase/server";
 import type { Account, Transaction, Transfer } from "@/lib/types";
 import { GENERIC_ERROR } from "@/lib/errors";
@@ -125,7 +125,9 @@ export async function GET(request: NextRequest) {
     ),
   ];
 
-  const stamp = new Date().toISOString().slice(0, 10);
+  // En hora de Costa Rica: con `toISOString()`, un export después de las 6
+  // de la tarde salía con el nombre del día siguiente.
+  const stamp = dayKey();
   return new NextResponse(`﻿${lines.join("\r\n")}\r\n`, {
     headers: {
       "Content-Type": "text/csv; charset=utf-8",

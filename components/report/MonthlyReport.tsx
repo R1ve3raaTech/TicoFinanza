@@ -221,7 +221,7 @@ export function MonthlyReport({
       />
 
       {fixed.length > 0 && (
-        <div className="reporte-bloque mt-6">
+        <div className="reporte-tabla mt-6">
           <h3 className="text-label text-ink">Gastos fijos del mes</h3>
           <table className="mt-2 w-full border-collapse text-sm">
             <thead>
@@ -261,7 +261,9 @@ export function MonthlyReport({
         </div>
       )}
 
-      <div className="reporte-bloque mt-6">
+      {/* `reporte-tabla` y no `reporte-bloque`: esta es la tabla que crece
+          con el mes y tiene que poder partirse entre hojas. */}
+      <div className="reporte-tabla mt-6">
         <h3 className="text-label text-ink">Movimientos del mes</h3>
         {movements.length === 0 ? (
           <p className="reporte-apagado mt-2 text-sm text-ink-3">

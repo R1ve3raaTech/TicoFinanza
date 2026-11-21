@@ -30,11 +30,24 @@ export function ReportPrintStyles() {
         .reporte { max-width: none !important; padding: 0 !important; font-size: 10pt; }
         .reporte-no-imprimir { display: none !important; }
 
-        /* Una sección no se parte si cabe entera en la hoja siguiente, y una
-           fila de tabla no se corta nunca por la mitad. */
+        /* Una sección corta no se parte: se va entera a la hoja siguiente.
+           Una fila de tabla no se corta nunca por la mitad, y un título no
+           se queda solo al final de una hoja. */
         .reporte-bloque { break-inside: avoid; }
         .reporte tr, .reporte li { break-inside: avoid; }
         .reporte h2, .reporte h3 { break-after: avoid; }
+
+        /* Las tablas largas SÍ se parten, a propósito. Un bloque con
+           break-inside: avoid más alto que la hoja no se puede respetar: el
+           navegador lo empuja a la hoja siguiente, deja la primera casi en
+           blanco y lo parte igual. Con cuarenta movimientos el reporte
+           abría con una página vacía. Acá lo que mantiene la tabla legible
+           no es evitar el corte sino repetir el encabezado (thead, abajo) y
+           no partir ninguna fila.
+
+           OJO: este CSS vive en un template literal de JSX, así que un
+           backtick en un comentario lo corta y el archivo deja de compilar. */
+        .reporte-tabla { break-inside: auto; }
 
         /* El encabezado de una tabla larga se repite en cada hoja; si no,
            la segunda página son columnas de números sin título. */

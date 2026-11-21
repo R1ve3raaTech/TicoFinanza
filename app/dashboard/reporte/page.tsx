@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { MonthlyReport, type ReportFixedRow } from "@/components/report/MonthlyReport";
+import { startOfDayISO } from "@/lib/dateRange";
 import { dayKey, effectiveStatus, fixedTotals, monthKeyOf } from "@/lib/fixedExpenses";
 import { expenseByCategory, monthSummary } from "@/lib/insights";
 import { resolveFirstName } from "@/lib/profile";
@@ -30,7 +31,11 @@ export default async function ReportPage({
   const { fromISO, toISO } = monthRangeISO(monthKey);
   // Un gasto fijo creado después del mes que se está mirando no existía
   // entonces: meterlo en un reporte de octubre sería inventar un cobro.
-  const monthEnd = `${shiftMonth(monthKey, 1)}-01T00:00:00.000Z`;
+  //
+  // El corte lleva el huso de Costa Rica escrito, igual que `monthRangeISO`.
+  // Con una "Z" a secas el mes terminaba a las 6 p.m. del último día, así
+  // que un fijo creado esa noche no salía en el reporte de su propio mes.
+  const monthEnd = startOfDayISO(`${shiftMonth(monthKey, 1)}-01`);
 
   const [{ data: movements }, { data: fixed }, { data: accounts }, { data: profile }] =
     await Promise.all([

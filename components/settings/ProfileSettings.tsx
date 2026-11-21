@@ -3,6 +3,7 @@
 import { useEffect, useId, useRef, useState, useTransition, type MutableRefObject } from "react";
 import { Camera, Check } from "@phosphor-icons/react";
 import { updateProfile } from "@/app/dashboard/ajustes/actions";
+import { dayKey } from "@/lib/fixedExpenses";
 import { useToast } from "@/components/Toast";
 import { Avatar } from "@/components/shell/Avatar";
 import { Button } from "@/components/ui/Button";
@@ -211,7 +212,7 @@ export function ProfileSettings({
             setSaved(false);
           }}
           onBlur={saveOnBlur}
-          max={new Date().toISOString().slice(0, 10)}
+          max={dayKey()}
           className={`${inputClass} sm:max-w-[12rem]`}
         />
       </SettingsRow>
