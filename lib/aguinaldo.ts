@@ -1,3 +1,4 @@
+import { dayKeyOfISO } from "./fixedExpenses";
 import type { Transaction } from "./types";
 
 /**
@@ -108,9 +109,12 @@ export function aguinaldoEstimate(salary: SalaryRow[], todayKey: string): Aguina
 
   let accrued = 0;
   for (const row of salary) {
-    // La fecha baja como ISO; los primeros diez caracteres son la clave del
-    // día en hora de Costa Rica, que es como se guardó.
-    const dayKey = row.transaction_date.slice(0, 10);
+    // **En hora de Costa Rica, no cortando la cadena.** La fecha baja en
+    // UTC: un salario anotado el día 30 por la tarde llegaba como el 1.º
+    // del mes siguiente, así que caía en el mes equivocado de la tira —y
+    // si ese mes quedaba fuera de la ventana, se perdía del total. El
+    // salario se paga justo a fin de mes, que es cuando más pasa.
+    const dayKey = dayKeyOfISO(row.transaction_date);
     if (dayKey < from || dayKey > to) continue;
     const bucket = byKey.get(dayKey.slice(0, 7));
     if (!bucket) continue;

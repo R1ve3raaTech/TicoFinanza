@@ -108,3 +108,41 @@ it("las etiquetas de mes no se corren por el huso: la primera es diciembre", () 
   assert.match(months[1].label, /^ene/);
   assert.match(months[11].label, /^nov/);
 });
+
+/**
+ * **El salario se paga a fin de mes, que es justo cuando esto fallaba.**
+ *
+ * `transaction_date` es `timestamptz` y baja en UTC. Un salario anotado el
+ * 30 de noviembre a las 7 de la tarde de Costa Rica llega como
+ * "2026-12-01T01:00:00Z": cortando la cadena a diez caracteres daba el 1.º
+ * de diciembre, que está **fuera de la ventana del aguinaldo** — así que
+ * esa quincena desaparecía del total sin dejar rastro.
+ */
+it("un salario del último día de la ventana, por la tarde, sigue contando", () => {
+  // 30 de noviembre, 7 p.m. en Costa Rica = 1 de diciembre 01:00 UTC.
+  const tarde = "2026-12-01T01:00:00.000Z";
+  const a = aguinaldoEstimate([{ transaction_date: tarde, amount: 600_000 }], "2026-12-05");
+
+  assert.equal(a.accrued, 600_000, "el salario del 30 por la tarde cuenta");
+  const noviembre = a.months.find((m) => m.monthKey === "2026-11");
+  assert.equal(noviembre?.amount, 600_000, "y cae en noviembre, no en diciembre");
+});
+
+/** El mismo caso en un mes cualquiera: el mes de la tira tiene que ser el real. */
+it("un salario de fin de mes por la tarde cae en su mes, no en el siguiente", () => {
+  // 31 de marzo, 8 p.m. en Costa Rica = 1 de abril 02:00 UTC.
+  const tarde = "2026-04-01T02:00:00.000Z";
+  const a = aguinaldoEstimate([{ transaction_date: tarde, amount: 450_000 }], "2026-06-15");
+
+  assert.equal(a.months.find((m) => m.monthKey === "2026-03")?.amount, 450_000);
+  assert.equal(a.months.find((m) => m.monthKey === "2026-04")?.amount, 0);
+});
+
+/** Y de día no cambia nada: el arreglo no corre las fechas normales. */
+it("un salario de media mañana queda donde estaba", () => {
+  const a = aguinaldoEstimate(
+    [{ transaction_date: "2026-05-15T16:00:00.000Z", amount: 500_000 }],
+    "2026-06-15"
+  );
+  assert.equal(a.months.find((m) => m.monthKey === "2026-05")?.amount, 500_000);
+});

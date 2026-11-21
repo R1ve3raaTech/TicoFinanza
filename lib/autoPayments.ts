@@ -1,4 +1,4 @@
-import { dayKey, effectiveStatus } from "./fixedExpenses";
+import { chargeDayKey, dayKeyOfISO, effectiveStatus } from "./fixedExpenses";
 import type { FixedExpense, Transaction } from "./types";
 
 /**
@@ -26,15 +26,17 @@ function daysBetween(a: string, b: string): number {
 /**
  * Qué día de ESTE mes le toca cobrarse a un gasto fijo.
  *
- * Un cobro agendado el 31 se recorta al último día del mes, igual que en
- * `lib/fixedExpenses.ts` — febrero no tiene 31.
+ * **Usa el de `lib/fixedExpenses.ts`, que es el que gobierna la pantalla
+ * de Fijos.** Acá había una copia, y estaba mal: armaba el día con
+ * `dayKey(new Date(Date.UTC(...)))`, o sea medianoche UTC leída en hora de
+ * Costa Rica — las 6 de la tarde del día ANTERIOR. Todos los días de cobro
+ * salían corridos un día hacia atrás.
+ *
+ * Con una ventana de 3 días antes y 6 después el corrimiento casi nunca se
+ * notaba, y por eso las pruebas pasaban; pero en los bordes descartaba
+ * pagos buenos y aceptaba otros de más, y desplazaba un día la elección
+ * del movimiento "más cercano" al cobro.
  */
-function chargeKey(expense: FixedExpense, monthKey: string): string {
-  const [year, month] = monthKey.split("-").map(Number);
-  const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
-  const day = Math.min(expense.charge_day, lastDay);
-  return dayKey(new Date(Date.UTC(year, month - 1, day)));
-}
 
 /**
  * Gastos fijos que parecen ya pagados: hay un movimiento del mismo monto,
@@ -70,7 +72,8 @@ export function matchFixedPayments(
   const salida: FixedPaymentMatch[] = [];
 
   for (const expense of pendientes) {
-    const cobro = chargeKey(expense, monthKey);
+    const [anio, mes] = monthKey.split("-").map(Number);
+    const cobro = chargeDayKey(anio, mes, expense.charge_day);
     // Todavía no llegó el día: no hay nada que proponer.
     if (daysBetween(cobro, todayKey) > DAYS_BEFORE) continue;
 
@@ -84,7 +87,10 @@ export function matchFixedPayments(
       if (Number(transaction.amount) !== Number(expense.amount)) continue;
       if (expense.account_id && transaction.account_id !== expense.account_id) continue;
 
-      const key = transaction.transaction_date.slice(0, 10);
+      // En hora de Costa Rica: cortando la cadena, un pago hecho de noche
+      // cuenta como del día siguiente y se elige mal el movimiento "más
+      // cercano" al día de cobro.
+      const key = dayKeyOfISO(transaction.transaction_date);
       const distancia = daysBetween(key, cobro);
       if (distancia < -DAYS_BEFORE || distancia > DAYS_AFTER) continue;
 

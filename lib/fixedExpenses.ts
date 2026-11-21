@@ -21,6 +21,28 @@ export function dayKey(date: Date = new Date()): string {
   return dayKeyFormat.format(date);
 }
 
+/**
+ * "YYYY-MM-DD" de una marca de tiempo que vino de la base, en hora de
+ * Costa Rica.
+ *
+ * **No se puede cortar la cadena a diez caracteres.** `transaction_date`
+ * es `timestamptz` y baja en UTC, así que un movimiento anotado a las 7 de
+ * la tarde de Costa Rica llega como el día siguiente: cortar da el día
+ * equivocado. Y pasa justo en el peor momento — un salario del día 30 por
+ * la tarde se iba al mes siguiente, y si ese mes caía fuera de la ventana
+ * del aguinaldo, desaparecía del cálculo.
+ *
+ * Es el mismo tropiezo que ya costó una vuelta con los límites de los
+ * períodos: la zona va explícita o la pone el servidor, que en Vercel es
+ * UTC.
+ */
+export function dayKeyOfISO(iso: string): string {
+  const date = new Date(iso);
+  // Una fecha que no parsea no puede tumbar la pantalla: se devuelve lo que
+  // haya, que es lo que se hacía antes.
+  return Number.isNaN(date.getTime()) ? iso.slice(0, 10) : dayKey(date);
+}
+
 /** "YYYY-MM" del momento dado, en hora de Costa Rica. */
 export function monthKey(date: Date = new Date()): string {
   return dayKey(date).slice(0, 7);
