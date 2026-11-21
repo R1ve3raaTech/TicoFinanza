@@ -34,7 +34,21 @@ export function MobileTabBar() {
       // recibir clics o se come los de la franja de abajo del contenido.
       className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center px-3 pb-[calc(0.625rem+env(safe-area-inset-bottom))] md:hidden"
     >
-      <nav
+      <motion.nav
+        // **`layoutRoot` es lo que endereza la pastilla que se desliza.**
+        //
+        // Framer mide la posición de la pastilla en coordenadas de la
+        // página para animar entre la pestaña vieja y la nueva. Pero esta
+        // barra es `fixed`, así que no se mueve con el scroll — y al
+        // cambiar de sección el scroll vuelve a cero. Entonces la medida de
+        // antes y la de después quedaban separadas por todo lo que la
+        // página estuviera corrida, y la pastilla entraba volando desde
+        // abajo en vez de deslizarse al lado.
+        //
+        // Con `layoutRoot`, framer mide a los hijos relativos a esta barra
+        // y el scroll deja de contar. Era peor justamente en Resumen, que
+        // es la pantalla más larga.
+        layoutRoot
         aria-label="Principal"
         className="pointer-events-auto w-full max-w-[26rem] rounded-full border border-line bg-surface/85 p-1 shadow-[0_10px_30px_-12px_rgb(0_0_0/0.45)] backdrop-blur-xl"
       >
@@ -86,7 +100,7 @@ export function MobileTabBar() {
             <AddMovementTabButton />
           </li>
         </ul>
-      </nav>
+      </motion.nav>
     </div>
   );
 }

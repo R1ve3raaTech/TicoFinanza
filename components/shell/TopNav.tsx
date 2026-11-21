@@ -52,7 +52,12 @@ export function TopNav({
     // que no puede recibir clics: sin `pointer-events-none` se come los de
     // la franja de arriba del contenido. La píldora los vuelve a aceptar.
     <div className="pointer-events-none fixed inset-x-0 top-0 z-50 hidden justify-center px-4 pt-3 md:flex">
-      <nav
+      <motion.nav
+        // Misma razón que en la barra de teléfono: la píldora es `fixed` y
+        // el scroll vuelve a cero al cambiar de sección, así que sin
+        // `layoutRoot` framer mide las dos posiciones con todo el scroll de
+        // diferencia y la pastilla entra volando en vez de deslizarse.
+        layoutRoot
         aria-label="Principal"
         className="pointer-events-auto flex h-14 items-center gap-1 rounded-full border border-line bg-surface/80 px-2 shadow-[0_8px_28px_-14px_rgb(0_0_0/0.4)] backdrop-blur-xl"
       >
@@ -112,7 +117,7 @@ export function TopNav({
         <span aria-hidden className="mx-1 h-6 w-px shrink-0 bg-line" />
 
         <UserMenu name={name} email={email} avatarUrl={avatarUrl} />
-      </nav>
+      </motion.nav>
     </div>
   );
 }

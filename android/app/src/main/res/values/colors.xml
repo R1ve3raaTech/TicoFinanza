@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!--
+        El fondo de la app, igual que `--ground` del tema oscuro en
+        `app/globals.css`.
+
+        **Tiene que coincidir con la web**, no ser un negro puro cualquiera:
+        lo que se ve en las franjas del sistema es esta pintura, y la
+        pantalla que sigue abajo la dibuja el WebView con su propio color.
+        Si los dos no son exactamente el mismo, queda una costura visible
+        justo donde la barra de navegación toca el contenido.
+
+        Si algún día cambia `--ground`, cambia acá.
+    -->
+    <color name="fondo">#0A0A0B</color>
+
+    <color name="colorPrimary">#0A0A0B</color>
+    <color name="colorPrimaryDark">#0A0A0B</color>
+    <color name="colorAccent">#38BDF8</color>
+</resources>
