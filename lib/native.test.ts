@@ -66,6 +66,11 @@ test("un código desconocido se queda del lado cerrado", () => {
  * Red de seguridad sobre la lista entera: si alguien agrega un código nuevo
  * a `SIN_HUELLA`, esta prueba lo obliga a pasar por acá y a justificarlo.
  * Son los únicos cuatro que pueden abrir la app sin PIN.
+ *
+ * Y valen para **las dos puertas**: el error de `authenticate()` y el
+ * `code` con que `checkBiometry()` explica un `isAvailable: false`. Las dos
+ * pasan por esta misma función justamente para que no puedan divergir —
+ * cerrar una sola fue el bug de la vuelta anterior.
  */
 test("solo cuatro códigos en toda la app pueden abrir el cerrojo sin PIN", () => {
   const abren = [

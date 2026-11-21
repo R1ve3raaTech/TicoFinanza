@@ -114,9 +114,20 @@ export async function unlockWithBiometrics(reason: string): Promise<BiometricRes
   if (!bio) return "error";
 
   try {
-    const { isAvailable } = await bio.checkBiometry();
-    // Respuesta definitiva del sistema: no hay huella registrada.
-    if (!isAvailable) return "no-disponible";
+    const info = await bio.checkBiometry();
+    if (!info.isAvailable) {
+      // **`isAvailable: false` por sí solo no dice que no haya huella.**
+      // También sale así cuando Android tiene la huella bloqueada por
+      // intentos fallidos, o cuando el hardware está ocupado. Tomarlo como
+      // "no hay huella" reabría el mismo agujero por otra puerta: fallar
+      // cinco veces y volver a entrar abría la app de quien no tiene PIN.
+      //
+      // Por eso se mira el `code`, que es justamente el campo donde el
+      // plugin explica el motivo, y se pasa por la misma tabla que los
+      // errores de `authenticate()`. Una sola regla para las dos puertas:
+      // si se agrega un caso, vale para ambas.
+      return biometricResultFor(info.code);
+    }
   } catch {
     // Preguntar falló. No sabemos si hay huella o no, así que no se abre.
     return "error";
