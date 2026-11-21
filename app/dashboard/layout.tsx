@@ -8,7 +8,7 @@ import { OfflineBanner } from "@/components/offline/OfflineBanner";
 import { MovementEntryProvider } from "@/components/movements/MovementEntry";
 import { WelcomeDialog } from "@/components/onboarding/WelcomeDialog";
 import { QueueOwnerProvider } from "@/components/offline/QueueOwner";
-import { SettingsEntryProvider } from "@/components/settings/SettingsEntry";
+import { SettingsDataProvider } from "@/components/settings/SettingsEntry";
 import { CategoryStyleProvider } from "@/components/ui/CategoryStyle";
 import { AppShell } from "@/components/shell/AppShell";
 import { IdleLogout } from "@/components/shell/IdleLogout";
@@ -139,7 +139,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
           botón que abre el diálogo vive en las dos píldoras de navegación,
           que AppShell dibuja FUERA de sus children. Adentro, el contexto no
           les llegaría. */}
-      <SettingsEntryProvider
+      <SettingsDataProvider
         data={{
           userId: user.id,
           email: user.email ?? "",
@@ -189,7 +189,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
           </QueueOwnerProvider>
           </AppShell>
         </MovementEntryProvider>
-      </SettingsEntryProvider>
+      </SettingsDataProvider>
     </CategoryStyleProvider>
     </AppModeProvider>
   );

@@ -7,7 +7,6 @@ import { useToast } from "@/components/Toast";
 import { Button } from "@/components/ui/Button";
 import { CategoryMark } from "@/components/ui/CategoryMark";
 import { StylePickerDialog, StyleRow } from "@/components/ui/StylePickerDialog";
-import { Dialog } from "@/components/ui/Dialog";
 import { Field, FormError, inputClass } from "@/components/ui/Field";
 import { Segmented } from "@/components/ui/Segmented";
 import { isCategoryTone, type CategoryTone } from "@/lib/categoryStyle";
@@ -24,53 +23,33 @@ import type { TransactionType, UserCategory } from "@/lib/types";
  * editor es **otra vista del mismo panel**, no otro diálogo: una pila de
  * tres ventanas no se sabe cuál cierra cuál.
  */
-export function CategoryDialog({
-  open,
-  onClose,
-  categories,
-}: {
-  open: boolean;
-  onClose: () => void;
-  categories: UserCategory[];
-}) {
+/**
+ * La lista de categorías propias, con su editor.
+ *
+ * **Vive suelta y no dentro de un diálogo** porque ahora es una sección de
+ * la pantalla de Ajustes. Editar es otra vista del mismo panel, no una
+ * ventana encima: con tres capas apiladas no se sabe cuál cierra cuál.
+ */
+export function CategoryPanel({ categories }: { categories: UserCategory[] }) {
   const [type, setType] = useState<TransactionType>("EXPENSE");
   const [editing, setEditing] = useState<UserCategory | null>(null);
 
   const visible = categories.filter((c) => c.type === type);
 
-  return (
-    <Dialog
-      open={open}
-      onClose={onClose}
-      // Se abre encima del diálogo de ajustes.
-      layer="top"
-      size="lg"
-      title={
-        editing ? (
-          <span className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setEditing(null)}
-              aria-label="Volver a la lista"
-              className="-ml-1.5 flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-control text-ink-3 transition-colors duration-150 hover:bg-surface-hover hover:text-ink"
-            >
-              <ArrowLeft size={15} />
-            </button>
-            <span className="truncate">{editing.name}</span>
-          </span>
-        ) : (
-          "Categorías"
-        )
-      }
-      footer={
-        editing ? undefined : (
-          <Button variant="secondary" onClick={onClose}>
-            Listo
-          </Button>
-        )
-      }
-    >
-      {editing ? (
+  if (editing) {
+    return (
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setEditing(null)}
+            aria-label="Volver a la lista"
+            className="-ml-1.5 flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-control text-ink-3 transition-colors duration-150 hover:bg-surface-hover hover:text-ink"
+          >
+            <ArrowLeft size={16} />
+          </button>
+          <span className="truncate text-heading text-ink">{editing.name}</span>
+        </div>
         <CategoryForm
           // Remonta el formulario al cambiar de categoría: si no, los
           // campos se quedarían con los de la anterior.
@@ -79,39 +58,41 @@ export function CategoryDialog({
           onSaved={() => setEditing(null)}
           onCancel={() => setEditing(null)}
         />
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      <Segmented
+        value={type}
+        onChange={setType}
+        ariaLabel="Tipo de categoría"
+        fullWidth
+        options={[
+          { value: "EXPENSE", label: "De gasto" },
+          { value: "INCOME", label: "De ingreso" },
+        ]}
+      />
+
+      <NewCategory type={type} />
+
+      {visible.length > 0 ? (
+        <ul className="border-t border-line">
+          {visible.map((category) => (
+            <CategoryItem
+              key={category.id}
+              category={category}
+              onEdit={() => setEditing(category)}
+            />
+          ))}
+        </ul>
       ) : (
-        <div className="flex flex-col gap-4">
-          <Segmented
-            value={type}
-            onChange={setType}
-            ariaLabel="Tipo de categoría"
-            fullWidth
-            options={[
-              { value: "EXPENSE", label: "De gasto" },
-              { value: "INCOME", label: "De ingreso" },
-            ]}
-          />
-
-          <NewCategory type={type} />
-
-          {visible.length > 0 ? (
-            <ul className="border-t border-line">
-              {visible.map((category) => (
-                <CategoryItem
-                  key={category.id}
-                  category={category}
-                  onEdit={() => setEditing(category)}
-                />
-              ))}
-            </ul>
-          ) : (
-            <p className="border-t border-line pt-4 text-meta text-ink-3">
-              Las que trae la app ya están disponibles. Acá aparecen las tuyas.
-            </p>
-          )}
-        </div>
+        <p className="border-t border-line pt-4 text-meta text-ink-3">
+          Las que trae la app ya están disponibles. Acá aparecen las tuyas.
+        </p>
       )}
-    </Dialog>
+    </div>
   );
 }
 

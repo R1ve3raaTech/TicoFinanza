@@ -4,7 +4,8 @@ import { useEffect, useId, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { CaretUpDown, SignOut, UserCircle } from "@phosphor-icons/react";
 import { SignOutDialog } from "@/components/dashboard/SignOutButton";
-import { useSettingsEntry } from "@/components/settings/SettingsEntry";
+import Link from "next/link";
+import { SETTINGS_HREF } from "@/components/settings/SettingsEntry";
 import { Avatar } from "./Avatar";
 
 const ITEM =
@@ -29,7 +30,6 @@ export function UserMenu({
   avatarUrl?: string;
 }) {
   const reduce = useReducedMotion();
-  const settings = useSettingsEntry();
   const [open, setOpen] = useState(false);
   const [confirmingSignOut, setConfirmingSignOut] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -113,20 +113,18 @@ export function UserMenu({
               <p className="truncate text-label text-ink">{displayName}</p>
               {email && <p className="truncate text-micro text-ink-3">{email}</p>}
             </div>
-            {settings && (
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => {
-                  setOpen(false);
-                  settings.open();
-                }}
-                className={ITEM}
-              >
-                <UserCircle size={16} />
-                Perfil y ajustes
-              </button>
-            )}
+            {/* Ajustes volvió a ser una pantalla, así que acá es un
+                enlace: antes abría un diálogo encima de lo que estuvieras
+                viendo. */}
+            <Link
+              href={SETTINGS_HREF}
+              role="menuitem"
+              onClick={() => setOpen(false)}
+              className={ITEM}
+            >
+              <UserCircle size={16} />
+              Perfil y ajustes
+            </Link>
             <div role="separator" className="mx-1 my-1 h-px bg-line" />
             <button
               type="button"

@@ -2,7 +2,6 @@ import { strict as assert } from "node:assert";
 import test from "node:test";
 import {
   cleanPinInput,
-  isSubmittablePin,
   isValidPin,
   lockEnabled,
   parseLockWhen,
@@ -78,25 +77,6 @@ test("un PIN nuevo son exactamente seis dígitos", () => {
   assert.equal(isValidPin(""), false);
   assert.equal(isValidPin("12 345"), false);
   assert.equal(isValidPin("+12345"), false);
-});
-
-/**
- * **El PIN pasó de cinco dígitos a seis, y había gente con uno de cinco
- * guardado.**
- *
- * Si la pantalla de desbloqueo exigiera seis, ese PIN no se podría escribir
- * nunca: el cambio de largo dejaría a su dueño afuera de sus propios datos,
- * con el código por correo como única salida y sin que nada se lo avisara.
- * Por eso lo que se acepta al **desbloquear** es más ancho que lo que se
- * acepta al **poner** un PIN.
- */
-test("al desbloquear se aceptan los PIN viejos de cinco dígitos", () => {
-  assert.equal(isSubmittablePin("12345"), true);
-  assert.equal(isSubmittablePin("123456"), true);
-  assert.equal(isSubmittablePin("1234"), false, "cuatro es demasiado corto");
-  assert.equal(isSubmittablePin("1234567"), false, "no entra en el campo");
-  assert.equal(isSubmittablePin("12345a"), false);
-  assert.equal(isSubmittablePin(""), false);
 });
 
 test("lo tecleado y lo pegado se limpian igual", () => {

@@ -1,72 +1,58 @@
 "use client";
 
-import { createContext, useCallback, useContext, useState, type ReactNode } from "react";
+import { createContext, useContext, type ReactNode } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { GearSix } from "@phosphor-icons/react";
-import { SettingsDialog, type SettingsData } from "./SettingsDialog";
+import type { SettingsData } from "./types";
 
-interface SettingsEntryApi {
-  open: () => void;
-}
+const SettingsDataContext = createContext<SettingsData | null>(null);
 
-const SettingsEntryContext = createContext<SettingsEntryApi | null>(null);
+/** La ruta de Ajustes, en un solo lugar. */
+export const SETTINGS_HREF = "/dashboard/ajustes";
 
 /**
- * Dueño del diálogo de ajustes.
+ * Deja los datos de Ajustes a mano para la pantalla.
  *
- * Va en el layout de /dashboard y no en una pantalla, porque se abre desde
- * los dos lugares donde está la cuenta: la navegación (en teléfono, donde
- * no hay menú de cuenta) y el menú de la foto (en escritorio).
+ * **Vive en el layout y no en la pantalla** porque el layout ya los
+ * consulta —el perfil, el tema, las categorías, cuántos movimientos hay— y
+ * volver a pedirlos en la página sería hacer las mismas consultas dos
+ * veces. La pantalla los toma de acá.
  *
- * Cada apertura lo remonta con una `key` nueva: así vuelve a la pestaña de
- * Perfil y toma los datos frescos del servidor después de un guardado, sin
- * resetear nada a mano al cerrar.
+ * Hubo una versión en que este provider era dueño de un diálogo: Ajustes
+ * era una ventana encima de lo que estuvieras viendo. Volvió a ser
+ * pantalla porque ocho bloques apilados en una ventana chica dejaban todo
+ * lo de abajo —cerrar sesión, la zona de peligro— a varios scrolls de
+ * distancia. Ver `SettingsScreen`.
  */
-export function SettingsEntryProvider({
+export function SettingsDataProvider({
   data,
   children,
 }: {
   data: SettingsData;
   children: ReactNode;
 }) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [session, setSession] = useState(0);
-
-  const open = useCallback(() => {
-    setSession((s) => s + 1);
-    setIsOpen(true);
-  }, []);
-
   return (
-    <SettingsEntryContext.Provider value={{ open }}>
-      {children}
-      <SettingsDialog
-        key={session}
-        open={isOpen}
-        onClose={() => setIsOpen(false)}
-        data={data}
-      />
-    </SettingsEntryContext.Provider>
+    <SettingsDataContext.Provider value={data}>{children}</SettingsDataContext.Provider>
   );
 }
 
 /**
- * Abrir los ajustes desde donde sea.
+ * Los datos de Ajustes.
  *
- * Devuelve null fuera del provider en vez de tirar: la navegación es la
- * misma en todas las pantallas con sesión, pero el botón no tiene por qué
- * romper una pantalla que se dibuje sin el provider (una preview, por
- * ejemplo).
+ * Devuelve `null` fuera del provider en vez de tirar: una vista de prueba
+ * puede dibujar la pantalla sin él, y romperla entera por eso sería peor
+ * que no mostrarla.
  */
-export function useSettingsEntry(): SettingsEntryApi | null {
-  return useContext(SettingsEntryContext);
+export function useSettingsData(): SettingsData | null {
+  return useContext(SettingsDataContext);
 }
 
 /**
- * La entrada a los ajustes dentro de la píldora de navegación.
+ * La entrada a Ajustes dentro de la píldora de navegación.
  *
- * Es un botón y no un enlace porque ya no hay pantalla a dónde ir: abre el
- * diálogo encima de lo que estabas viendo. Por eso tampoco se marca como
- * sección activa — no es un destino.
+ * Es un enlace, no un botón: Ajustes volvió a ser un destino, así que se
+ * marca como sección activa igual que las demás.
  */
 export function SettingsNavButton({
   variant,
@@ -74,35 +60,38 @@ export function SettingsNavButton({
   /** "top" es la píldora de escritorio; "tab", la de teléfono. */
   variant: "top" | "tab";
 }) {
-  const entry = useSettingsEntry();
-  if (!entry) return null;
+  const pathname = usePathname();
+  const activa = pathname === SETTINGS_HREF;
 
   if (variant === "tab") {
     return (
-      <button
-        type="button"
-        onClick={entry.open}
-        aria-haspopup="dialog"
-        className="relative flex h-12 w-full cursor-pointer flex-col items-center justify-center gap-0.5 rounded-full text-micro font-medium text-ink-3 transition-[color,transform] duration-150 active:scale-[0.94] motion-reduce:transition-none motion-reduce:active:scale-100"
+      <Link
+        href={SETTINGS_HREF}
+        aria-current={activa ? "page" : undefined}
+        className={`relative flex h-12 w-full flex-col items-center justify-center gap-0.5 rounded-full text-micro font-medium transition-[color,transform] duration-150 active:scale-[0.94] motion-reduce:transition-none motion-reduce:active:scale-100 ${
+          activa ? "text-ink" : "text-ink-3"
+        }`}
       >
-        <GearSix size={19} />
+        <GearSix size={19} weight={activa ? "fill" : "regular"} />
         <span className="max-w-full truncate px-0.5">Ajustes</span>
-      </button>
+      </Link>
     );
   }
 
   return (
-    <button
-      type="button"
-      onClick={entry.open}
-      aria-haspopup="dialog"
-      className="group relative flex h-10 cursor-pointer items-center gap-2 rounded-full px-3.5 text-sm font-medium text-ink-3 transition-[color,transform] duration-150 hover:text-ink active:scale-[0.96] motion-reduce:transition-none motion-reduce:active:scale-100"
+    <Link
+      href={SETTINGS_HREF}
+      aria-current={activa ? "page" : undefined}
+      className={`group relative flex h-10 items-center gap-2 rounded-full px-3.5 text-sm font-medium transition-[color,transform] duration-150 hover:text-ink active:scale-[0.96] motion-reduce:transition-none motion-reduce:active:scale-100 ${
+        activa ? "text-ink" : "text-ink-3"
+      }`}
     >
       <GearSix
         size={17}
+        weight={activa ? "fill" : "regular"}
         className="shrink-0 transition-transform duration-150 group-hover:-translate-y-px motion-reduce:transition-none motion-reduce:group-hover:translate-y-0"
       />
       Ajustes
-    </button>
+    </Link>
   );
 }

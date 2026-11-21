@@ -101,21 +101,6 @@ export function weakensLock(from: AppLockWhen, to: AppLockWhen): boolean {
 export const PIN_LENGTH = 6;
 
 /**
- * **Lo mínimo que se acepta al desbloquear, que no es el largo de un PIN
- * nuevo.**
- *
- * El PIN pasó de cinco dígitos a seis. Un PIN de cinco guardado antes del
- * cambio sigue siendo el PIN de esa persona: si la pantalla de desbloqueo
- * exigiera seis, ese PIN no se podría escribir nunca y la única salida
- * sería el código por correo — o sea, cambiar el largo dejaría a alguien
- * afuera de sus propios datos sin avisar.
- *
- * Al **poner** un PIN siempre se piden seis. Esto solo gobierna lo que la
- * pantalla de desbloqueo deja mandar a verificar.
- */
-export const MIN_PIN_LENGTH = 5;
-
-/**
  * Un PIN nuevo: seis dígitos exactos.
  *
  * No es la última defensa: se verifica **en el servidor**, que lleva el
@@ -124,15 +109,6 @@ export const MIN_PIN_LENGTH = 5;
  */
 export function isValidPin(pin: string): boolean {
   return /^[0-9]+$/.test(pin) && pin.length === PIN_LENGTH;
-}
-
-/** ¿Se puede mandar a verificar? Cubre también los PIN viejos de cinco. */
-export function isSubmittablePin(pin: string): boolean {
-  return (
-    /^[0-9]+$/.test(pin) &&
-    pin.length >= MIN_PIN_LENGTH &&
-    pin.length <= PIN_LENGTH
-  );
 }
 
 /** Deja solo dígitos y corta al largo. Para lo tecleado y para lo pegado. */

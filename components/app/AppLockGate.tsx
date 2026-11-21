@@ -9,8 +9,6 @@ import { ForgotPinDialog } from "./ForgotPinDialog";
 import { Button } from "@/components/ui/Button";
 import {
   cleanPinInput,
-  isSubmittablePin,
-  MIN_PIN_LENGTH,
   PIN_LENGTH,
   lockEnabled,
   shouldAskOnReturn,
@@ -266,12 +264,13 @@ function LockScreen({ onUnlocked }: { onUnlocked: () => void }) {
     const next = cleanPinInput(raw);
     setPin(next);
     setError("");
-    // Se manda solo al completar los seis: un botón "Entrar" acá sería un
+    // Se manda solo al completar los seis: un botón "Entrar" acá es un
     // toque de más en algo que se hace varias veces al día.
     //
-    // **Para un PIN viejo de cinco dígitos está el botón de abajo.** Sin
-    // él, cambiar el largo de cinco a seis habría dejado ese PIN
-    // imposible de escribir y a su dueño afuera.
+    // **Hubo un botón para mandar un PIN de cinco dígitos**, de cuando el
+    // largo cambió de cinco a seis, para que nadie quedara afuera con el
+    // suyo. Camil pidió sacarlo. Si quedara algún PIN de cinco, la salida
+    // es el código por correo.
     if (next.length === PIN_LENGTH) void submit(next);
   }
 
@@ -313,18 +312,6 @@ function LockScreen({ onUnlocked }: { onUnlocked: () => void }) {
             <p role="alert" className="min-h-[1.25rem] text-label font-normal text-expense">
               {checking ? "" : error}
             </p>
-            {/* Solo aparece con un PIN de los viejos, de cinco dígitos: con
-                seis, el envío es automático y este botón nunca se ve. */}
-            {pin.length === MIN_PIN_LENGTH && (
-              <Button
-                variant="secondary"
-                className="h-11 w-full"
-                onClick={() => void submit(pin)}
-                disabled={checking || !isSubmittablePin(pin)}
-              >
-                Entrar
-              </Button>
-            )}
           </div>
         </div>
 

@@ -10,7 +10,6 @@ import { FormError } from "@/components/ui/Field";
 import { Segmented } from "@/components/ui/Segmented";
 import {
   cleanPinInput,
-  isSubmittablePin,
   isValidPin,
   PIN_LENGTH,
   LOCK_OPTIONS,
@@ -229,23 +228,11 @@ function PinFlow({
     setStep((s) => s + 1);
   }
 
-  /**
-   * ¿Este valor ya se puede mandar?
-   *
-   * **El PIN actual y un PIN nuevo no se miden igual.** Un PIN nuevo son
-   * seis dígitos. Pero el actual puede ser uno de los viejos, de cinco: si
-   * acá se exigieran seis, quien lo tenga así **no podría cambiarlo ni
-   * quitarlo nunca** — el cambio de largo le trabaría su propio cerrojo.
-   */
-  const completo = (v: string) =>
-    which === "actual" ? isSubmittablePin(v) : isValidPin(v);
-
   function onChange(raw: string) {
     const next = cleanPinInput(raw);
     setValue(next);
     setError("");
-    // Con seis dígitos se manda solo. Con cinco —un PIN de los viejos— hay
-    // un botón, porque no se sabe si terminó de escribir.
+    // Seis dígitos y se manda solo.
     if (isValidPin(next)) enviar(next);
   }
 
@@ -326,14 +313,6 @@ function PinFlow({
           label={TITLES[which]}
         />
         <FormError>{error}</FormError>
-
-        {/* Solo con un PIN de los viejos, de cinco dígitos: con seis el
-            envío es automático y este botón nunca aparece. */}
-        {completo(value) && !isValidPin(value) && (
-          <Button variant="primary" onClick={() => enviar(value)} disabled={pending}>
-            Continuar
-          </Button>
-        )}
 
         {/* La salida cuando no te acordás. Sin esto, exigir el PIN para
             quitarlo deja la app trabada para siempre en ese teléfono. */}
