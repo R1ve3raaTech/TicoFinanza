@@ -80,13 +80,68 @@ const SIN_HUELLA = new Set([
 ]);
 
 /**
- * `BiometryType.none`. El teléfono no tiene ningún sensor biométrico.
+ * `BiometryType.none`. El teléfono no declara ningún sensor biométrico.
  *
- * Esto sí es una respuesta sobre el hardware y no sobre el momento: sale
- * de `hasSystemFeature(FINGERPRINT | FACE | IRIS)`, así que no cambia
- * porque el sensor esté ocupado ni porque alguien haya fallado el dedo.
+ * Es una respuesta sobre el hardware y no sobre el momento: sale de
+ * `hasSystemFeature(FINGERPRINT | FACE | IRIS)`, así que no cambia porque
+ * el sensor esté ocupado ni porque alguien haya fallado el dedo.
+ *
+ * **Pero no alcanza sola**, y eso costó una vuelta: Android es inconsistente
+ * declarando esas características —hay teléfonos con reconocimiento facial
+ * que no declaran `FEATURE_FACE`—, así que un `none` puede convivir con una
+ * biometría que funciona perfectamente. Solo cuenta cuando el sistema
+ * *además* dice que no se puede usar. Ver `decidirDisponibilidad`.
  */
 const SIN_SENSOR = 0;
+
+/** Lo que `checkBiometry()` contesta, de lo que acá se mira. */
+export interface EstadoBiometria {
+  /** El sistema dice que se puede pedir huella ahora mismo. */
+  isAvailable: boolean;
+  /** Qué sensores declara el teléfono (0 = ninguno). */
+  biometryType?: number;
+  /** Por qué no se puede, cuando `isAvailable` es falso. */
+  code?: unknown;
+}
+
+/** Qué hacer después de preguntarle al sistema por la biometría. */
+export type DecisionBiometria =
+  /** Se puede pedir el dedo. */
+  | "pedir"
+  /** No hay con qué: sin PIN, el cerrojo se abre. */
+  | "no-disponible"
+  /** No se puede ahora, o no se sabe: queda cerrado. */
+  | "cancelado";
+
+/**
+ * La decisión completa, en una función pura para poder probarla.
+ *
+ * Sin esto, lo único verificable eran los códigos sueltos y el orden de las
+ * comprobaciones quedaba fuera de toda prueba — que es justo donde apareció
+ * el último fallo.
+ *
+ * **El orden importa**: `isAvailable` manda sobre todo lo demás. Si el
+ * sistema dice que la huella se puede usar, se pide, aunque el teléfono no
+ * declare ningún sensor. Tenerlo al revés hacía que un teléfono con
+ * reconocimiento facial no declarado abriera la app **sin preguntar nada**.
+ */
+export function decidirDisponibilidad(info: EstadoBiometria): DecisionBiometria {
+  // Lo primero y lo que manda: si se puede, se pide.
+  if (info.isAvailable) return "pedir";
+
+  // No se puede. ¿El motivo es definitivo?
+  if (biometricResultFor(info.code) === "no-disponible") return "no-disponible";
+
+  // El motivo no es concluyente (sensor ocupado, estado desconocido,
+  // bloqueo por intentos). Solo se abre si además el teléfono no declara
+  // ningún sensor —las dos señales de acuerdo— y el motivo no es un
+  // bloqueo, que siempre quiere decir que biometría hay.
+  if (info.biometryType === SIN_SENSOR && info.code !== "biometryLockout") {
+    return "no-disponible";
+  }
+
+  return "cancelado";
+}
 
 /**
  * Qué hacer ante el código de error del plugin.
@@ -133,28 +188,8 @@ export async function unlockWithBiometrics(reason: string): Promise<BiometricRes
   if (!bio) return "error";
 
   try {
-    const info = await bio.checkBiometry();
-
-    // Sin sensor en el teléfono no hay nada que preguntar, ahora ni nunca.
-    // Es la única comprobación de "no se puede" que mira el hardware en vez
-    // del estado del momento, y por eso es la única en la que se puede
-    // confiar para abrir.
-    if (info.biometryType === SIN_SENSOR) return "no-disponible";
-
-    if (!info.isAvailable) {
-      // **`isAvailable: false` por sí solo no dice que no haya huella.**
-      // También sale así cuando Android tiene la huella bloqueada por
-      // intentos fallidos, o cuando el hardware está ocupado. Tomarlo como
-      // "no hay huella" reabría el mismo agujero por otra puerta: fallar
-      // cinco veces y volver a entrar abría la app de quien no tiene PIN.
-      //
-      // Por eso se mira el `code`, que es justamente el campo donde el
-      // plugin explica el motivo, y se pasa por la misma tabla que los
-      // errores de `authenticate()`. Una sola regla para las dos puertas:
-      // si se agrega un caso, vale para ambas. Tenerlas separadas ya fue
-      // un bug una vez.
-      return biometricResultFor(info.code);
-    }
+    const decision = decidirDisponibilidad(await bio.checkBiometry());
+    if (decision !== "pedir") return decision;
   } catch {
     // Preguntar falló. No sabemos si hay huella o no, así que no se abre.
     return "error";

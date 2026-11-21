@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 import test from "node:test";
-import { biometricResultFor } from "./native";
+import { biometricResultFor, decidirDisponibilidad } from "./native";
 
 /**
  * Acá se decide quién entra.
@@ -107,4 +107,68 @@ test("solo tres códigos en toda la app pueden abrir el cerrojo sin PIN", () => 
     "noDeviceCredential",
     "passcodeNotSet",
   ]);
+});
+
+// --- La decisión completa, con el orden de las comprobaciones ------------
+//
+// Hasta acá solo se probaban los códigos sueltos, y el ORDEN quedaba fuera
+// de toda prueba. Ahí apareció el último fallo: la comprobación de hardware
+// corría antes que la del sistema.
+
+test("si el sistema dice que se puede, se pide el dedo y punto", () => {
+  assert.equal(decidirDisponibilidad({ isAvailable: true }), "pedir");
+});
+
+/**
+ * **El caso que motivó separar esto.**
+ *
+ * Android es inconsistente declarando las características del hardware: hay
+ * teléfonos con reconocimiento facial que no declaran `FEATURE_FACE`, así
+ * que `biometryType` puede decir "ninguno" mientras la biometría funciona
+ * perfectamente. Mirando el hardware primero, ese teléfono abría la app
+ * **sin preguntar nada** a quien no tuviera PIN.
+ */
+test("un teléfono que no declara sensor pero PUEDE autenticar, igual pide el dedo", () => {
+  assert.equal(decidirDisponibilidad({ isAvailable: true, biometryType: 0 }), "pedir");
+});
+
+test("sin sensor y sin poder autenticar: las dos señales de acuerdo, se abre", () => {
+  assert.equal(
+    decidirDisponibilidad({ isAvailable: false, biometryType: 0, code: "biometryNotAvailable" }),
+    "no-disponible"
+  );
+});
+
+test("sin huella registrada, el motivo ya es definitivo por sí solo", () => {
+  assert.equal(
+    decidirDisponibilidad({ isAvailable: false, biometryType: 3, code: "biometryNotEnrolled" }),
+    "no-disponible"
+  );
+});
+
+/**
+ * Un bloqueo por intentos siempre quiere decir que biometría HAY — si no,
+ * no habría nada que bloquear. Así que nunca abre, ni aunque el teléfono no
+ * declare el sensor.
+ */
+test("el bloqueo por intentos no abre, ni con el hardware diciendo que no hay sensor", () => {
+  assert.equal(
+    decidirDisponibilidad({ isAvailable: false, biometryType: 0, code: "biometryLockout" }),
+    "cancelado"
+  );
+});
+
+test("sensor presente pero ocupado, o estado desconocido: queda cerrado", () => {
+  for (const code of ["biometryNotAvailable", "loQueSea", undefined]) {
+    assert.equal(
+      decidirDisponibilidad({ isAvailable: false, biometryType: 3, code }),
+      "cancelado",
+      `con ${JSON.stringify(code)}`
+    );
+  }
+});
+
+/** Si el plugin no manda `biometryType`, no se puede dar por hecho nada. */
+test("sin dato de hardware y sin motivo definitivo, queda cerrado", () => {
+  assert.equal(decidirDisponibilidad({ isAvailable: false }), "cancelado");
 });
