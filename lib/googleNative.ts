@@ -32,13 +32,18 @@
  * con la firma de debug, que el runner genera nueva en cada corrida, esto
  * no funciona.
  *
- * ### El nonce
+ * ### El nonce lo pone el servidor, y es importante que así sea
  *
- * `signInWithIdToken` **hashea** el nonce que recibe y lo compara contra el
- * claim `nonce` del token. Así que a Google hay que mandarle el hash y al
- * servidor el valor crudo — exactamente la misma danza que ya hace
- * `app/auth/login/route.ts`. Mandarle el mismo valor a los dos falla con
- * "Nonces mismatch".
+ * Primero se le pide a `/auth/nativo` (GET), que devuelve el **hash** y se
+ * guarda el valor crudo en una cookie httpOnly. El hash es lo que se le
+ * manda a Google; el crudo no lo ve nunca este código.
+ *
+ * Generarlo acá sería más corto y estaría mal: si el navegador manda el
+ * token *y* el nonce que le corresponde, un atacante puede mandar los dos
+ * suyos y la comprobación no comprueba nada. Con el nonce del lado del
+ * servidor, puede traer su token pero no puede hacer que ese token lleve
+ * adentro un nonce que no conoce. Es el agujero de login CSRF que tuvo la
+ * primera versión de esto; está contado entero en `app/auth/nativo/route.ts`.
  */
 
 /** Qué pasó al intentar entrar. */
@@ -61,13 +66,6 @@ export function hasNativeBridge(): boolean {
   return Boolean(cap?.isNativePlatform?.());
 }
 
-/** El hash que Google va a meter en el claim `nonce` del token. */
-async function sha256Hex(valor: string): Promise<string> {
-  const datos = new TextEncoder().encode(valor);
-  const buffer = await crypto.subtle.digest("SHA-256", datos);
-  return [...new Uint8Array(buffer)].map((b) => b.toString(16).padStart(2, "0")).join("");
-}
-
 /**
  * Pide el token al sistema y lo canjea por una sesión de Supabase.
  *
@@ -83,14 +81,25 @@ export async function signInWithGoogleNative(
   try {
     const { SocialLogin } = await import("@capgo/capacitor-social-login");
 
-    const nonceCrudo = crypto.randomUUID();
-    const nonceHasheado = await sha256Hex(nonceCrudo);
+    // El nonce de este intento. Viene del servidor, que se queda con el
+    // valor crudo en una cookie que este código no puede leer.
+    const pedido = await fetch("/auth/nativo", {
+      method: "GET",
+      headers: { Accept: "application/json" },
+    });
+    if (!pedido.ok) {
+      return { estado: "error", motivo: "No se pudo empezar el inicio de sesión." };
+    }
+    const { nonce } = (await pedido.json()) as { nonce?: string };
+    if (!nonce) {
+      return { estado: "error", motivo: "No se pudo empezar el inicio de sesión." };
+    }
 
     await SocialLogin.initialize({ google: { webClientId } });
 
     const { result } = await SocialLogin.login({
       provider: "google",
-      options: { scopes: ["email", "profile"], nonce: nonceHasheado },
+      options: { scopes: ["email", "profile"], nonce },
     });
 
     const idToken = (result as { idToken?: string | null }).idToken;
@@ -100,11 +109,12 @@ export async function signInWithGoogleNative(
 
     // El canje va en el servidor: la sesión se escribe en cookies httpOnly,
     // igual que por el camino de la web. El navegador nunca toca el token
-    // de sesión.
+    // de sesión. El nonce no se manda: el servidor ya lo tiene en su
+    // cookie, que es justo lo que lo hace servir de algo.
     const respuesta = await fetch("/auth/nativo", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ idToken, nonce: nonceCrudo }),
+      body: JSON.stringify({ idToken }),
     });
 
     if (!respuesta.ok) {
