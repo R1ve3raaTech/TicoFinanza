@@ -12,7 +12,7 @@
 
         **El gris de las franjas de arriba y de abajo era este tema.** Sin
         `windowBackground` propio, `Theme.AppCompat.DayNight` pinta su gris
-        oscuro de fábrica (~#121212), y eso es lo que se veía detrás de la
+        oscuro de fábrica (cerca de #121212), y eso es lo que se veía detrás de la
         barra de estado y de la de navegación: la app negra en el medio y
         dos bandas grises en los bordes, como si fueran de otra aplicación.
 

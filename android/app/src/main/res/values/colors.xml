@@ -2,7 +2,7 @@
 <resources>
 
     <!--
-        El fondo de la app, igual que `--ground` del tema oscuro en
+        El fondo de la app, igual que la variable ground de CSS del tema oscuro en
         `app/globals.css`.
 
         **Tiene que coincidir con la web**, no ser un negro puro cualquiera:
@@ -11,7 +11,7 @@
         Si los dos no son exactamente el mismo, queda una costura visible
         justo donde la barra de navegación toca el contenido.
 
-        Si algún día cambia `--ground`, cambia acá.
+        Si algún día cambia la variable ground de CSS, cambia acá.
     -->
     <color name="fondo">#0A0A0B</color>
 
