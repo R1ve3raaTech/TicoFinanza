@@ -49,6 +49,8 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array<ArrayBuffer> {
  * todos los aparatos de la cuenta, y para borrar el de acá hay que saber
  * cuál es el de acá. Firebase no lo recuerda entre arranques.
  */
+// **El mismo texto está en `lib/pageCache.ts`**, que lo borra al cerrar
+// sesión. Si cambia, cambia en los dos lados.
 const TOKEN_LOCAL = "tf_fcm_token";
 
 export function RemindersSetting({ initialEnabled }: { initialEnabled: boolean }) {

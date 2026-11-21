@@ -15,8 +15,13 @@ create table if not exists public.fcm_tokens (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users (id) on delete cascade,
   -- Único a secas, y no por usuario: un teléfono que cambia de cuenta
-  -- recibe el mismo token, y sin esto el aviso le llegaría a la cuenta
-  -- vieja. Al registrarse, el token se reasigna a quien lo esté usando.
+  -- recibe de Google el mismo token, y sin esto quedarían dos filas y el
+  -- aviso de la cuenta vieja seguiría llegando a ese teléfono.
+  --
+  -- **La reasignación la hace el servidor con la clave de servicio**, no
+  -- la sesión: con la sesión, la política de UPDATE de abajo no deja ver
+  -- la fila de la cuenta anterior, así que el cambio no alcanzaría
+  -- ninguna fila **y no daría error**. Ver `registerFcmToken`.
   token text not null unique,
   created_at timestamptz not null default now(),
   -- Para saber cuál dejó de usarse, sin tener que esperar a que Google lo

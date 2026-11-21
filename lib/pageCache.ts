@@ -145,6 +145,24 @@ function conTope<T>(promesa: Promise<T>): Promise<T | undefined> {
 }
 
 export async function endSession(): Promise<void> {
+  // El token de avisos de este aparato se olvida acá, con todo lo demás.
+  //
+  // **No es un detalle.** Google le da a un teléfono el mismo token
+  // aunque cambie la cuenta: si quedara anotado, la siguiente persona que
+  // entrara en este aparato vería el interruptor de notificaciones
+  // prendido —por un alta que no es suya— y la app creería que ya está
+  // registrado, sin volver a registrarlo a su nombre.
+  //
+  // El corte de verdad lo hace el servidor al reasignar el token (ver
+  // `registerFcmToken`); esto es para que lo que se ve en pantalla no
+  // mienta mientras tanto.
+  try {
+    localStorage.removeItem("tf_fcm_token");
+  } catch {
+    // Un navegador que no deja tocar el almacenamiento no puede impedir
+    // cerrar sesión.
+  }
+
   if (typeof indexedDB !== "undefined") {
     // Sigue el borrado del caché aunque la marca no se pueda tocar.
     await conTope(write(null));

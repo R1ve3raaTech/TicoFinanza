@@ -364,7 +364,7 @@ export async function subscribeToPush(subscription: {
  * aún no declaró muerto.
  */
 export async function registerFcmToken(token: string) {
-  const { supabase, user } = await requireUser();
+  const { user } = await requireUser();
 
   // Un token de FCM es largo y opaco; lo único que se puede comprobar
   // desde acá es que venga algo con forma de token y no una cadena vacía
@@ -373,10 +373,27 @@ export async function registerFcmToken(token: string) {
     return { error: GENERIC_ERROR };
   }
 
-  const { error } = await supabase.from("fcm_tokens").upsert(
-    { user_id: user.id, token, last_seen_at: new Date().toISOString() },
-    { onConflict: "token" }
-  );
+  // **La reasignación va con la clave de servicio, y hay un motivo.**
+  //
+  // Un teléfono que cambia de cuenta recibe de Google el MISMO token. Con
+  // la sesión de quien se acaba de conectar, un upsert no puede tocar la
+  // fila de la cuenta anterior: la política de UPDATE solo deja ver las
+  // filas propias, así que la reasignación no alcanza ninguna fila **y no
+  // da error**. El resultado sería el peor posible: los recordatorios de
+  // la cuenta vieja —con los nombres de sus gastos— seguirían llegando a
+  // un teléfono que ahora usa otra persona, y la nueva no recibiría nada.
+  //
+  // Hacerlo con la clave de servicio es seguro porque **solo el aparato
+  // que tiene el token puede presentarlo**: no es un identificador que se
+  // pueda adivinar ni enumerar, y quien lo tiene es, por definición, el
+  // teléfono al que le van a llegar los avisos.
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("fcm_tokens")
+    .upsert(
+      { user_id: user.id, token, last_seen_at: new Date().toISOString() },
+      { onConflict: "token" }
+    );
 
   if (error) {
     // La 0032 puede no estar corrida todavía. Decirlo en pantalla, no
@@ -395,13 +412,17 @@ export async function registerFcmToken(token: string) {
 
 /** Saca este Android de la lista. Los demás dispositivos siguen igual. */
 export async function unregisterFcmToken(token: string) {
-  const { supabase, user } = await requireUser();
+  // La sesión se exige igual: dar de baja un aparato es una acción de la
+  // app, no algo que pueda pedir cualquiera que pase.
+  await requireUser();
 
-  const { error } = await supabase
-    .from("fcm_tokens")
-    .delete()
-    .eq("token", token)
-    .eq("user_id", user.id);
+  // Sin filtrar por usuario, y a propósito: lo que se está dando de baja
+  // es **este aparato**, y la fila puede figurar a nombre de la cuenta
+  // que lo usó antes. Dejarla sería seguir mandándole a este teléfono los
+  // avisos de alguien que ya no lo tiene. Vale el mismo razonamiento de
+  // arriba: tener el token es la prueba de ser el aparato.
+  const admin = createAdminClient();
+  const { error } = await admin.from("fcm_tokens").delete().eq("token", token);
 
   if (error) return { error: GENERIC_ERROR };
 
