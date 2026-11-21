@@ -51,7 +51,7 @@ export async function updateProfile(input: {
     .eq("id", user.id);
 
   if (error) return { error: GENERIC_ERROR };
-  revalidatePath("/dashboard");
+  revalidatePath("/dashboard", "layout");
   revalidatePath("/dashboard/ajustes");
   return { error: null };
 }
@@ -90,7 +90,7 @@ export async function markOnboardingSeen() {
   );
 
   if (error) logFailure("markOnboardingSeen", error);
-  revalidatePath("/dashboard");
+  revalidatePath("/dashboard", "layout");
   return { error: null };
 }
 
@@ -128,7 +128,7 @@ export async function addCategory(name: string, type: TransactionType) {
   // El resumen y Plan también tienen formularios con el selector de
   // categorías: sin esto, una categoría creada desde el resumen no aparecía
   // ahí hasta la siguiente carga completa.
-  revalidatePath("/dashboard");
+  revalidatePath("/dashboard", "layout");
   revalidatePath("/dashboard/plan");
   return { error: null, name: trimmed };
 }
@@ -237,7 +237,7 @@ export async function deleteCategory(id: string) {
   revalidatePath("/dashboard/ajustes");
   revalidatePath("/dashboard/movimientos");
   revalidatePath("/dashboard/fijos");
-  revalidatePath("/dashboard");
+  revalidatePath("/dashboard", "layout");
   revalidatePath("/dashboard/plan");
   return { error: null };
 }
@@ -264,7 +264,7 @@ export async function deleteAllTransactions() {
     .filter((path): path is string => Boolean(path));
   if (paths.length > 0) await supabase.storage.from(RECEIPTS_BUCKET).remove(paths);
 
-  revalidatePath("/dashboard");
+  revalidatePath("/dashboard", "layout");
   revalidatePath("/dashboard/movimientos");
   revalidatePath("/dashboard/ajustes");
   return { error: null };
@@ -538,7 +538,7 @@ export async function setAppPin(pin: string, currentPin?: string) {
       error
     );
   }
-  revalidatePath("/dashboard");
+  revalidatePath("/dashboard", "layout");
   return { error: null };
 }
 
@@ -555,7 +555,7 @@ export async function removeAppPin(currentPin?: string) {
     .eq("user_id", user.id);
 
   if (error) return lockFailure("removeAppPin", error);
-  revalidatePath("/dashboard");
+  revalidatePath("/dashboard", "layout");
   return { error: null };
 }
 
@@ -598,7 +598,13 @@ export async function setAppLockWhen(when: AppLockWhen, currentPin?: string) {
       error
     );
   }
-  revalidatePath("/dashboard");
+  // **"layout" y no la ruta sola.** El cerrojo lee `app_lock_when` en el
+  // layout de /dashboard, no en una página, y `revalidatePath("/dashboard")`
+  // a secas no lo alcanza: se guardaba bien en la base y el cerrojo seguía
+  // con el valor viejo. Y como Capacitor **no recarga la página** al volver
+  // desde la lista de recientes, ese valor viejo podía durar días — el
+  // síntoma fue elegir "Siempre" y que la app nunca pidiera la huella.
+  revalidatePath("/dashboard", "layout");
   return { error: null };
 }
 
@@ -668,6 +674,6 @@ export async function resetAppPinWithCode(code: string) {
     .eq("user_id", user.id);
 
   if (error) return lockFailure("resetAppPinWithCode", error);
-  revalidatePath("/dashboard");
+  revalidatePath("/dashboard", "layout");
   return { error: null };
 }

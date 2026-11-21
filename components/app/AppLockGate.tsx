@@ -117,8 +117,11 @@ export function AppLockGate({
   // tick— y no durante este render. Es la forma normal de arrancar trabajo
   // asíncrono desde un efecto.
   useEffect(() => {
-    if (!enabled) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+    // `lockedRef` y no `locked`: esto tiene que correr al montar y nada
+    // más. Sin la guarda, activar el cerrojo desde Ajustes hace que
+    // `enabled` pase a `true` con la app ya abierta, y el diálogo de huella
+    // saltaría encima de la pantalla de ajustes sin que nadie lo pidiera.
+    if (!enabled || !lockedRef.current) return;
     void runBiometrics();
   }, [enabled, runBiometrics]);
 
