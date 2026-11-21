@@ -3,28 +3,45 @@ import test from "node:test";
 import { biometricResultFor } from "./native";
 
 /**
- * Lo que se decide acá es a quién se le ofrece el PIN y a quién un botón de
- * "probar otra vez". Confundirlos tiene consecuencias feas en los dos
- * sentidos: a quien no tiene huella registrada se le quedaría ofreciendo un
- * botón que nunca va a funcionar, y a quien solo canceló se le mostraría el
- * PIN como si su huella no sirviera.
+ * Acá se decide quién entra.
+ *
+ * `"no-disponible"` no es un estado de error cualquiera: es el único valor
+ * con el que `AppLockGate` **abre la app sola** cuando tampoco hay PIN
+ * puesto. Esa puerta existe a propósito —trabar a alguien afuera de sus
+ * propios datos sería peor que el riesgo— pero justamente por eso no puede
+ * significar nada más que "este teléfono no tiene huella registrada".
+ *
+ * Todo lo demás —cancelar, fallar, un bloqueo temporal, un plugin que no
+ * carga— tiene que dejar el cerrojo puesto.
  */
 
-test("sin huella registrada o sin hardware, el único camino es el PIN", () => {
-  for (const code of ["biometryNotAvailable", "biometryNotEnrolled", "passcodeNotSet", "noDeviceCredential"]) {
+test("sin huella registrada ni hardware: respuesta definitiva, el PIN es el único camino", () => {
+  for (const code of [
+    "biometryNotAvailable",
+    "biometryNotEnrolled",
+    "passcodeNotSet",
+    "noDeviceCredential",
+  ]) {
     assert.equal(biometricResultFor(code), "no-disponible", `con "${code}"`);
   }
 });
 
 /**
- * Android bloquea la huella tras varios intentos fallidos. Es temporal,
- * pero durante ese rato insistir no sirve: va al PIN.
+ * **Esta es la prueba que más importa de este archivo.**
+ *
+ * `biometryLockout` lo tira Android tras varios intentos fallidos. Estuvo
+ * tratado como "no hay huella", y eso era un agujero real: sin PIN puesto,
+ * fallar la huella cinco veces **abría la app**. O sea que el ataque del
+ * que el cerrojo protege —alguien con tu teléfono en la mano— era también
+ * la forma de saltárselo.
  */
-test("el bloqueo por intentos fallidos también manda al PIN", () => {
-  assert.equal(biometricResultFor("biometryLockout"), "no-disponible");
+test("el bloqueo por intentos fallidos NO abre la app", () => {
+  const r = biometricResultFor("biometryLockout");
+  assert.notEqual(r, "no-disponible", "sin PIN, esto dejaría entrar a cualquiera");
+  assert.equal(r, "cancelado");
 });
 
-test("cancelar deja reintentar, no se trata como si no hubiera huella", () => {
+test("cancelar deja reintentar, sin tratarse como si no hubiera huella", () => {
   for (const code of ["userCancel", "appCancel", "systemCancel", "userFallback"]) {
     assert.equal(biometricResultFor(code), "cancelado", `con "${code}"`);
   }
@@ -36,12 +53,41 @@ test("una huella que no coincide deja reintentar", () => {
 });
 
 /**
- * Un código que no conocemos NO puede caer en "no-disponible": eso saltaría
- * la huella y mostraría el PIN directo, debilitando el cerrojo por un error
- * que ni siquiera entendemos. Ante la duda, se queda cerrado.
+ * Un código que no conocemos no puede caer del lado que abre: eso saltaría
+ * el cerrojo por un error que ni siquiera entendemos. Ante la duda, cerrado.
  */
 test("un código desconocido se queda del lado cerrado", () => {
   for (const code of ["loQueSea", "", undefined, null, 42, {}]) {
     assert.equal(biometricResultFor(code), "cancelado", `con ${JSON.stringify(code)}`);
   }
+});
+
+/**
+ * Red de seguridad sobre la lista entera: si alguien agrega un código nuevo
+ * a `SIN_HUELLA`, esta prueba lo obliga a pasar por acá y a justificarlo.
+ * Son los únicos cuatro que pueden abrir la app sin PIN.
+ */
+test("solo cuatro códigos en toda la app pueden abrir el cerrojo sin PIN", () => {
+  const abren = [
+    "biometryNotAvailable",
+    "biometryNotEnrolled",
+    "passcodeNotSet",
+    "noDeviceCredential",
+    "biometryLockout",
+    "authenticationFailed",
+    "userCancel",
+    "appCancel",
+    "systemCancel",
+    "userFallback",
+    "invalidContext",
+    "notInteractive",
+    "none",
+  ].filter((c) => biometricResultFor(c) === "no-disponible");
+
+  assert.deepEqual(abren.sort(), [
+    "biometryNotAvailable",
+    "biometryNotEnrolled",
+    "noDeviceCredential",
+    "passcodeNotSet",
+  ]);
 });

@@ -64,9 +64,16 @@ export function AppLockGate({
       setShowPin(false);
       return;
     }
-    // Sin huella en este teléfono (o sin envoltorio nativo todavía): el
-    // único camino es el PIN. Si no hay PIN puesto no hay con qué cerrar,
-    // así que se abre: ver el comentario de arriba.
+    // **Esta es la única rama que abre la app sin identificar a nadie**, y
+    // por eso "no-disponible" quiere decir una sola cosa muy concreta: el
+    // sistema contestó que este teléfono no tiene huella registrada. Ahí no
+    // hay con qué cerrar, y trabar a alguien afuera de sus propios datos
+    // sería peor que el riesgo.
+    //
+    // Todo lo demás —cancelar, fallar el dedo, el bloqueo de Android tras
+    // varios intentos, un plugin que no carga— cae más abajo y se queda
+    // cerrado. Tratar el bloqueo por intentos como "no hay huella" fue un
+    // agujero real: fallar cinco veces abría la app. Ver lib/native.ts.
     if (result === "no-disponible") {
       if (hasPin) setShowPin(true);
       else setLocked(false);

@@ -30,29 +30,43 @@ export type BiometricResult =
   | "ok"
   /** Dijo que no, cerró el diálogo, o el dedo no coincidió. Se reintenta. */
   | "cancelado"
-  /** Este teléfono no tiene huella ni cara registrada — o no es el APK. */
+  /**
+   * **Respuesta definitiva**: este teléfono no tiene huella ni cara
+   * registrada, o no es el APK.
+   *
+   * Es el único valor con el que el cerrojo **se abre solo** cuando
+   * tampoco hay PIN puesto (`AppLockGate`), porque ahí de verdad no hay
+   * con qué cerrar y trabar a alguien afuera de sus propios datos sería
+   * peor. Por eso mismo **no puede significar nada más**: cualquier otra
+   * cosa —un fallo, un bloqueo temporal, un plugin que no carga— tiene que
+   * dejar el cerrojo puesto.
+   */
   | "no-disponible"
-  /** Algo se rompió en el camino. */
+  /** Algo se rompió en el camino. Se queda cerrado. */
   | "error";
 
 /**
- * Códigos del plugin que significan "acá no hay con qué abrir".
+ * Códigos que significan **"este teléfono no tiene huella registrada"**, y
+ * nada más que eso.
  *
- * Importa distinguirlos de "canceló": con estos, insistir con la huella no
- * sirve de nada y hay que ofrecer el PIN derecho. Si fueran todos lo mismo,
- * a quien no tiene huella registrada se le quedaría ofreciendo un botón de
- * "probar otra vez" que nunca va a funcionar.
+ * La lista es corta a propósito y no hay que ensancharla sin pensarlo: con
+ * estos valores, y sin PIN puesto, el cerrojo **se abre**. Es la única
+ * puerta de ese tipo en la app.
  *
- * `biometryLockout` entra acá a propósito aunque sea temporal: Android se
- * bloquea tras varios intentos fallidos y durante ese rato la huella **no**
- * es un camino. Mandarlo al PIN es exactamente lo correcto.
+ * **`biometryLockout` estaba acá y era un agujero de verdad.** Ese código
+ * lo tira Android tras varios intentos fallidos, y mi razonamiento era
+ * "durante ese rato la huella no es un camino, así que al PIN". Correcto
+ * mientras haya PIN; catastrófico cuando no lo hay, porque entonces el
+ * mismo valor quiere decir "dejalo entrar". O sea que fallar la huella
+ * cinco veces abría la app — exactamente lo que el cerrojo existe para
+ * evitar. Ahora cae en "cancelado": se queda cerrado y se puede reintentar
+ * cuando Android lo permita.
  */
 const SIN_HUELLA = new Set([
   "biometryNotAvailable",
   "biometryNotEnrolled",
   "passcodeNotSet",
   "noDeviceCredential",
-  "biometryLockout",
 ]);
 
 /**
@@ -81,18 +95,6 @@ async function plugin() {
   }
 }
 
-/** ¿Este teléfono tiene huella o cara registrada? */
-export async function biometricsAvailable(): Promise<boolean> {
-  const bio = await plugin();
-  if (!bio) return false;
-  try {
-    const { isAvailable } = await bio.checkBiometry();
-    return Boolean(isAvailable);
-  } catch {
-    return false;
-  }
-}
-
 /**
  * Pide huella o cara.
  *
@@ -101,14 +103,23 @@ export async function biometricsAvailable(): Promise<boolean> {
  * ofrecería el PIN a quien solo quiso volver a intentar con el dedo.
  */
 export async function unlockWithBiometrics(reason: string): Promise<BiometricResult> {
+  // Fuera del APK no hay nada que preguntar y el PIN es el único camino:
+  // esa sí es una respuesta definitiva.
+  if (!hasNativeBridge()) return "no-disponible";
+
   const bio = await plugin();
-  if (!bio) return "no-disponible";
+  // **Adentro del APK, un plugin que no carga es un error, no una
+  // ausencia.** Devolver "no-disponible" acá dejaba entrar a quien no
+  // tuviera PIN, por una falla nuestra y sin que nadie se enterara.
+  if (!bio) return "error";
 
   try {
     const { isAvailable } = await bio.checkBiometry();
+    // Respuesta definitiva del sistema: no hay huella registrada.
     if (!isAvailable) return "no-disponible";
   } catch {
-    return "no-disponible";
+    // Preguntar falló. No sabemos si hay huella o no, así que no se abre.
+    return "error";
   }
 
   try {
