@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useToast } from "@/components/Toast";
 import { hasNativeBridge } from "@/lib/nativeBridge";
 
 /**
@@ -16,11 +17,13 @@ import { hasNativeBridge } from "@/lib/nativeBridge";
  */
 export function AndroidPushRouter() {
   const router = useRouter();
+  const toast = useToast();
 
   useEffect(() => {
     if (!hasNativeBridge()) return;
 
     let vivo = true;
+    const quitarTodos: (() => void)[] = [];
     let quitar: (() => void) | null = null;
 
     void (async () => {
@@ -40,6 +43,24 @@ export function AndroidPushRouter() {
         );
         if (!vivo) void handle.remove();
         else quitar = () => void handle.remove();
+
+        // **Un aviso que llega con la app abierta, Android NO lo dibuja.**
+        // Da por hecho que si ya estás adentro no hace falta interrumpirte,
+        // y te lo entrega a la app en silencio.
+        //
+        // Eso hacía que el botón de prueba pareciera roto: el aviso salía,
+        // Firebase lo entregaba, y no pasaba nada en pantalla — que es
+        // exactamente lo mismo que se ve cuando no se mandó. Acá se
+        // muestra, que es lo que la persona espera al apretar "Probar".
+        const recibido = await PushNotifications.addListener(
+          "pushNotificationReceived",
+          (aviso) => {
+            const texto = [aviso.title, aviso.body].filter(Boolean).join(" · ");
+            if (texto) toast.success(texto);
+          }
+        );
+        if (!vivo) void recibido.remove();
+        else quitarTodos.push(() => void recibido.remove());
       } catch {
         // Si el plugin no carga, tocar el aviso abre la app igual. No es
         // razón para romper la pantalla.
@@ -49,8 +70,9 @@ export function AndroidPushRouter() {
     return () => {
       vivo = false;
       quitar?.();
+      quitarTodos.forEach((f) => f());
     };
-  }, [router]);
+  }, [router, toast]);
 
   return null;
 }

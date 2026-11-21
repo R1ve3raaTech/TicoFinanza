@@ -104,11 +104,18 @@ export function pushConfigured(): boolean {
  * navegador no tiene suscripciones, el otro sale igual. Es a propósito —
  * que falte una credencial no puede dejar a alguien sin ningún aviso.
  */
+export interface EnvioDetallado extends PushResult {
+  /** Cuántos avisos salieron por el push del navegador. */
+  web: number;
+  /** Cuántos salieron por Firebase, o sea a la app de Android. */
+  android: number;
+}
+
 export async function sendToAllDevices(
   admin: SupabaseClient,
   userId: string,
   payload: PushPayload
-): Promise<PushResult> {
+): Promise<EnvioDetallado> {
   const { sendFcmToUser } = await import("./fcm");
   // `allSettled` y no `all`: con `all`, que uno de los dos caminos falle
   // descarta también el resultado del otro, aunque ese haya salido bien.
@@ -120,7 +127,16 @@ export async function sendToAllDevices(
     r.status === "fulfilled" ? r.value : { sent: 0, removed: 0 };
   const a = cuenta(web);
   const b = cuenta(android);
-  return { sent: a.sent + b.sent, removed: a.removed + b.removed };
+  // **Se devuelve el desglose y no solo el total.** Con un solo número,
+  // un aviso que salió por el navegador tapa a uno que no salió por
+  // Firebase: la prueba diría que todo bien y al teléfono no llegaría
+  // nada. Pasó exactamente eso.
+  return {
+    sent: a.sent + b.sent,
+    removed: a.removed + b.removed,
+    web: a.sent,
+    android: b.sent,
+  };
 }
 
 /**

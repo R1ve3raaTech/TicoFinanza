@@ -512,7 +512,7 @@ export async function sendTestReminder() {
   const { user } = await requireUser();
 
   const admin = createAdminClient();
-  const { sent } = await sendToAllDevices(admin, user.id, {
+  const { sent, web, android } = await sendToAllDevices(admin, user.id, {
     title: "Notificaciones activadas",
     body: "Así te vamos a avisar un día antes de cada gasto fijo.",
     url: "/dashboard/fijos",
@@ -525,7 +525,12 @@ export async function sendTestReminder() {
         "No se pudo mandar el aviso de prueba. Revisá que las notificaciones estén activadas en este dispositivo.",
     };
   }
-  return { error: null };
+
+  // **Por dónde salió, no solo que salió.** Con un total a secas, un
+  // aviso que salió al navegador tapaba a uno que no salió al teléfono: la
+  // prueba decía que todo bien y al teléfono no llegaba nada, que es
+  // indistinguible de que la app esté rota.
+  return { error: null, web, android };
 }
 
 // ---------------------------------------------------------------------------

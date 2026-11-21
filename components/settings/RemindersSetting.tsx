@@ -248,7 +248,23 @@ export function RemindersSetting({ initialEnabled }: { initialEnabled: boolean }
       if (result.error) {
         setError(result.error);
         toast.error(result.error);
+        return;
       }
+      // **Por dónde salió, no solo que salió.** Sin esto, un aviso que
+      // salió al navegador y no al teléfono se veía igual que uno que
+      // llegó bien: "lo mandé" y nada en pantalla. Y adentro del APK los
+      // avisos que llegan con la app abierta Android no los dibuja, así
+      // que decir que salió es la única confirmación que hay acá.
+      if (isApp && result.android === 0) {
+        const message =
+          "El aviso no salió a este teléfono. Apagá y volvé a prender el interruptor para registrarlo de nuevo.";
+        setError(message);
+        toast.error(message);
+        return;
+      }
+      toast.success(
+        isApp ? "Aviso mandado a este teléfono" : "Aviso mandado a este navegador"
+      );
     });
   }
 
