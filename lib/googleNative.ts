@@ -122,14 +122,28 @@ export async function signInWithGoogleNative(
     return { estado: "ok" };
   } catch (error) {
     // El plugin rechaza igual si la persona cierra el selector de cuentas
-    // que si algo falla. Se distinguen por el texto porque no hay código:
-    // si fuera todo "error", cerrar el selector a propósito mostraría una
-    // pantalla roja por algo que la persona decidió.
+    // que si algo falla de verdad, y no manda un código: hay que mirar el
+    // texto. Si fuera todo "error", cerrar el selector a propósito
+    // mostraría una pantalla roja por algo que la persona decidió.
+    //
+    // Ojo con ensanchar esta lista: antes incluía `16:` y eso se come
+    // cualquier mensaje que lleve ese número, convirtiendo una falla de
+    // verdad en un silencio — que es el peor resultado posible acá.
     const texto = error instanceof Error ? error.message : String(error);
-    if (/cancel|closed|dismiss|16:|user_?cancel/i.test(texto)) {
+    if (/cancel|user_?cancel|closed by|dismiss/i.test(texto)) {
       return { estado: "cancelado" };
     }
-    console.error("[googleNative]", texto);
-    return { estado: "error", motivo: "No se pudo entrar con Google." };
+
+    console.error("[googleNative]", error);
+
+    // **El detalle va a la pantalla, no solo al registro.** Dentro del APK
+    // no hay consola a la que asomarse: si el mensaje dice solo "no se
+    // pudo", la única forma de saber qué pasó es adivinar. Se recorta
+    // porque algunos mensajes de Android son larguísimos.
+    const detalle = texto.replace(/\s+/g, " ").trim().slice(0, 160);
+    return {
+      estado: "error",
+      motivo: detalle ? `No se pudo entrar con Google. ${detalle}` : "No se pudo entrar con Google.",
+    };
   }
 }
