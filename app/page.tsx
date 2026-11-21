@@ -13,7 +13,7 @@ import { Pricing } from "@/components/landing/Pricing";
 import { Security } from "@/components/landing/Security";
 import { Steps } from "@/components/landing/Steps";
 import { Logo } from "@/components/Logo";
-import { isAppUserAgent } from "@/lib/appMode";
+import { APP_COOKIE, isAppRequest } from "@/lib/appMode";
 import { INTRO_COOKIE, introSeen } from "@/lib/intro";
 import { createClient } from "@/lib/supabase/server";
 import { getSupabaseConfig } from "@/lib/supabase/config";
@@ -120,7 +120,9 @@ export default async function LandingPage() {
   // producto, y a quien ya lo instaló no hay nada que venderle: abrir la app
   // tiene que llevar a donde se usa. La decisión se toma acá, en el
   // servidor, para que nunca llegue a verse la portada y corregirse sola.
-  if (isAppUserAgent((await headers()).get("user-agent"))) {
+  if (
+    isAppRequest((await headers()).get("user-agent"), (await cookies()).get(APP_COOKIE)?.value)
+  ) {
     if (loggedIn) redirect("/dashboard");
     redirect(introSeen((await cookies()).get(INTRO_COOKIE)?.value) ? "/entrar" : "/bienvenida");
   }

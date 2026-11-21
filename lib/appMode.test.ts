@@ -2,7 +2,7 @@ import { strict as assert } from "node:assert";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import test from "node:test";
-import { APP_UA_MARKER, isAppUserAgent } from "./appMode";
+import { APP_UA_MARKER, isAppUserAgent, isAppRequest } from "./appMode";
 
 const ROOT = join(import.meta.dirname, "..");
 
@@ -47,4 +47,34 @@ test("el APK apunta al dominio de producción, por HTTPS", () => {
   const url = /url:\s*"([^"]+)"/.exec(config)?.[1];
 
   assert.equal(url, "https://www.ticofinanza.com");
+});
+
+/**
+ * **Por qué la cookie existe, y por qué no reemplaza a la marca.**
+ *
+ * El WebView agrega la marca al identificador, pero los pedidos que nacen
+ * dentro del Service Worker salen con el de fábrica: ese contexto tiene
+ * sus propios ajustes y Android no deja copiarle el del WebView. Como las
+ * pantallas de adentro pasan por el Service Worker, el servidor las veía
+ * llegar como si fueran la web.
+ *
+ * La cookie arregla eso, pero llega tarde para el primer pedido —la pone
+ * el navegador después del primer dibujo—, así que las dos señales se
+ * miran juntas y alcanza con cualquiera.
+ */
+test("alcanza con cualquiera de las dos señales", () => {
+  const web = "Mozilla/5.0 (Linux; Android 14) Chrome/131 Mobile Safari/537.36";
+  const app = `${web} TicoFinanzaApp/1`;
+
+  assert.equal(isAppRequest(app, undefined), true, "solo la marca: el primer pedido");
+  assert.equal(isAppRequest(web, "1"), true, "solo la cookie: lo que pasa por el Service Worker");
+  assert.equal(isAppRequest(app, "1"), true, "las dos");
+  assert.equal(isAppRequest(web, undefined), false, "ninguna: es la web");
+});
+
+test("una cookie con cualquier otro valor no cuenta", () => {
+  const web = "Mozilla/5.0 (Linux; Android 14) Chrome/131 Mobile Safari/537.36";
+  for (const valor of ["0", "", "true", "si", "11"]) {
+    assert.equal(isAppRequest(web, valor), false, `con "${valor}"`);
+  }
 });

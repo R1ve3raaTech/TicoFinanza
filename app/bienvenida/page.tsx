@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { IntroCarousel } from "@/components/app/IntroCarousel";
-import { isAppUserAgent } from "@/lib/appMode";
+import { APP_COOKIE, isAppRequest } from "@/lib/appMode";
 import { createClient } from "@/lib/supabase/server";
 import { getSupabaseConfig } from "@/lib/supabase/config";
 import { googleClientId } from "@/lib/google/oauth";
@@ -18,7 +18,10 @@ export const metadata: Metadata = { title: "Bienvenido", robots: { index: false 
  * navegador va a la portada.
  */
 export default async function BienvenidaPage() {
-  const isApp = isAppUserAgent((await headers()).get("user-agent"));
+  const isApp = isAppRequest(
+    (await headers()).get("user-agent"),
+    (await cookies()).get(APP_COOKIE)?.value
+  );
   if (!isApp) redirect("/");
 
   const configured = Boolean(getSupabaseConfig());

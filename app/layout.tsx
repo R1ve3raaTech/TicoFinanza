@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { AppModeCookie } from "@/components/app/AppModeCookie";
 import { Geist, Geist_Mono } from "next/font/google";
 import Script from "next/script";
 import { ThemeProvider } from "next-themes";
@@ -101,6 +102,11 @@ export default function RootLayout({
             The provider still manages theme changes, storage and system mode. */}
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange scriptProps={{ type: "text/plain" }}>
           <RegisterServiceWorker />
+          {/* Va en el layout raíz y no en el del panel: la raíz y la
+              pantalla de entrada también deciden según si esto es el APK,
+              y si la cookie se pusiera recién adentro, la portada sería lo
+              primero que vería alguien que abre la app. */}
+          <AppModeCookie />
           <ToastProvider>{children}</ToastProvider>
         </ThemeProvider>
       </body>

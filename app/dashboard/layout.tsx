@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { AppLockGate } from "@/components/app/AppLockGate";
 import { AndroidPushRouter } from "@/components/push/AndroidPushRouter";
@@ -15,7 +15,7 @@ import { IdleLogout } from "@/components/shell/IdleLogout";
 import { ThemeSync } from "@/components/ThemeSync";
 import { resolveAvatarUrl, resolveDisplayName, resolveFirstName } from "@/lib/profile";
 import { shouldShowWelcome } from "@/lib/onboarding";
-import { isAppUserAgent } from "@/lib/appMode";
+import { APP_COOKIE, isAppRequest } from "@/lib/appMode";
 import { parseLockWhen } from "@/lib/appLock";
 import { createClient } from "@/lib/supabase/server";
 import type { RecentMovement } from "@/lib/quickEntry";
@@ -117,7 +117,11 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   // El APK y la web sirven el mismo sitio, así que hay que distinguirlos:
   // dentro del APK no corre el cierre por inactividad y sí el cerrojo con
   // el PIN. Ver lib/appMode.ts.
-  const isApp = isAppUserAgent((await headers()).get("user-agent"));
+  const cabeceras = await headers();
+  const isApp = isAppRequest(
+    cabeceras.get("user-agent"),
+    (await cookies()).get(APP_COOKIE)?.value
+  );
   const lockWhen = parseLockWhen(settings?.app_lock_when);
   // Solo si HAY PIN, nunca el hash: mandarlo al navegador daría las cien
   // millón de combinaciones de seis dígitos para probar sin límite de intentos.

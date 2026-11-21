@@ -1,9 +1,9 @@
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import Link from "next/link";
 import { Logo } from "@/components/Logo";
 import { AUTH_CONFIGURATION_ERROR, getSupabaseConfig } from "@/lib/supabase/config";
 import { googleClientId } from "@/lib/google/oauth";
-import { isAppUserAgent } from "@/lib/appMode";
+import { APP_COOKIE, isAppRequest } from "@/lib/appMode";
 import { GoogleSignIn } from "./GoogleSignIn";
 import { IdleNoticeDialog } from "./IdleNoticeDialog";
 
@@ -45,7 +45,10 @@ export async function AuthPage({
   // mandarlo nunca: se decide por petición. En la web no lo usa nadie, y lo
   // que no hace falta mandar no se manda — aunque no sea secreto, cada cosa
   // de más en el HTML es una cosa de más que mantener y explicar.
-  const esApp = isAppUserAgent((await headers()).get("user-agent"));
+  const esApp = isAppRequest(
+    (await headers()).get("user-agent"),
+    (await cookies()).get(APP_COOKIE)?.value
+  );
   const clientId = esApp ? googleClientId() : null;
 
   return (
