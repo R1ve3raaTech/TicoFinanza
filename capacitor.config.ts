@@ -39,6 +39,20 @@ const config: CapacitorConfig = {
   android: {
     // La app no necesita leer ni escribir archivos del teléfono.
     allowMixedContent: false,
+    // **El Service Worker se maneja solo.**
+    //
+    // Por defecto, Capacitor desvía TODA petición que nace dentro del
+    // Service Worker hacia su servidor local de archivos
+    // (`ServiceWorkerClient` → `getLocalServer().shouldInterceptRequest`).
+    // Eso tiene sentido en una app empacada, donde ese servidor es el
+    // origen de todo; acá no: el contenido viene del sitio en vivo y
+    // `webDir` solo tiene la pantalla de "no se pudo conectar".
+    //
+    // Con el desvío puesto, el `fetch()` que hace nuestro Service Worker
+    // para guardar y revalidar pantallas no sale a la red real, y el modo
+    // sin conexión —que es una promesa escrita en la portada— queda a
+    // merced de lo que conteste un servidor local casi vacío.
+    resolveServiceWorkerRequests: false,
   },
 };
 
