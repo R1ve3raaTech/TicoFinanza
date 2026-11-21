@@ -2,7 +2,7 @@
  * Cómo se reconoce que estamos corriendo dentro del APK.
  *
  * Vive en su propio archivo porque **hay más de un lugar que lo pregunta**
- * (la entrada con Google y el cerrojo con huella) y tenerlo copiado fue
+ * (hoy la entrada con Google; antes también el cerrojo con huella) y tenerlo copiado fue
  * exactamente lo que falló: dos comprobaciones que miraban cosas distintas,
  * y la de Google miraba la equivocada.
  *

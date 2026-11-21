@@ -12,7 +12,7 @@ const ROOT = join(import.meta.dirname, "..");
  *
  * Si se cambia en `capacitor.config.ts` y no acá (o al revés), **el APK
  * pasa a comportarse como la web sin que nada falle**: mostraría la
- * portada en vez de la bienvenida, perdería el cerrojo con huella y
+ * portada en vez de la bienvenida, perdería el cerrojo con PIN y
  * volvería el cierre de sesión por inactividad. No hay error, no hay
  * pantalla roja: solo una app que de pronto es otra.
  *

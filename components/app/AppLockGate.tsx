@@ -2,36 +2,50 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Fingerprint, LockKey } from "@phosphor-icons/react";
 import { signOut } from "@/app/dashboard/actions";
 import { verifyAppPin } from "@/app/dashboard/ajustes/actions";
 import { BrandMark } from "@/components/brand/BrandMark";
 import { ForgotPinDialog } from "./ForgotPinDialog";
 import { Button } from "@/components/ui/Button";
-import { cleanPinInput, isValidPin, lockEnabled, shouldAskOnReturn, type AppLockWhen } from "@/lib/appLock";
+import {
+  cleanPinInput,
+  isSubmittablePin,
+  MIN_PIN_LENGTH,
+  PIN_LENGTH,
+  lockEnabled,
+  shouldAskOnReturn,
+  type AppLockWhen,
+} from "@/lib/appLock";
 import { endSession } from "@/lib/pageCache";
-import { unlockWithBiometrics, type EtapaBiometria } from "@/lib/native";
 
 /**
- * El cerrojo del APK: huella o cara, y el PIN de cinco dígitos como
- * respaldo.
+ * El cerrojo del APK: un PIN de seis dígitos.
+ *
+ * **Hubo huella y se quitó.** El lector funcionaba —el diagnóstico en el
+ * teléfono de Camil contestaba "disponible: sí, decisión: pedir"— y aun
+ * así el cerrojo no la pedía al entrar. Lo que fallaba era todo lo que la
+ * rodea: un puente nativo que puede no estar listo cuando se pregunta, tres
+ * detectores de "volví a la app" porque ninguno es fiable solo, y un camino
+ * de "no se pudo preguntar" que, sin PIN, abría la app en silencio. Cinco
+ * agujeros de seguridad salieron de esa misma rama.
+ *
+ * El PIN no tiene nada de eso: se dibuja y ya. No depende del puente, ni de
+ * un diálogo del sistema, ni de que Android conteste a tiempo. **Lo que se
+ * pierde en comodidad se gana en que de verdad se cierra.**
  *
  * **Esto es un cerrojo de pantalla, no cifrado.** Frena a quien agarra el
  * teléfono desbloqueado, que es el caso real por el que existe. Quien pueda
- * extraer el almacenamiento del dispositivo no pasa por acá. Protegerlo de
- * verdad pediría guardar la sesión en el almacén seguro de Android y
- * entregársela a la app recién después de la huella, que es bastante más
- * trabajo y vive del lado nativo.
+ * extraer el almacenamiento del dispositivo no pasa por acá.
  *
  * Reemplaza al cierre por inactividad **solo dentro del APK**: ahí la
  * sesión se queda viva (es tu teléfono, no una compu prestada) y lo que
  * protege es esto. En la web sigue el cierre a los 15 minutos.
  *
- * **Si no hay con qué abrir, no se cierra.** Un teléfono sin huella
- * registrada y sin PUESTO un PIN deja pasar: trabar a alguien afuera de sus
- * propios datos es peor que el riesgo que se evitaría. Y aun con cerrojo
- * siempre está la salida de cerrar sesión, porque un PIN olvidado no puede
- * ser el final del camino.
+ * **Sin PIN puesto no se cierra nada.** Trabar a alguien afuera de sus
+ * propios datos es peor que el riesgo que se evitaría, y sin PIN no habría
+ * con qué volver a entrar. Y aun con PIN siempre está la salida de cerrar
+ * sesión y el código por correo, porque un PIN olvidado no puede ser el
+ * final del camino.
  */
 export function AppLockGate({
   lockWhen,
@@ -42,125 +56,48 @@ export function AppLockGate({
   hasPin: boolean;
   children: React.ReactNode;
 }) {
-  const enabled = lockEnabled(lockWhen);
+  // **Sin PIN no hay cerrojo.** Antes la huella podía cerrar sola; ahora el
+  // PIN es lo único que abre, así que cerrar sin tenerlo puesto sería
+  // dejar a la persona afuera para siempre.
+  const enabled = lockEnabled(lockWhen) && hasPin;
   const [locked, setLocked] = useState(enabled);
-  // Arranca en `enabled` porque al abrir la app ya se está pidiendo: así el
-  // efecto de abajo no tiene que tocar el estado antes de su primer await,
-  // que es justo lo que el compilador de React no permite.
-  const [asking, setAsking] = useState(enabled);
-  const [showPin, setShowPin] = useState(false);
-  /** Qué falló al pedir la huella, para mostrarlo en la pantalla. */
-  const [issue, setIssue] = useState<string | null>(null);
-  /** En qué paso va el intento, para que la pantalla lo diga. */
-  const [etapa, setEtapa] = useState<EtapaBiometria>("cargando");
 
   // Cuándo se fue la app a segundo plano. Se compara contra el reloj y no
   // con un temporizador: si Android congela la app, un `setTimeout` se
   // congela con ella y al volver nunca vencería.
   const hiddenAt = useRef<number | null>(null);
 
-  // Cuándo corrió el latido por última vez. Es la marca contra la que se
-  // mide el hueco, y la comparten los tres detectores de abajo: así, el que
-  // se entere primero de que volvimos puede decidir solo, sin esperar al
-  // siguiente latido.
   // Arranca en 0 y no en `Date.now()`: leer el reloj mientras se dibuja es
   // un efecto secundario durante el render, y el lint lo marca. Lo pone en
   // hora el latido, que corre en un efecto; hasta entonces, 0 quiere decir
   // "todavía no hay nada que medir".
   const ultimoLatido = useRef(0);
 
-  // Espejos de `locked` y `asking` para que el latido los consulte sin
-  // tener que reiniciarse en cada cambio de estado. Se escriben en un
-  // efecto y no durante el render: tocar una ref mientras se dibuja es
-  // justo lo que React pide no hacer.
+  // Espejo de `locked` para que el latido lo consulte sin tener que
+  // reiniciarse en cada cambio de estado. Se escribe en un efecto y no
+  // durante el render: tocar una ref mientras se dibuja es justo lo que
+  // React pide no hacer.
   const lockedRef = useRef(locked);
-  const askingRef = useRef(asking);
   useEffect(() => {
     lockedRef.current = locked;
-    askingRef.current = asking;
-  }, [locked, asking]);
+  }, [locked]);
 
-  const runBiometrics = useCallback(async () => {
-    const { estado, detalle } = await unlockWithBiometrics("Desbloqueá TicoFinanza", setEtapa);
-    setAsking(false);
-    setIssue(detalle ?? null);
-
-    if (estado === "ok") {
-      setLocked(false);
-      setShowPin(false);
-      return;
-    }
-    // **Esta es la única rama que abre la app sin identificar a nadie**, y
-    // por eso "no-disponible" quiere decir una sola cosa muy concreta: el
-    // sistema contestó que este teléfono no tiene huella registrada. Ahí no
-    // hay con qué cerrar, y trabar a alguien afuera de sus propios datos
-    // sería peor que el riesgo.
-    //
-    // Todo lo demás —cancelar, fallar el dedo, el bloqueo de Android tras
-    // varios intentos, un plugin que no carga— cae más abajo y se queda
-    // cerrado. Tratar el bloqueo por intentos como "no hay huella" fue un
-    // agujero real: fallar cinco veces abría la app. Ver lib/native.ts.
-    if (estado === "no-disponible") {
-      if (hasPin) setShowPin(true);
-      else setLocked(false);
-      return;
-    }
-    // Canceló o la huella no coincidió: se queda cerrado, con el botón
-    // para reintentar y, si lo tiene, el PIN.
-    setShowPin(hasPin);
-  }, [hasPin]);
-
-  /** Volver a pedir la huella desde un botón o al volver a la app. */
-  const askAgain = useCallback(() => {
-    setIssue(null);
-    setEtapa("cargando");
-    setAsking(true);
-    void runBiometrics();
-  }, [runBiometrics]);
-
-  // Arranque en frío: si hay cerrojo, se pide de una.
-  //
-  // El lint marca esto como "setState dentro de un efecto" porque sigue la
-  // llamada hacia adentro y encuentra un setState. Acá no lo es: lo primero
-  // que hace `runBiometrics` es esperar al diálogo del sistema, así que el
-  // estado cambia cuando la persona pone el dedo —un evento suyo, en otro
-  // tick— y no durante este render. Es la forma normal de arrancar trabajo
-  // asíncrono desde un efecto.
-  useEffect(() => {
-    // `lockedRef` y no `locked`: esto tiene que correr al montar y nada
-    // más. Sin la guarda, activar el cerrojo desde Ajustes hace que
-    // `enabled` pase a `true` con la app ya abierta, y el diálogo de huella
-    // saltaría encima de la pantalla de ajustes sin que nadie lo pidiera.
-    if (!enabled || !lockedRef.current) return;
-    void runBiometrics();
-  }, [enabled, runBiometrics]);
-
-  // Volver a la app después de un rato afuera.
-  //
-  // **Hay dos detectores, y el segundo es el que de verdad funciona en el
-  // APK.** `visibilitychange` es el camino normal de la web y adentro de un
-  // WebView de Android **no es fiable**: cuando el sistema pausa la
-  // actividad, muchas veces ese evento nunca llega. El síntoma fue
-  // exactamente ese — con el cerrojo en "Siempre", al arrancar en frío
-  // pedía la huella, pero al volver a la app desde segundo plano no pedía
-  // nada, porque `hiddenAt` seguía en `null` y la función salía por la
-  // primera puerta.
-  //
-  // El segundo detector no depende de ningún evento: **mira el reloj**. Un
-  // latido cada dos segundos; si entre dos latidos pasó mucho más que eso,
-  // es que a la app la congelaron, que es justo lo que pasa al mandarla al
-  // fondo. El mismo razonamiento que el cierre por inactividad: contra el
-  // reloj, no contra un temporizador que se congela con la app.
   const volvio = useCallback(
     (afueraMs: number) => {
       if (!shouldAskOnReturn(lockWhen, afueraMs)) return;
       setLocked(true);
-      setShowPin(false);
-      askAgain();
     },
-    [lockWhen, askAgain]
+    [lockWhen]
   );
 
+  // Volver a la app después de un rato afuera.
+  //
+  // **Hay tres avisos para el mismo momento, y ninguno sobra.**
+  // `visibilitychange` es el camino de la web y adentro de un WebView de
+  // Android **no es fiable**: cuando el sistema pausa la actividad, muchas
+  // veces nunca llega. `focus` llega cuando Android devuelve el foco a la
+  // ventana, que es el caso de volver desde la lista de recientes, y
+  // `pageshow` cubre la vuelta desde el historial.
   useEffect(() => {
     if (!enabled) return;
 
@@ -170,8 +107,8 @@ export function AppLockGate({
      * **Se mide contra el latido y no solo contra `hiddenAt`.** Ese dato
      * solo existe si el evento de "me fui" llegó, y adentro del WebView
      * muchas veces no llega. El latido, en cambio, se congela con la app:
-     * el tiempo desde el último es el tiempo que estuvimos afuera, lo
-     * haya anunciado alguien o no.
+     * el tiempo desde el último es el tiempo que estuvimos afuera, lo haya
+     * anunciado alguien o no.
      */
     function volviAlFrente() {
       const ahora = Date.now();
@@ -182,7 +119,7 @@ export function AppLockGate({
         ultimoLatido.current === 0 ? 0 : ahora - ultimoLatido.current
       );
       // El latido se pone al día acá mismo: si no, el intervalo volvería a
-      // ver el mismo hueco en su primer tick y pediría la huella dos veces.
+      // ver el mismo hueco en su primer tick.
       ultimoLatido.current = ahora;
       if (afuera <= 0) return;
       volvio(afuera);
@@ -196,12 +133,6 @@ export function AppLockGate({
       volviAlFrente();
     }
 
-    // **Tres avisos para el mismo momento, y ninguno sobra.**
-    // `visibilitychange` es el de la web y adentro del WebView falla;
-    // `focus` llega cuando Android devuelve el foco a la ventana, que es
-    // el caso de volver desde la lista de recientes; `pageshow` cubre la
-    // vuelta desde el historial. El que llegue primero decide, y los demás
-    // ya no encuentran hueco que medir.
     document.addEventListener("visibilitychange", onVisibility);
     window.addEventListener("focus", volviAlFrente);
     window.addEventListener("pageshow", volviAlFrente);
@@ -212,7 +143,9 @@ export function AppLockGate({
     };
   }, [enabled, volvio]);
 
-  // El latido. Ver el comentario de arriba.
+  // El latido: el detector que no depende de ningún evento. Si entre dos
+  // vueltas pasó mucho más que el intervalo, es que a la app la congelaron
+  // — que es justo lo que pasa al mandarla al fondo.
   useEffect(() => {
     if (!enabled) return;
 
@@ -222,11 +155,8 @@ export function AppLockGate({
       const hueco = ahora - ultimoLatido.current;
       ultimoLatido.current = ahora;
 
-      // **Mientras el cerrojo está en pantalla no se mide nada.** El
-      // diálogo de huella de Android pausa la app, así que produce un hueco
-      // igual que irse a otra app: sin esta guarda, cada intento de
-      // desbloquear volvería a cerrar el cerrojo, en bucle.
-      if (lockedRef.current || askingRef.current) return;
+      // Con el cerrojo ya en pantalla no hay nada que medir.
+      if (lockedRef.current) return;
 
       if (hueco >= HUECO_MINIMO_MS) volvio(hueco);
     }, LATIDO_MS);
@@ -248,16 +178,7 @@ export function AppLockGate({
       <div aria-hidden inert hidden>
         {children}
       </div>
-      <LockScreen
-        asking={asking}
-        etapa={etapa}
-        issue={issue}
-        showPin={showPin}
-        hasPin={hasPin}
-        onRetry={askAgain}
-        onUnlocked={() => setLocked(false)}
-        onUsePin={() => setShowPin(true)}
-      />
+      <LockScreen onUnlocked={() => setLocked(false)} />
     </>
   );
 }
@@ -266,24 +187,10 @@ export function AppLockGate({
  * La pantalla de cerrojo, con el lenguaje de la app.
  *
  * La primera versión era el logo flotando en negro y tres enlaces grises
- * casi del mismo peso, uno debajo de otro: no se parecía a ninguna otra
- * pantalla y no se sabía qué tocar. Ahora es un panel sobre la superficie,
- * como los diálogos, con **una sola acción principal** y el resto callado
- * abajo — la misma regla que el resto de la app.
+ * casi del mismo peso: no se parecía a ninguna otra pantalla y no se sabía
+ * qué tocar. Es un panel sobre la superficie, como los diálogos, con el
+ * campo del PIN y las salidas debajo, más calladas.
  */
-/**
- * Qué está haciendo, paso a paso.
- *
- * Decir siempre "Esperando tu huella..." escondía dónde se trababa: si el
- * lector no carga, si el sistema no contesta o si el diálogo nunca aparece
- * son tres fallas distintas con tres arreglos distintos, y desde adentro
- * del APK no hay consola para distinguirlas.
- */
-const ETAPA_TEXTO: Record<EtapaBiometria, string> = {
-  cargando: "Abriendo el lector de huella...",
-  consultando: "Consultando el lector...",
-  esperando: "Esperando tu huella...",
-};
 
 /** Cada cuánto late el detector de "me congelaron". */
 const LATIDO_MS = 2000;
@@ -294,31 +201,12 @@ const LATIDO_MS = 2000;
  * Tres latidos. Con menos, una pausa del recolector de basura o un momento
  * de carga pesada podrían leerse como "volvió de segundo plano" y cerrar el
  * cerrojo sin motivo. La contra es que salir y volver en menos de seis
- * segundos no lo dispara; `visibilitychange` cubre ese caso cuando sí
- * llega.
+ * segundos no lo dispara por esta vía; los eventos de arriba cubren ese
+ * caso cuando llegan.
  */
 const HUECO_MINIMO_MS = 6000;
 
-function LockScreen({
-  asking,
-  etapa,
-  issue,
-  showPin,
-  hasPin,
-  onRetry,
-  onUnlocked,
-  onUsePin,
-}: {
-  asking: boolean;
-  etapa: EtapaBiometria;
-  /** Qué falló al pedir la huella, si falló. */
-  issue: string | null;
-  showPin: boolean;
-  hasPin: boolean;
-  onRetry: () => void;
-  onUnlocked: () => void;
-  onUsePin: () => void;
-}) {
+function LockScreen({ onUnlocked }: { onUnlocked: () => void }) {
   const router = useRouter();
   const [pin, setPin] = useState("");
   const [error, setError] = useState("");
@@ -330,8 +218,8 @@ function LockScreen({
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (showPin) inputRef.current?.focus();
-  }, [showPin]);
+    inputRef.current?.focus();
+  }, []);
 
   const submit = useCallback(
     async (value: string) => {
@@ -355,9 +243,13 @@ function LockScreen({
     const next = cleanPinInput(raw);
     setPin(next);
     setError("");
-    // Se manda solo al completar los cinco: un botón "Entrar" acá es un
+    // Se manda solo al completar los seis: un botón "Entrar" acá sería un
     // toque de más en algo que se hace varias veces al día.
-    if (isValidPin(next)) void submit(next);
+    //
+    // **Para un PIN viejo de cinco dígitos está el botón de abajo.** Sin
+    // él, cambiar el largo de cinco a seis habría dejado ese PIN
+    // imposible de escribir y a su dueño afuera.
+    if (next.length === PIN_LENGTH) void submit(next);
   }
 
   async function leave() {
@@ -382,86 +274,49 @@ function LockScreen({
             </span>
             <div className="flex flex-col items-center gap-1">
               <h1 className="text-heading text-ink">TicoFinanza</h1>
-              <p aria-live="polite" className="text-meta text-ink-3">
-                {showPin
-                  ? "Escribí tu PIN"
-                  : asking
-                    ? ETAPA_TEXTO[etapa]
-                    : "Tocá para desbloquear"}
-              </p>
+              <p className="text-meta text-ink-3">Escribí tu PIN</p>
             </div>
           </div>
 
-          {showPin ? (
-            <div className="flex w-full flex-col items-center gap-4">
-              <PinBoxes
-                key={rejections}
-                value={pin}
-                onChange={onPinChange}
-                disabled={checking}
-                error={Boolean(error)}
-                inputRef={inputRef}
-              />
-              <p role="alert" className="min-h-[1.25rem] text-label font-normal text-expense">
-                {checking ? "" : error}
-              </p>
-            </div>
-          ) : (
-            /* Una sola acción principal, como en cualquier otra pantalla. */
-            <div className="flex w-full flex-col items-center gap-2">
+          <div className="flex w-full flex-col items-center gap-4">
+            <PinBoxes
+              key={rejections}
+              value={pin}
+              onChange={onPinChange}
+              disabled={checking}
+              error={Boolean(error)}
+              inputRef={inputRef}
+            />
+            <p role="alert" className="min-h-[1.25rem] text-label font-normal text-expense">
+              {checking ? "" : error}
+            </p>
+            {/* Solo aparece con un PIN de los viejos, de cinco dígitos: con
+                seis, el envío es automático y este botón nunca se ve. */}
+            {pin.length === MIN_PIN_LENGTH && (
               <Button
-                variant="primary"
+                variant="secondary"
                 className="h-11 w-full"
-                onClick={onRetry}
-                disabled={asking}
+                onClick={() => void submit(pin)}
+                disabled={checking || !isSubmittablePin(pin)}
               >
-                <Fingerprint size={18} />
-                Desbloquear
+                Entrar
               </Button>
-              {issue && (
-                <p role="alert" className="text-center text-meta leading-snug text-expense">
-                  {issue}
-                </p>
-              )}
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
         {/* Las salidas, debajo del panel y más calladas: son el camino de
-            atrás, no lo que uno viene a hacer acá.
-
-            **"Usar el PIN" nunca va deshabilitado, ni mientras espera la
-            huella.** El diálogo del sistema es modal: si aparece, tapa
-            esto y no se puede tocar igual; si NO aparece —que es justo
-            cuando hace falta— este enlace es la única salida. Estuvo
-            deshabilitado mientras se pedía la huella, y una vez que el
-            diálogo no apareció la pantalla quedó sin escape, diciendo
-            "esperando tu huella..." para siempre. */}
+            atrás, no lo que uno viene a hacer acá. */}
         <div className="flex flex-col items-center gap-0.5 pt-4">
-          {showPin ? (
-            <Button variant="ghost" size="sm" onClick={onRetry} disabled={checking}>
-              <Fingerprint size={14} />
-              Usar la huella
-            </Button>
-          ) : (
-            hasPin && (
-              <Button variant="ghost" size="sm" onClick={onUsePin}>
-                <LockKey size={14} />
-                Usar el PIN
-              </Button>
-            )
-          )}
-          {hasPin && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setForgot(true)}
-              disabled={checking}
-              className="text-ink-3"
-            >
-              No me acuerdo del PIN
-            </Button>
-          )}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setForgot(true)}
+            disabled={checking}
+            className="text-ink-3"
+          >
+            No me acuerdo del PIN
+          </Button>
           <Button variant="ghost" size="sm" onClick={() => void leave()} className="text-ink-3">
             Cerrar sesión
           </Button>
@@ -482,10 +337,10 @@ function LockScreen({
 }
 
 /**
- * Las cinco casillas del PIN.
+ * Las casillas del PIN.
  *
  * El dibujo son las casillas; lo que recibe las teclas es un solo campo
- * invisible encima. Cinco campos de verdad obligarían a mover el foco a
+ * invisible encima. Un campo por dígito obligaría a mover el foco a
  * mano en cada dígito y a pelearse con el borrado hacia atrás.
  *
  * La casilla que sigue lleva el borde de acento, así se ve dónde va a caer
@@ -513,19 +368,19 @@ function PinBoxes({
         onChange={(e) => onChange(e.target.value)}
         inputMode="numeric"
         autoComplete="off"
-        aria-label="PIN de cinco dígitos"
+        aria-label={`PIN de ${PIN_LENGTH} dígitos`}
         aria-invalid={error || undefined}
         disabled={disabled}
         className="absolute inset-0 h-full w-full cursor-default opacity-0"
       />
-      <div className="pointer-events-none flex justify-center gap-2.5">
-        {Array.from({ length: 5 }, (_, i) => {
+      <div className="pointer-events-none flex justify-center gap-2">
+        {Array.from({ length: PIN_LENGTH }, (_, i) => {
           const lleno = i < value.length;
           const siguiente = i === value.length && !disabled;
           return (
             <span
               key={i}
-              className={`flex h-12 w-10 items-center justify-center rounded-control border bg-surface-raised transition-[border-color,background-color] duration-150 ${
+              className={`flex h-12 w-full max-w-[2.75rem] items-center justify-center rounded-control border bg-surface-raised transition-[border-color,background-color] duration-150 ${
                 error
                   ? "border-expense"
                   : lleno

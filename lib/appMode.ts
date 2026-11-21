@@ -9,7 +9,7 @@
  * - La portada **no existe** en el APK: entrar a `/` lleva a la bienvenida
  *   o al resumen, nunca a la página que vende el producto.
  * - El cierre de sesión por inactividad **no corre** en el APK: ahí la
- *   sesión se queda viva y lo que protege es el cerrojo con huella o PIN.
+ *   sesión se queda viva y lo que protege es el cerrojo con PIN.
  * - El cerrojo, al revés, **solo** existe en el APK.
  *
  * La marca viaja en el identificador del navegador (`appendUserAgent` de

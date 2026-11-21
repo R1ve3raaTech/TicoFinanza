@@ -2,6 +2,7 @@ import { strict as assert } from "node:assert";
 import test from "node:test";
 import {
   cleanPinInput,
+  isSubmittablePin,
   isValidPin,
   lockEnabled,
   parseLockWhen,
@@ -69,20 +70,38 @@ test('con el cerrojo apagado no pide ni al volver', () => {
   assert.equal(shouldAskOnReturn("nunca", 60 * 60_000), false);
 });
 
-test("el PIN son exactamente cinco dígitos", () => {
-  assert.equal(isValidPin("12345"), true);
-  assert.equal(isValidPin("1234"), false);
-  assert.equal(isValidPin("123456"), false);
-  assert.equal(isValidPin("1234a"), false);
+test("un PIN nuevo son exactamente seis dígitos", () => {
+  assert.equal(isValidPin("123456"), true);
+  assert.equal(isValidPin("12345"), false);
+  assert.equal(isValidPin("1234567"), false);
+  assert.equal(isValidPin("12345a"), false);
   assert.equal(isValidPin(""), false);
-  // Nada de espacios ni signos que pasen por "dígito".
-  assert.equal(isValidPin("12 34"), false);
-  assert.equal(isValidPin("+1234"), false);
+  assert.equal(isValidPin("12 345"), false);
+  assert.equal(isValidPin("+12345"), false);
+});
+
+/**
+ * **El PIN pasó de cinco dígitos a seis, y había gente con uno de cinco
+ * guardado.**
+ *
+ * Si la pantalla de desbloqueo exigiera seis, ese PIN no se podría escribir
+ * nunca: el cambio de largo dejaría a su dueño afuera de sus propios datos,
+ * con el código por correo como única salida y sin que nada se lo avisara.
+ * Por eso lo que se acepta al **desbloquear** es más ancho que lo que se
+ * acepta al **poner** un PIN.
+ */
+test("al desbloquear se aceptan los PIN viejos de cinco dígitos", () => {
+  assert.equal(isSubmittablePin("12345"), true);
+  assert.equal(isSubmittablePin("123456"), true);
+  assert.equal(isSubmittablePin("1234"), false, "cuatro es demasiado corto");
+  assert.equal(isSubmittablePin("1234567"), false, "no entra en el campo");
+  assert.equal(isSubmittablePin("12345a"), false);
+  assert.equal(isSubmittablePin(""), false);
 });
 
 test("lo tecleado y lo pegado se limpian igual", () => {
   assert.equal(cleanPinInput("12a3b4"), "1234");
-  assert.equal(cleanPinInput("123456789"), "12345");
+  assert.equal(cleanPinInput("123456789"), "123456");
   assert.equal(cleanPinInput("  1 2 3  "), "123");
   assert.equal(cleanPinInput("abc"), "");
 });

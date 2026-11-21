@@ -16,7 +16,7 @@ const SALT_LENGTH = 16;
  *
  * Es `scrypt`, que viene en Node: no hace falta sumar una dependencia para
  * esto. Está hecho para ser lento a propósito, que es justo lo que se pide
- * de un hash de contraseña — con un espacio de cinco dígitos, un hash
+ * de un hash de contraseña — con un espacio de seis dígitos, un hash
  * rápido (sha256) se recorre entero en un suspiro.
  *
  * La sal es nueva en cada PIN, así que dos personas con el mismo PIN no

@@ -10,12 +10,13 @@ import { FormError } from "@/components/ui/Field";
 import { Segmented } from "@/components/ui/Segmented";
 import {
   cleanPinInput,
+  isSubmittablePin,
   isValidPin,
+  PIN_LENGTH,
   LOCK_OPTIONS,
   weakensLock,
   type AppLockWhen,
 } from "@/lib/appLock";
-import { diagnosticoBiometria, unlockWithBiometrics } from "@/lib/native";
 import { SettingsRow } from "./SettingsSection";
 
 /**
@@ -25,10 +26,15 @@ import { SettingsRow } from "./SettingsSection";
  * web no hay cerrojo que configurar, ahí sigue el cierre de sesión por
  * inactividad.
  *
- * El PIN es el respaldo de la huella, para un teléfono que no tiene ninguna
- * registrada. Se guarda hasheado y **se verifica en el servidor**, que
- * lleva el límite de intentos: un hash mandado al navegador se prueba
- * contra las cien mil combinaciones de cinco dígitos en un suspiro.
+ * **El PIN es lo único que abre el cerrojo.** Hubo huella y se quitó: el
+ * lector andaba, pero todo lo que lo rodeaba —el puente nativo que puede
+ * no estar listo, los avisos de "volví a la app" que no llegan, el camino
+ * de "no se pudo preguntar"— fallaba de formas que no se veían. Ver
+ * `AppLockGate`.
+ *
+ * Son seis dígitos. Se guardan hasheados y **se verifican en el servidor**,
+ * que lleva el límite de intentos: un hash mandado al navegador se prueba
+ * contra el millón de combinaciones en un suspiro.
  *
  * **Aflojar el cerrojo pide el PIN actual, en el APK y en la web.** El caso
  * real es que te agarren el teléfono con la app ya abierta —justo de lo que
@@ -40,9 +46,9 @@ import { SettingsRow } from "./SettingsSection";
  * abrir Chrome ahí mismo, donde tu sesión suele estar viva. La recuperación
  * ahora es un código al correo (`ForgotPinDialog`).
  *
- * Sin PIN puesto lo único que hay es volver a pedir la huella, que es un
- * control del lado del teléfono y por lo tanto más débil — es lo que
- * permite la plataforma sin meter un intercambio de llaves nativo.
+ * **Sin PIN puesto no hay cerrojo**, y el "cada cuánto" no hace nada: la
+ * app abre directo. Trabar a alguien sin darle con qué volver a entrar
+ * sería dejarlo afuera de sus propios datos.
  */
 type Prompt =
   | { kind: "cambiar" }
@@ -55,14 +61,6 @@ export function AppLockSetting({ lockWhen, hasPin }: { lockWhen: AppLockWhen; ha
   const [pinSet, setPinSet] = useState(hasPin);
   const [prompt, setPrompt] = useState<Prompt | null>(null);
   const [forgot, setForgot] = useState(false);
-  /**
-   * Qué contesta el lector de huella, escrito en la pantalla.
-   *
-   * No es una explicación de cómo funciona la app —de esas no van— sino un
-   * dato del teléfono que no se puede ver de ninguna otra forma: adentro
-   * del APK no hay consola. Aparece solo cuando se aprieta el botón.
-   */
-  const [diagnostico, setDiagnostico] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   /** Guarda el "cada cuánto". `currentPin` solo viaja si el cambio afloja. */
@@ -81,51 +79,32 @@ export function AppLockSetting({ lockWhen, hasPin }: { lockWhen: AppLockWhen; ha
     });
   }
 
-  async function changeWhen(value: AppLockWhen) {
+  function changeWhen(value: AppLockWhen) {
     if (!weakensLock(when, value)) {
       applyWhen(value);
       return;
     }
+    // **Aflojar el cerrojo cuesta el PIN.** El caso real: te agarran el
+    // teléfono con la app recién usada —y por lo tanto abierta— y desde
+    // acá se pasa el cerrojo a "Nunca". Un rato de acceso prestado se
+    // convertiría en acceso para siempre.
     if (pinSet) {
       setPrompt({ kind: "aflojar", to: value });
       return;
     }
-    // Sin PIN, el único control posible es la huella de este teléfono.
-    //
-    // **Solo se afloja con un "sí" explícito o cuando no hay con qué
-    // preguntar.** Antes bastaba con que el resultado no fuera "cancelado",
-    // así que un error del lector —o un plugin que no cargara— aflojaba el
-    // cerrojo sin que nadie confirmara nada. Es el mismo fail-open que ya
-    // había en el cerrojo mismo: lo que no es una confirmación no puede
-    // valer como confirmación.
-    //
-    // "no-disponible" sí pasa, y es coherente con el resto: significa que
-    // este teléfono no tiene huella registrada, o sea que no hay control
-    // que ejercer. Es la misma puerta que deja entrar a `AppLockGate`.
-    const { estado } = await unlockWithBiometrics("Confirmá para aflojar el cerrojo");
-    if (estado !== "ok" && estado !== "no-disponible") return;
+    // Sin PIN no hay cerrojo que aflojar: `AppLockGate` ya deja pasar.
     applyWhen(value);
   }
 
   return (
     <>
-      {/* Control segmentado, el mismo que usa "Tema" dos filas más arriba.
-          Antes era un desplegable de formulario: puestos uno sobre otro, se
-          notaba que venían de dos apps distintas. */}
-      <SettingsRow inline label="Pedir al volver a la app">
-        <Segmented
-          value={when}
-          onChange={(value) => void changeWhen(value)}
-          ariaLabel="Pedir al volver a la app"
-          disabled={pending}
-          options={LOCK_OPTIONS.map((option) => ({ value: option.value, label: option.label }))}
-        />
-      </SettingsRow>
-
-      <SettingsRow inline label="PIN de respaldo">
+      {/* **El PIN va primero**: sin él, el "cada cuánto" de abajo no hace
+          nada, porque el cerrojo no se cierra. Era al revés cuando la
+          huella podía abrir sola. */}
+      <SettingsRow inline label="PIN de la app">
         <span className="text-meta text-ink-3">{pinSet ? "Puesto" : "Sin poner"}</span>
         <Button
-          variant="secondary"
+          variant={pinSet ? "secondary" : "primary"}
           size="sm"
           onClick={() => setPrompt({ kind: "cambiar" })}
           disabled={pending}
@@ -144,21 +123,22 @@ export function AppLockSetting({ lockWhen, hasPin }: { lockWhen: AppLockWhen; ha
         )}
       </SettingsRow>
 
-      <SettingsRow inline label="Lector de huella">
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={async () => {
-            setDiagnostico("Consultando...");
-            setDiagnostico(await diagnosticoBiometria());
-          }}
-        >
-          Probar
-        </Button>
+      {/* Control segmentado, el mismo que usa "Tema" dos filas más arriba.
+          Antes era un desplegable de formulario: puestos uno sobre otro, se
+          notaba que venían de dos apps distintas.
+
+          **Apagado mientras no haya PIN**, porque mientras no lo haya no
+          gobierna nada: un control que se puede mover y no cambia nada hace
+          creer que el cerrojo está puesto cuando la app abre directo. */}
+      <SettingsRow inline label="Pedir al volver a la app">
+        <Segmented
+          value={when}
+          onChange={changeWhen}
+          ariaLabel="Pedir al volver a la app"
+          disabled={pending || !pinSet}
+          options={LOCK_OPTIONS.map((option) => ({ value: option.value, label: option.label }))}
+        />
       </SettingsRow>
-      {diagnostico && (
-        <p className="pb-3 text-meta text-ink-3 break-words">{diagnostico}</p>
-      )}
 
       {prompt && (
         <PinFlow
@@ -214,7 +194,7 @@ const TITLES = {
  *
  * Al poner uno nuevo se pide dos veces: un dígito mal tecleado acá es un
  * cerrojo que no abre después, y la persona no tendría forma de saber cuál
- * puso. Hay salida (la huella, y cerrar sesión), pero enterarse el día que
+ * puso. Hay salida (el código por correo, y cerrar sesión), pero enterarse el día que
  * lo necesitás es el peor momento.
  */
 function PinFlow({
@@ -249,11 +229,28 @@ function PinFlow({
     setStep((s) => s + 1);
   }
 
+  /**
+   * ¿Este valor ya se puede mandar?
+   *
+   * **El PIN actual y un PIN nuevo no se miden igual.** Un PIN nuevo son
+   * seis dígitos. Pero el actual puede ser uno de los viejos, de cinco: si
+   * acá se exigieran seis, quien lo tenga así **no podría cambiarlo ni
+   * quitarlo nunca** — el cambio de largo le trabaría su propio cerrojo.
+   */
+  const completo = (v: string) =>
+    which === "actual" ? isSubmittablePin(v) : isValidPin(v);
+
   function onChange(raw: string) {
     const next = cleanPinInput(raw);
     setValue(next);
     setError("");
-    if (!isValidPin(next)) return;
+    // Con seis dígitos se manda solo. Con cinco —un PIN de los viejos— hay
+    // un botón, porque no se sabe si terminó de escribir.
+    if (isValidPin(next)) enviar(next);
+  }
+
+  function enviar(next: string) {
+    setError("");
 
     if (which === "actual") {
       // El PIN actual no se comprueba acá: viaja con la operación y lo
@@ -330,6 +327,14 @@ function PinFlow({
         />
         <FormError>{error}</FormError>
 
+        {/* Solo con un PIN de los viejos, de cinco dígitos: con seis el
+            envío es automático y este botón nunca aparece. */}
+        {completo(value) && !isValidPin(value) && (
+          <Button variant="primary" onClick={() => enviar(value)} disabled={pending}>
+            Continuar
+          </Button>
+        )}
+
         {/* La salida cuando no te acordás. Sin esto, exigir el PIN para
             quitarlo deja la app trabada para siempre en ese teléfono. */}
         {which === "actual" && (
@@ -343,9 +348,9 @@ function PinFlow({
 }
 
 /**
- * Cinco casillas con un solo campo invisible encima.
+ * Las casillas del PIN, con un solo campo invisible encima.
  *
- * Cinco campos de verdad obligarían a mover el foco a mano en cada dígito y
+ * Un campo por dígito obligaría a mover el foco a mano en cada dígito y
  * a pelearse con el borrado hacia atrás, que es donde esos controles
  * siempre fallan.
  */
@@ -372,11 +377,11 @@ function PinBoxes({
         disabled={disabled}
         className="absolute inset-0 h-full w-full cursor-default opacity-0"
       />
-      <div className="pointer-events-none flex justify-center gap-2.5">
-        {Array.from({ length: 5 }, (_, i) => (
+      <div className="pointer-events-none flex justify-center gap-2">
+        {Array.from({ length: PIN_LENGTH }, (_, i) => (
           <span
             key={i}
-            className={`flex h-12 w-10 items-center justify-center rounded-control border transition-colors duration-150 ${
+            className={`flex h-12 w-full max-w-[2.75rem] items-center justify-center rounded-control border transition-colors duration-150 ${
               i < value.length ? "border-accent bg-surface" : "border-line bg-surface-raised"
             }`}
           >

@@ -501,7 +501,7 @@ async function requireCurrentPin(
   if ("error" in read) return read;
 
   // Sin PIN puesto no hay nada que comprobar: lo que protege ese teléfono
-  // es la huella, y una huella no se puede verificar desde el servidor.
+  // no hay cerrojo: la app abre directo.
   if (!read.hash) return null;
 
   if (!pin) return { error: "Escribí tu PIN actual." };
@@ -509,7 +509,7 @@ async function requireCurrentPin(
 }
 
 /**
- * Poner o cambiar el PIN de cinco dígitos.
+ * Poner o cambiar el PIN de seis dígitos.
  *
  * Si ya hay uno puesto, hay que escribir el actual: cambiarlo es tan bueno
  * como quitarlo para quien quiera dejarse una puerta abierta.
@@ -518,7 +518,7 @@ export async function setAppPin(pin: string, currentPin?: string) {
   const { supabase, user } = await requireUser();
 
   // Corregible por la persona: el mensaje dice qué arreglar.
-  if (!isValidPin(pin)) return { error: "El PIN son 5 dígitos." };
+  if (!isValidPin(pin)) return { error: "El PIN son 6 dígitos." };
 
   const denied = await requireCurrentPin(supabase, user.id, currentPin);
   if (denied) return denied;
@@ -603,7 +603,7 @@ export async function setAppLockWhen(when: AppLockWhen, currentPin?: string) {
   // a secas no lo alcanza: se guardaba bien en la base y el cerrojo seguía
   // con el valor viejo. Y como Capacitor **no recarga la página** al volver
   // desde la lista de recientes, ese valor viejo podía durar días — el
-  // síntoma fue elegir "Siempre" y que la app nunca pidiera la huella.
+  // síntoma fue elegir "Siempre" y que la app nunca pidiera el PIN.
   revalidatePath("/dashboard", "layout");
   return { error: null };
 }
@@ -612,10 +612,11 @@ export async function setAppLockWhen(when: AppLockWhen, currentPin?: string) {
  * Abrir el cerrojo con el PIN.
  *
  * **Se verifica en el servidor y no en el teléfono.** Un hash mandado al
- * navegador se prueba contra las cien mil combinaciones de cinco dígitos en
+ * navegador se prueba contra el millón de combinaciones de seis dígitos en
  * un suspiro; acá no hay nada que probar sin pasar por el límite de
- * intentos. La contra, y es real: sin señal el PIN no funciona. La huella
- * sí, porque esa la resuelve Android sin salir del teléfono.
+ * **La contra, y es real: sin señal el PIN no se puede verificar**, así que
+ * sin datos el cerrojo no se abre. Es el precio de que la comprobación no
+ * viva en el teléfono, que es justo lo que la hace valer.
  *
  * Diez intentos cada cinco minutos. No bloquea la cuenta: la espera se
  * vence sola, porque dejar a alguien afuera de sus propios datos por

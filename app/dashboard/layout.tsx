@@ -115,11 +115,11 @@ export default async function DashboardLayout({ children }: { children: ReactNod
 
   // El APK y la web sirven el mismo sitio, así que hay que distinguirlos:
   // dentro del APK no corre el cierre por inactividad y sí el cerrojo con
-  // huella o PIN. Ver lib/appMode.ts.
+  // el PIN. Ver lib/appMode.ts.
   const isApp = isAppUserAgent((await headers()).get("user-agent"));
   const lockWhen = parseLockWhen(settings?.app_lock_when);
   // Solo si HAY PIN, nunca el hash: mandarlo al navegador daría las cien
-  // mil combinaciones de cinco dígitos para probar sin límite de intentos.
+  // millón de combinaciones de seis dígitos para probar sin límite de intentos.
   const hasPin = Boolean(settings?.app_lock_pin_hash);
 
   const stamp = renderedStamp();
@@ -161,7 +161,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
           <ThemeSync dbTheme={dbTheme} />
           {/* Solo dentro del área con sesión, y solo en la web: en el APK
               la sesión se queda viva y lo que protege es el cerrojo con
-              huella o PIN. Un teléfono propio no es una compu prestada. */}
+              el PIN. Un teléfono propio no es una compu prestada. */}
           {!isApp && <IdleLogout />}
           {/* De quién es lo que quedó sin enviar. IndexedDB es del origen y
               sobrevive al cierre de sesión, así que la cola se filtra por el

@@ -1,5 +1,5 @@
 /**
- * Cuándo el APK vuelve a pedir huella o PIN.
+ * Cuándo el APK vuelve a pedir el PIN.
  *
  * Es lógica pura y sin dependencias a propósito: la decide el navegador (el
  * cerrojo tiene que poder cerrarse sin señal) y se prueba sola.
@@ -97,22 +97,45 @@ export function weakensLock(from: AppLockWhen, to: AppLockWhen): boolean {
   return STRENGTH[to] < STRENGTH[from];
 }
 
-/** Dígitos exactos del PIN. Numérico para que salga el teclado de números. */
-export const PIN_LENGTH = 5;
+/** Dígitos de un PIN nuevo. Numérico para que salga el teclado de números. */
+export const PIN_LENGTH = 6;
 
 /**
- * El PIN son cinco dígitos.
+ * **Lo mínimo que se acepta al desbloquear, que no es el largo de un PIN
+ * nuevo.**
+ *
+ * El PIN pasó de cinco dígitos a seis. Un PIN de cinco guardado antes del
+ * cambio sigue siendo el PIN de esa persona: si la pantalla de desbloqueo
+ * exigiera seis, ese PIN no se podría escribir nunca y la única salida
+ * sería el código por correo — o sea, cambiar el largo dejaría a alguien
+ * afuera de sus propios datos sin avisar.
+ *
+ * Al **poner** un PIN siempre se piden seis. Esto solo gobierna lo que la
+ * pantalla de desbloqueo deja mandar a verificar.
+ */
+export const MIN_PIN_LENGTH = 5;
+
+/**
+ * Un PIN nuevo: seis dígitos exactos.
  *
  * No es la última defensa: se verifica **en el servidor**, que lleva el
- * límite de intentos. Por eso cinco dígitos alcanzan — lo que hace inútil
- * adivinar no es el largo sino que no se pueda probar mil veces por
- * segundo.
+ * límite de intentos. Lo que hace inútil adivinar no es el largo sino que
+ * no se pueda probar mil veces por segundo.
  */
 export function isValidPin(pin: string): boolean {
-  return new RegExp(`^\\d{${PIN_LENGTH}}$`).test(pin);
+  return /^[0-9]+$/.test(pin) && pin.length === PIN_LENGTH;
+}
+
+/** ¿Se puede mandar a verificar? Cubre también los PIN viejos de cinco. */
+export function isSubmittablePin(pin: string): boolean {
+  return (
+    /^[0-9]+$/.test(pin) &&
+    pin.length >= MIN_PIN_LENGTH &&
+    pin.length <= PIN_LENGTH
+  );
 }
 
 /** Deja solo dígitos y corta al largo. Para lo tecleado y para lo pegado. */
 export function cleanPinInput(raw: string): string {
-  return raw.replace(/\D/g, "").slice(0, PIN_LENGTH);
+  return raw.replace(/[^0-9]/g, "").slice(0, PIN_LENGTH);
 }
