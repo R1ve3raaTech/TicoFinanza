@@ -110,14 +110,17 @@ export async function sendToAllDevices(
   payload: PushPayload
 ): Promise<PushResult> {
   const { sendFcmToUser } = await import("./fcm");
-  const [web, android] = await Promise.all([
+  // `allSettled` y no `all`: con `all`, que uno de los dos caminos falle
+  // descarta también el resultado del otro, aunque ese haya salido bien.
+  const [web, android] = await Promise.allSettled([
     sendPushToUser(admin, userId, payload),
     sendFcmToUser(admin, userId, payload),
   ]);
-  return {
-    sent: web.sent + android.sent,
-    removed: web.removed + android.removed,
-  };
+  const cuenta = (r: PromiseSettledResult<PushResult | { sent: number; removed: number }>) =>
+    r.status === "fulfilled" ? r.value : { sent: 0, removed: 0 };
+  const a = cuenta(web);
+  const b = cuenta(android);
+  return { sent: a.sent + b.sent, removed: a.removed + b.removed };
 }
 
 /**

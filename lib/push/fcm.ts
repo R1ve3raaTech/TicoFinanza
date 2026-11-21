@@ -33,6 +33,16 @@ import type { PushPayload } from "./send";
  */
 
 const SCOPE = "https://www.googleapis.com/auth/firebase.messaging";
+
+// Escritas así para que no haya dudas de qué es un salto de verdad y qué
+// es la barra y la ene escritas como texto, que es justo lo que se
+// confunde al leer este archivo.
+const SALTO = String.fromCharCode(10);
+const CR_LF = String.fromCharCode(13) + SALTO;
+const BARRA_N = String.fromCharCode(92) + "n";
+const BARRA_R_N = String.fromCharCode(92) + "r" + BARRA_N;
+const DOBLE = String.fromCharCode(34);
+const SIMPLE = String.fromCharCode(39);
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
 
 interface Credencial {
@@ -41,16 +51,65 @@ interface Credencial {
   privateKey: string;
 }
 
-function credencial(): Credencial | null {
-  const projectId = process.env.FCM_PROJECT_ID;
-  const clientEmail = process.env.FCM_CLIENT_EMAIL;
-  // En Vercel el salto de línea se escribe `\n`, así que llega literal y
-  // hay que devolverlo a lo que es: sin esto la clave no parsea y el error
-  // ("error:1E08010C") no se parece en nada a la causa.
-  const privateKey = process.env.FCM_PRIVATE_KEY?.replace(/\n/g, "\n");
+/**
+ * Deja la clave privada en el formato que entiende OpenSSL.
+ *
+ * **Esto no es exceso de cuidado: es el error que de verdad pasó.** Una
+ * clave mal formada falla con "DECODER routines::unsupported", un mensaje
+ * que no se parece en nada a la causa y que no dice cuál de las tres
+ * formas de romperla fue:
+ *
+ * 1. **Comillas pegadas al valor.** En un archivo .env la clave va entre
+ *    comillas; en la interfaz de Vercel NO, porque ahí el valor es el
+ *    texto tal cual y las comillas quedan adentro.
+ * 2. **Saltos de línea escritos como texto**, que es como viajan en un
+ *    .env y como quedan al copiar el campo del JSON de la cuenta de
+ *    servicio.
+ * 3. **La clave entera en una sola línea**, sin ningún salto: pasa al
+ *    copiarla de un editor que la desarma. El cuerpo en base64 tiene que
+ *    ir cortado cada 64 caracteres.
+ *
+ * Las tres se arreglan solas acá. Pedirle a alguien que pegue un PEM a
+ * mano sin equivocarse es pedirle que haga de intérprete de un formato.
+ */
+export function normalizarClave(bruta: string): string {
+  let clave = bruta.trim();
 
-  if (!projectId || !clientEmail || !privateKey) return null;
-  return { projectId, clientEmail, privateKey };
+  // 1. Comillas que envuelven todo el valor.
+  const primera = clave[0];
+  if ((primera === DOBLE || primera === SIMPLE) && clave.endsWith(primera)) {
+    clave = clave.slice(1, -1);
+  }
+
+  // 2. Saltos escritos como texto, y saltos de Windows.
+  clave = clave.split(BARRA_R_N).join(SALTO).split(BARRA_N).join(SALTO);
+  clave = clave.split(CR_LF).join(SALTO).trim();
+
+  // 3. Todo en una línea: se reconstruye el PEM.
+  if (!clave.includes(SALTO)) {
+    const m = /-----BEGIN ([A-Z ]+)-----([\s\S]*?)-----END [A-Z ]+-----/.exec(clave);
+    if (m) {
+      const cuerpo = m[2].replace(/[^A-Za-z0-9+/=]/g, "");
+      const lineas = cuerpo.match(/.{1,64}/g) ?? [];
+      clave =
+        "-----BEGIN " + m[1] + "-----" + SALTO +
+        lineas.join(SALTO) + SALTO +
+        "-----END " + m[1] + "-----" + SALTO;
+    }
+  }
+
+  // OpenSSL quiere el salto final.
+  if (!clave.endsWith(SALTO)) clave += SALTO;
+  return clave;
+}
+
+function credencial(): Credencial | null {
+  const projectId = process.env.FCM_PROJECT_ID?.trim();
+  const clientEmail = process.env.FCM_CLIENT_EMAIL?.trim();
+  const bruta = process.env.FCM_PRIVATE_KEY;
+
+  if (!projectId || !clientEmail || !bruta) return null;
+  return { projectId, clientEmail, privateKey: normalizarClave(bruta) };
 }
 
 /** ¿Está la app en condiciones de mandar avisos a Android? */
@@ -90,10 +149,21 @@ async function accessToken(cred: Credencial): Promise<string | null> {
     })
   );
 
-  const firma = createSign("RSA-SHA256")
-    .update(`${header}.${claims}`)
-    .sign(cred.privateKey);
-  const jwt = `${header}.${claims}.${base64url(firma)}`;
+  // **Firmar puede tirar**, y lo hizo: una clave privada mal pegada
+  // revienta acá con "DECODER routines::unsupported". Sin este `try`, esa
+  // excepción subía hasta la pantalla y tumbaba la acción entera — el
+  // botón de prueba terminaba en la pantalla de error de la app, y el
+  // aviso del navegador, que no tiene nada que ver, tampoco salía.
+  let jwt: string;
+  try {
+    const firma = createSign("RSA-SHA256")
+      .update(`${header}.${claims}`)
+      .sign(cred.privateKey);
+    jwt = `${header}.${claims}.${base64url(firma)}`;
+  } catch (error) {
+    console.error("[TicoFinanza] FCM_PRIVATE_KEY no se pudo leer", error);
+    return null;
+  }
 
   const res = await fetch(TOKEN_URL, {
     method: "POST",
@@ -129,6 +199,23 @@ export interface FcmResult {
  * avisos. Es el mismo criterio que el push del navegador.
  */
 export async function sendFcmToUser(
+  admin: SupabaseClient,
+  userId: string,
+  payload: PushPayload
+): Promise<FcmResult> {
+  try {
+    return await enviar(admin, userId, payload);
+  } catch (error) {
+    // **Un camino de envío no puede tumbar al otro.** Lo que llama a esto
+    // manda también por el push del navegador, y el cron recorre a varias
+    // personas: una credencial rota o un fallo de red de Google tienen que
+    // quedarse acá adentro. El motivo va al registro del servidor.
+    console.error("[TicoFinanza] no se pudo mandar por FCM", error);
+    return { sent: 0, removed: 0 };
+  }
+}
+
+async function enviar(
   admin: SupabaseClient,
   userId: string,
   payload: PushPayload

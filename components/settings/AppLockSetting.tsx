@@ -61,16 +61,6 @@ export function AppLockSetting({ lockWhen, hasPin }: { lockWhen: AppLockWhen; ha
   const [pinSet, setPinSet] = useState(hasPin);
   const [prompt, setPrompt] = useState<Prompt | null>(null);
   const [forgot, setForgot] = useState(false);
-  /**
-   * Qué dice el navegador que es, escrito en la pantalla.
-   *
-   * **Diagnóstico, y temporal.** Hay un desacuerdo entre lo que el
-   * servidor decide —si esto es el APK o la web— y lo que la app hace, y
-   * desde acá no hay forma de ver el identificador que manda el WebView.
-   * Es la misma salida que resolvió el login con Google y el cerrojo: que
-   * el dato salga en la pantalla en vez de adivinarlo.
-   */
-  const [ua, setUa] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   /** Guarda el "cada cuánto". `currentPin` solo viaja si el cambio afloja. */
@@ -149,22 +139,6 @@ export function AppLockSetting({ lockWhen, hasPin }: { lockWhen: AppLockWhen; ha
           options={LOCK_OPTIONS.map((option) => ({ value: option.value, label: option.label }))}
         />
       </SettingsRow>
-
-      <SettingsRow inline label="Identificación">
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={() => {
-            const marca = navigator.userAgent.includes("TicoFinanzaApp");
-            setUa(`${marca ? "CON marca" : "SIN marca"} · ${navigator.userAgent}`);
-          }}
-        >
-          Ver
-        </Button>
-      </SettingsRow>
-      {ua && (
-        <p className="pb-3 text-meta text-ink-3 break-all">{ua}</p>
-      )}
 
       {prompt && (
         <PinFlow
