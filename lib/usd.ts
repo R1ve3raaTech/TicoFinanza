@@ -16,8 +16,8 @@
 export const DEFAULT_USD_RATE = 510;
 
 /** Fuera de este rango es un error de tecleo, no un tipo de cambio. */
-export const MIN_USD_RATE = 100;
-export const MAX_USD_RATE = 2000;
+const MIN_USD_RATE = 100;
+const MAX_USD_RATE = 2000;
 
 export function isValidRate(rate: number): boolean {
   return Number.isFinite(rate) && rate >= MIN_USD_RATE && rate <= MAX_USD_RATE;

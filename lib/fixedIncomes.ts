@@ -75,7 +75,7 @@ export function expectedIncomes(incomes: FixedIncome[], todayKey: string): Expec
   return rows.sort((a, b) => a.dueInDays - b.dueInDays || a.name.localeCompare(b.name, "es"));
 }
 
-export interface IncomeTotals {
+interface IncomeTotals {
   /** Todo lo que se espera este mes. */
   expected: number;
   /** Lo ya confirmado. */

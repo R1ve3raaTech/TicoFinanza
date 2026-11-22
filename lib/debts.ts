@@ -2,9 +2,9 @@ import { daysBetween } from "./fixedExpenses";
 import type { Debt, DebtType } from "./types";
 
 /** Igual que los gastos fijos: menos de 5 días para la fecha acordada. */
-export const DEBT_URGENT_DAYS = 5;
+const DEBT_URGENT_DAYS = 5;
 
-export type DebtUrgency = "ninguna" | "pronto" | "vencida";
+type DebtUrgency = "ninguna" | "pronto" | "vencida";
 
 export interface DebtRow extends Debt {
   /** Días hasta la fecha acordada. null si no se acordó ninguna. */
@@ -53,7 +53,7 @@ export function debtRows(debts: Debt[], todayKey: string): DebtRow[] {
     });
 }
 
-export interface DebtTotals {
+interface DebtTotals {
   /** Pendiente de cobrar (te deben). */
   owedToMe: number;
   /** Pendiente de pagar (debés). */
@@ -89,8 +89,3 @@ export function debtTotals(debts: Debt[], todayKey: string): DebtTotals {
 export function settlementType(type: DebtType): "INCOME" | "EXPENSE" {
   return type === "me_deben" ? "INCOME" : "EXPENSE";
 }
-
-export const DEBT_TYPE_LABELS: Record<DebtType, string> = {
-  me_deben: "Me deben",
-  debo: "Debo",
-};

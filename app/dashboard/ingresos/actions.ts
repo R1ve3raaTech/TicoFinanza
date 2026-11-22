@@ -23,7 +23,7 @@ async function requireUser() {
   return { supabase, user };
 }
 
-export interface FixedIncomeInput {
+interface FixedIncomeInput {
   name: string;
   amount: number;
   category: string;

@@ -24,7 +24,7 @@
 export type AppLockWhen = "nunca" | "siempre" | "1min" | "5min";
 
 /** Lo que vale si la columna no existe todavía o trae algo raro. */
-export const DEFAULT_LOCK_WHEN: AppLockWhen = "1min";
+const DEFAULT_LOCK_WHEN: AppLockWhen = "1min";
 
 const VALUES: AppLockWhen[] = ["nunca", "siempre", "1min", "5min"];
 

@@ -61,7 +61,7 @@ async function shrinkImage(file: File): Promise<{ blob: Blob; type: string }> {
   }
 }
 
-export interface UploadResult {
+interface UploadResult {
   path: string | null;
   error: string | null;
 }

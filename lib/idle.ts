@@ -30,7 +30,7 @@ export const IDLE_WARNING_MS = 60_000;
  */
 export const IDLE_ACTIVITY_KEY = "ticofinanza:ultima-actividad";
 
-export type IdlePhase = "activa" | "por-vencer" | "vencida";
+type IdlePhase = "activa" | "por-vencer" | "vencida";
 
 export function idlePhase(idleMs: number): IdlePhase {
   if (idleMs >= IDLE_TIMEOUT_MS) return "vencida";

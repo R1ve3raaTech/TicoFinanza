@@ -40,7 +40,7 @@ export function TypeToggle({
 
 /** Lo que se puede anotar: un gasto, un ingreso, o plata que se mueve de una
  *  billetera propia a otra. */
-export type EntryKind = TransactionType | "TRANSFER";
+type EntryKind = TransactionType | "TRANSFER";
 
 /**
  * Las tres cosas que se pueden anotar, en el mismo control.

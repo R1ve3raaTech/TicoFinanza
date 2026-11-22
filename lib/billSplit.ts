@@ -7,10 +7,10 @@
  * colones de menos y es el error clásico al dividir la cuenta a mano.
  */
 
-export const IVA_RATE = 0.13;
-export const SERVICE_RATE = 0.1;
+const IVA_RATE = 0.13;
+const SERVICE_RATE = 0.1;
 
-export interface BillInput {
+interface BillInput {
   /** El consumo, antes de impuesto y servicio. */
   base: number;
   service: boolean;
@@ -19,7 +19,7 @@ export interface BillInput {
   people: number;
 }
 
-export interface BillResult {
+interface BillResult {
   base: number;
   service: number;
   tax: number;

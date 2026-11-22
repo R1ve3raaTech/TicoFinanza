@@ -132,7 +132,7 @@ export function expenseByCategory(
 }
 
 /** Tope de porciones del gráfico de dona; la cola se junta en "Otras". */
-export const MAX_CATEGORY_SLICES = 6;
+const MAX_CATEGORY_SLICES = 6;
 
 /**
  * Gasto del mes por categoría, juntando las dos fuentes: los gastos

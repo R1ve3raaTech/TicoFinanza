@@ -1,7 +1,7 @@
 // La app solo maneja colones. Sigue siendo un tipo (en vez de borrar el
 // campo) para no tener que tocar cada firma que hoy recibe una moneda, y por
 // si algún día vuelve a hacer falta más de una.
-export type Currency = "CRC";
+type Currency = "CRC";
 export type TransactionType = "INCOME" | "EXPENSE";
 
 export type AccountType = "efectivo" | "debito" | "credito" | "ahorro";
@@ -110,27 +110,6 @@ export interface FixedExpense {
 
 export type Theme = "dark" | "light" | "system";
 
-export interface UserSettings {
-  user_id: string;
-  theme: Theme;
-  /**
-   * Querer o no los recordatorios de gastos fijos. Es por usuario; que un
-   * navegador concreto pueda recibirlos es otra cosa y vive en
-   * `push_subscriptions`.
-   */
-  reminders_enabled: boolean;
-  /**
-   * Cerrojo del APK de Android (migración 0028). Las dos son opcionales
-   * porque se leen de forma tolerante: en una base sin esa migración
-   * llegan `undefined` y la app sigue andando sin cerrojo.
-   *
-   * `app_lock_pin_hash` es el HASH, nunca el PIN, y no sale del servidor.
-   */
-  app_lock_pin_hash?: string | null;
-  app_lock_when?: string | null;
-  updated_at: string;
-}
-
 export interface UserCategory {
   id: string;
   user_id: string;
@@ -220,7 +199,7 @@ export interface GoalContribution {
 
 /** "me_deben" es un préstamo que hiciste; "debo", uno que te hicieron. */
 export type DebtType = "me_deben" | "debo";
-export type DebtStatus = "pendiente" | "pagado";
+type DebtStatus = "pendiente" | "pagado";
 
 /**
  * Plata prestada entre personas, en cualquiera de las dos direcciones.
@@ -243,15 +222,5 @@ export interface Debt {
   notes: string | null;
   settled_transaction_id: string | null;
   settled_at: string | null;
-  created_at: string;
-}
-
-/** Un navegador suscrito a los recordatorios push. */
-export interface PushSubscriptionRow {
-  id: string;
-  user_id: string;
-  endpoint: string;
-  p256dh: string;
-  auth: string;
   created_at: string;
 }

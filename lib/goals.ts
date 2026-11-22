@@ -12,7 +12,7 @@ export function goalColorVar(color: GoalColor): string {
   return `var(--goal-${color})`;
 }
 
-export interface GoalProgress {
+interface GoalProgress {
   /** Abonado / objetivo, recortado a 1. */
   ratio: number;
   /** Lo que falta para llegar; 0 si ya se completó. */
@@ -91,7 +91,7 @@ export const ANNUAL_GOAL_PRESETS = [
   "Matrícula",
 ] as const;
 
-export interface Proration {
+interface Proration {
   /** Lo que toca apartar por mes para llegar sin apuros. */
   perMonth: number;
   /** Meses del ciclo que ya pasaron, 0 a 12. */
@@ -169,7 +169,7 @@ export function nextCycleDate(targetDate: string, todayKey: string): string {
 }
 
 /** Metas anuales primero y por fecha: lo que vence antes se mira antes. */
-export function annualGoals(goals: SavingsGoal[]): SavingsGoal[] {
+function annualGoals(goals: SavingsGoal[]): SavingsGoal[] {
   return goals
     .filter((goal) => goal.recurrence === "anual")
     .sort((a, b) => (a.target_date ?? "9999").localeCompare(b.target_date ?? "9999"));

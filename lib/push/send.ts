@@ -38,7 +38,7 @@ function ensureConfigured(): boolean {
   return true;
 }
 
-export interface PushResult {
+interface PushResult {
   sent: number;
   /** Suscripciones que el navegador ya revocó y se borraron. */
   removed: number;
@@ -53,7 +53,7 @@ export interface PushResult {
  * de push es temporal y borrar la suscripción por eso desengancharía el
  * dispositivo de alguien que sí quiere los avisos.
  */
-export async function sendPushToUser(
+async function sendPushToUser(
   admin: SupabaseClient,
   userId: string,
   payload: PushPayload
@@ -87,11 +87,6 @@ export async function sendPushToUser(
   return { sent, removed };
 }
 
-/** Si la app está en condiciones de mandar push (claves VAPID configuradas). */
-export function pushConfigured(): boolean {
-  return ensureConfigured();
-}
-
 /**
  * Manda un aviso **por los dos caminos**: el push del navegador y el de
  * Android.
@@ -104,7 +99,7 @@ export function pushConfigured(): boolean {
  * navegador no tiene suscripciones, el otro sale igual. Es a propósito —
  * que falte una credencial no puede dejar a alguien sin ningún aviso.
  */
-export interface EnvioDetallado extends PushResult {
+interface EnvioDetallado extends PushResult {
   /** Cuántos avisos salieron por el push del navegador. */
   web: number;
   /** Cuántos salieron por Firebase, o sea a la app de Android. */

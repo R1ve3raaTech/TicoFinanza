@@ -91,7 +91,7 @@ const KEYWORDS: { category: string; words: string[] }[] = [
   },
 ];
 
-export interface Suggestion {
+interface Suggestion {
   category: string | null;
   accountId: string | null;
   /** De dónde salió, para poder explicarlo en la interfaz. */

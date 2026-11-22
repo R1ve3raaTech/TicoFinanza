@@ -2,7 +2,7 @@
 
 import { useRef, type KeyboardEvent, type ReactNode } from "react";
 
-export interface SegmentedOption<T extends string> {
+interface SegmentedOption<T extends string> {
   value: T;
   label: ReactNode;
   /** Color del texto cuando está elegida. Solo para opciones con significado

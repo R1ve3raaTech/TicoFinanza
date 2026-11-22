@@ -126,7 +126,7 @@ export async function copyBudgetsFromPreviousMonth(monthYear: string) {
 // Metas de ahorro
 // ---------------------------------------------------------------------------
 
-export interface GoalInput {
+interface GoalInput {
   name: string;
   targetAmount: number;
   targetDate: string | null;
@@ -384,7 +384,7 @@ export async function deleteContribution(id: string) {
 // Deudas y préstamos
 // ---------------------------------------------------------------------------
 
-export interface DebtInput {
+interface DebtInput {
   type: DebtType;
   personName: string;
   amount: number;

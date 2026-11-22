@@ -203,7 +203,7 @@ export async function updateCategory(
     // La fila existe (se leyó más arriba, con la política de SELECT) y el
     // UPDATE no tocó nada: lo que falta es el permiso de escritura.
     logFailure("updateCategory: 0 filas afectadas (falta la política de UPDATE, migración 0027)", { id });
-    return { error: "No se guardó: falta correr la migración 0027 en Supabase." };
+    return { error: "No se guardó: a la tabla de categorías le falta el permiso de edición." };
   }
 
   // Los movimientos guardan la categoría como texto, así que renombrarla no
@@ -383,7 +383,7 @@ export async function registerFcmToken(token: string) {
     // La 0032 puede no estar corrida todavía. Decirlo en pantalla, no
     // tragárselo: un interruptor que se prende y no manda nada es
     // indistinguible de uno que funciona.
-    return { error: "Falta correr la migración 0032 en Supabase." };
+    return { error: "A la base de datos le falta la tabla de avisos de Android." };
   }
   if (propio.data) {
     revalidatePath("/dashboard", "layout");

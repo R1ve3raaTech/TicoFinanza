@@ -10,20 +10,11 @@
 
 export const RECEIPTS_BUCKET = "receipts";
 
-/** Lo mismo que acepta el bucket en la migración 0021. */
-export const RECEIPT_MIME_TYPES = [
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-  "image/heic",
-  "application/pdf",
-] as const;
-
 /** Lo que se le pasa a <input type="file" accept>. */
 export const RECEIPT_ACCEPT = "image/*,application/pdf";
 
 /** 5 MB, igual que el `file_size_limit` del bucket. */
-export const RECEIPT_MAX_BYTES = 5 * 1024 * 1024;
+const RECEIPT_MAX_BYTES = 5 * 1024 * 1024;
 
 const EXTENSIONS: Record<string, string> = {
   "image/jpeg": "jpg",

@@ -16,7 +16,7 @@ export const AGUINALDO_CATEGORY = "Salario";
 
 const WINDOW_MONTHS = 12;
 
-export interface AguinaldoMonth {
+interface AguinaldoMonth {
   /** "YYYY-MM". */
   monthKey: string;
   /** Nombre corto del mes, para la etiqueta. */

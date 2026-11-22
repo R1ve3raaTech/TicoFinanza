@@ -14,7 +14,7 @@
 export const INTRO_COOKIE = "tf_intro";
 
 /** Un año. Se ve una vez; si vuelve a salir dentro de un año, algo pasó. */
-export const INTRO_MAX_AGE = 60 * 60 * 24 * 365;
+const INTRO_MAX_AGE = 60 * 60 * 24 * 365;
 
 export function introSeen(value: string | null | undefined): boolean {
   return value === "1";

@@ -257,7 +257,7 @@ export async function getReceiptUrl(path: string) {
 // Cuentas
 // ---------------------------------------------------------------------------
 
-export interface AccountInput {
+interface AccountInput {
   name: string;
   type: AccountType;
   /**
@@ -309,7 +309,7 @@ export async function createAccount(input: AccountInput) {
   if (error) {
     return {
       error: isMissingColumnError(error)
-        ? "Falta correr la migración 0030 en Supabase."
+        ? "A la base de datos le falta la columna del ícono de la cuenta."
         : GENERIC_ERROR,
     };
   }
@@ -356,7 +356,7 @@ export async function updateAccount(id: string, input: AccountInput) {
   if (error) {
     return {
       error: isMissingColumnError(error)
-        ? "Falta correr la migración 0030 en Supabase."
+        ? "A la base de datos le falta la columna del ícono de la cuenta."
         : GENERIC_ERROR,
     };
   }
@@ -385,7 +385,7 @@ export async function deleteAccount(id: string) {
 // Transferencias internas
 // ---------------------------------------------------------------------------
 
-export interface TransferInput {
+interface TransferInput {
   fromAccountId: string;
   toAccountId: string;
   amount: number;
@@ -494,7 +494,7 @@ export async function signOutIdle() {
 // mintiendo. Ver lib/recurring.ts.
 // ---------------------------------------------------------------------------
 
-export interface RecurringInput {
+interface RecurringInput {
   description: string;
   amount: number;
   category: string | null;
@@ -506,7 +506,7 @@ export interface RecurringInput {
 }
 
 function missingColumn(error: { code?: string | null; message?: string | null } | null) {
-  return isMissingColumnError(error) ? "Falta correr la migración 0031 en Supabase." : GENERIC_ERROR;
+  return isMissingColumnError(error) ? "A la base de datos le falta la tabla de movimientos que se repiten." : GENERIC_ERROR;
 }
 
 /** Crear la plantilla. Se usa desde el formulario de movimiento. */

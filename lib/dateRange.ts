@@ -94,7 +94,7 @@ export function startOfDayISO(dateKey: string): string {
 
 const DAY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
-export interface ResolvedPeriod {
+interface ResolvedPeriod {
   /** Qué chip queda marcado. */
   id: PeriodId | "personalizado";
   /** Límite inferior para `gte`, o null si no hay (se ve todo). */

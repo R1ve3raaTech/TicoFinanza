@@ -182,7 +182,7 @@ async function accessToken(cred: Credencial): Promise<string | null> {
   return data.access_token;
 }
 
-export interface FcmResult {
+interface FcmResult {
   sent: number;
   /** Tokens que Google ya no reconoce y se borraron. */
   removed: number;

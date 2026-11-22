@@ -11,8 +11,8 @@ import type { Budget } from "./types";
  */
 export type BudgetStatus = "ok" | "warn" | "close" | "over";
 
-export const BUDGET_WARN_RATIO = 0.7;
-export const BUDGET_CLOSE_RATIO = 0.9;
+const BUDGET_WARN_RATIO = 0.7;
+const BUDGET_CLOSE_RATIO = 0.9;
 
 export interface BudgetProgress {
   id: string;
@@ -60,7 +60,7 @@ export function budgetProgress(
     .sort((a, b) => b.ratio - a.ratio || a.category.localeCompare(b.category, "es"));
 }
 
-export interface BudgetTotals {
+interface BudgetTotals {
   limit: number;
   spent: number;
   /** Categorías con el tope ya pasado. */

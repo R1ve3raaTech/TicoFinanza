@@ -4,7 +4,7 @@
  * formulario: estas no se guardan en la base, así que cambiarlas acá cambia
  * lo que ve todo el mundo sin migración.
  */
-export const DEFAULT_EXPENSE_CATEGORIES = [
+const DEFAULT_EXPENSE_CATEGORIES = [
   // "Alimentación" faltaba y el súper terminaba cayendo en Vivienda, que
   // mezcla el alquiler con las compras de la semana en el mismo pedazo de
   // la dona.
@@ -19,7 +19,7 @@ export const DEFAULT_EXPENSE_CATEGORIES = [
   "Otro",
 ];
 
-export const DEFAULT_INCOME_CATEGORIES = [
+const DEFAULT_INCOME_CATEGORIES = [
   "Salario",
   "Freelance",
   "Otros",
@@ -41,7 +41,7 @@ export function incomeCategories(custom: { name: string; type: string }[] = []):
 }
 
 /** Las que trae la app para un tipo de movimiento. */
-export function defaultCategories(type: "EXPENSE" | "INCOME"): string[] {
+function defaultCategories(type: "EXPENSE" | "INCOME"): string[] {
   return type === "INCOME" ? DEFAULT_INCOME_CATEGORIES : DEFAULT_EXPENSE_CATEGORIES;
 }
 

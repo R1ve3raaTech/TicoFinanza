@@ -25,7 +25,7 @@ async function requireUser() {
   return { supabase, user };
 }
 
-export interface FixedExpenseInput {
+interface FixedExpenseInput {
   name: string;
   amount: number;
   category: string;

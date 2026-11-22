@@ -18,7 +18,7 @@
  * y pegar su atributo `d` acá con su etiqueta en español.
  */
 
-export interface SymbolDef {
+interface SymbolDef {
   /** Cómo se llama en el selector, en español. */
   label: string;
   /** El atributo `d` del trazo. */
@@ -64,7 +64,7 @@ export const MATERIAL_SYMBOLS: Record<string, SymbolDef> = {
   account_balance: { label: "Banco", path: "M200-280v-280h80v280h-80Zm240 0v-280h80v280h-80ZM80-120v-80h800v80H80Zm600-160v-280h80v280h-80ZM80-640v-80l400-200 400 200v80H80Zm178-80h444-444Zm0 0h444L480-830 258-720Z" },
 };
 
-export type SymbolName = keyof typeof MATERIAL_SYMBOLS;
+type SymbolName = keyof typeof MATERIAL_SYMBOLS;
 
 /** Los nombres en el orden en que se muestran en el selector. */
 export const SYMBOL_NAMES = Object.keys(MATERIAL_SYMBOLS);

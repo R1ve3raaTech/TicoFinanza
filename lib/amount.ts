@@ -17,9 +17,9 @@
  */
 
 /** Separador de miles: el que usa `formatMoney` en toda la app. */
-export const GROUP_SEPARATOR = ".";
+const GROUP_SEPARATOR = ".";
 /** Separador decimal. */
-export const DECIMAL_SEPARATOR = ",";
+const DECIMAL_SEPARATOR = ",";
 
 const MAX_DECIMALS = 2;
 

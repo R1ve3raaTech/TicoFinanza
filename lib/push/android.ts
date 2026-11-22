@@ -18,7 +18,7 @@
 
 import { hasNativeBridge } from "../nativeBridge";
 
-export type AltaAndroid =
+type AltaAndroid =
   | { estado: "ok"; token: string }
   /** Dijo que no al permiso del sistema. */
   | { estado: "denegado" }

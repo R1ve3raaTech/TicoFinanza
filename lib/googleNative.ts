@@ -47,7 +47,7 @@
  */
 
 /** Qué pasó al intentar entrar. */
-export type NativeSignInResult =
+type NativeSignInResult =
   | { estado: "ok" }
   /** Cerró el selector de cuentas. No es un error: no hay nada que decirle. */
   | { estado: "cancelado" }

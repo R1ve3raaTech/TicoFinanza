@@ -7,7 +7,7 @@ import { IconPicker } from "@/components/ui/IconPicker";
 import { toneClasses } from "@/components/ui/CategoryMark";
 import { CATEGORY_TONES, type CategoryTone } from "@/lib/categoryStyle";
 
-export interface Style {
+interface Style {
   icon: string | null;
   /** `undefined` cuando quien lo usa no ofrece color (las cuentas). */
   color?: CategoryTone | null;

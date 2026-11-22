@@ -6,7 +6,7 @@ import {
   type Icon,
 } from "@phosphor-icons/react";
 
-export interface NavItem {
+interface NavItem {
   href: string;
   label: string;
   /** Etiqueta corta para la barra de teléfono, donde no caben cinco largas. */

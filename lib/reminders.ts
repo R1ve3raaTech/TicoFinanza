@@ -11,9 +11,9 @@ import type { FixedExpense } from "./types";
  * rechazado. El día del cobro ya no se avisa — a esa hora el aviso no cambia
  * nada y la app ya lo muestra en rojo en el resumen.
  */
-export const REMINDER_DAYS = [1, 2] as const;
+const REMINDER_DAYS = [1, 2] as const;
 
-export interface Reminder {
+interface Reminder {
   fixedExpenseId: string;
   /** Día del cobro, "YYYY-MM-DD". Es la clave que evita avisar dos veces. */
   dueKey: string;

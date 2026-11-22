@@ -69,11 +69,6 @@ const ICONS: Record<string, Icon> = {
   otros: DotsThreeOutline,
 };
 
-export function categoryIcon(category: string | null | undefined): Icon {
-  if (!category) return DotsThreeOutline;
-  return ICONS[normalizeCategory(category)] ?? DotsThreeOutline;
-}
-
 /** Las clases de color de una categoría, para teñir algo que no es la marca
  *  (el sello del día en Fijos, por ejemplo). */
 export function categoryClasses(
@@ -114,9 +109,10 @@ export function CategoryMark({
   const tone = previewTone ? TONE[previewTone] : categoryClasses(category, choices);
   const chosenIcon = previewIcon !== undefined ? previewIcon : resolvedIcon(category, choices);
   const symbol = chosenIcon ? MATERIAL_SYMBOLS[chosenIcon] : undefined;
-  // La tabla se indexa acá y no con `categoryIcon()`: el compilador de React
-  // no distingue una función que BUSCA un componente de una que lo CREA, y
-  // marca error al ver un componente saliendo de una llamada en el render.
+  // La tabla se indexa acá y no con una función que la envuelva: el
+  // compilador de React no distingue una función que BUSCA un componente de
+  // una que lo CREA, y marca error al ver un componente saliendo de una
+  // llamada en el render.
   const Icon = ICONS[normalizeCategory(category ?? "")];
   // Una categoría propia ("Ferretería", "Mascotas") no tiene ícono que la
   // represente, así que lleva su inicial. Con el mismo glifo genérico para
@@ -160,16 +156,5 @@ export function CategoryMark({
         <DotsThreeOutline size={Math.round(size * 0.5)} weight="fill" />
       )}
     </span>
-  );
-}
-
-/** Punto del color de la categoría, para donde no cabe la marca entera. */
-export function CategoryDot({ category, className = "" }: { category: string | null; className?: string }) {
-  const choices = useCategoryChoices();
-  return (
-    <span
-      aria-hidden
-      className={`inline-block h-2 w-2 shrink-0 rounded-[2px] ${categoryClasses(category, choices).dot} ${className}`}
-    />
   );
 }

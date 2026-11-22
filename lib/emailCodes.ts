@@ -17,12 +17,12 @@ const MAX_ATTEMPTS = 5;
  * la confusión que no puede existir entre una acción reversible y una que
  * no lo es. Es la columna `purpose` de la migración 0029.
  */
-export type CodePurpose = "eliminar_cuenta" | "quitar_pin";
+type CodePurpose = "eliminar_cuenta" | "quitar_pin";
 
-const MISSING_0029 = "Falta correr la migración 0029 en Supabase.";
+const MISSING_0029 = "A la base de datos le falta la columna que separa los códigos por motivo.";
 
 /** Código numérico de 8 dígitos generado con el CSPRNG de Node (crypto.randomInt), no Math.random. */
-export function generateEmailCode(): string {
+function generateEmailCode(): string {
   let code = "";
   for (let i = 0; i < CODE_LENGTH; i++) {
     code += randomInt(0, 10).toString();
