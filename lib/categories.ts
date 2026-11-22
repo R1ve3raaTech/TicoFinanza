@@ -1,3 +1,5 @@
+import { UNIDENTIFIED_CATEGORY } from "./reconcile";
+
 /**
  * Etiquetas por defecto. El usuario puede agregar las suyas desde Ajustes →
  * Categorías (tabla `user_categories`), y las dos listas se combinan en cada
@@ -40,6 +42,16 @@ export function incomeCategories(custom: { name: string; type: string }[] = []):
   ];
 }
 
+/**
+ * Nombres apartados que nadie puede usar para una categoría propia.
+ *
+ * No se pueden elegir en un formulario — nadie debería anotar un gasto a
+ * mano diciendo que no sabe qué es — pero los escribe la app sola, así que
+ * tienen que estar protegidos: con una categoría propia que se llame igual,
+ * en el desglose habría dos cosas distintas pintadas del mismo color.
+ */
+const RESERVED = [UNIDENTIFIED_CATEGORY];
+
 /** Las que trae la app para un tipo de movimiento. */
 function defaultCategories(type: "EXPENSE" | "INCOME"): string[] {
   return type === "INCOME" ? DEFAULT_INCOME_CATEGORIES : DEFAULT_EXPENSE_CATEGORIES;
@@ -67,6 +79,9 @@ export function categoryClash(
   if (trimmed.length > 24) return "El nombre es muy largo: máximo 24 caracteres.";
 
   const key = fold(trimmed);
+  if (RESERVED.some((c) => fold(c) === key)) {
+    return `"${trimmed}" la usa la app para los ajustes contra el banco.`;
+  }
   if (defaultCategories(type).some((c) => fold(c) === key)) {
     return `"${trimmed}" ya viene con la app.`;
   }

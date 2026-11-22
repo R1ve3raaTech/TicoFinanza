@@ -14,6 +14,12 @@ import { GENERIC_ERROR, logFailure } from "@/lib/errors";
 import { isSymbolName } from "@/lib/materialSymbols";
 import { isMissingColumnError } from "@/lib/supabase/errors";
 import type { RecurrenceFrequency } from "@/lib/recurring";
+import {
+  adjustmentDescription,
+  reconcile,
+  UNIDENTIFIED_CATEGORY,
+  type ReconcileMode,
+} from "@/lib/reconcile";
 
 /** Pantallas que muestran movimientos o saldos y hay que refrescar. */
 function revalidateMovements() {
@@ -363,6 +369,100 @@ export async function updateAccount(id: string, input: AccountInput) {
 
   revalidateMovements();
   return { error: null };
+}
+
+/**
+ * Cuadra una cuenta con lo que dice el banco.
+ *
+ * ### Por qué esto no es "editar el saldo"
+ *
+ * El saldo lo calcula la base sumando lo anotado, así que cuando no
+ * coincide con el banco, la diferencia **es información**: es plata que se
+ * movió y nadie registró. Antes se escribía el saldo de hoy en el
+ * formulario de la cuenta y eso reescribía el punto de partida en
+ * silencio: la diferencia no se corregía, se borraba, y con ella el único
+ * dato que contesta "cuánto se me escapa al mes".
+ *
+ * Ahora hay dos salidas, y las dos dejan el saldo igual al del banco:
+ *
+ * - `registrar`: entra un movimiento en la categoría "Sin identificar".
+ *   Cuenta en los totales del mes y sale en el desglose, porque esa plata
+ *   de verdad se movió.
+ * - `punto-de-partida`: se corrige `initial_balance`, como antes. Es para
+ *   el caso donde registrar un movimiento sería mentir: lo que estaba mal
+ *   era el número de arranque, no falta ningún gasto.
+ *
+ * La app propone una según si la cuenta ya tiene movimientos
+ * (`suggestedMode`), pero elige la persona: solo ella sabe si se le olvidó
+ * anotar algo o si puso mal el saldo inicial.
+ */
+export async function reconcileAccount(
+  id: string,
+  bankBalance: number,
+  mode: ReconcileMode
+) {
+  const { supabase, user } = await requireUser();
+
+  if (!Number.isFinite(bankBalance)) {
+    return { error: "El saldo del banco no es un número válido." };
+  }
+
+  // La cuenta tiene que ser de esta sesión: RLS protege lo que se escribe,
+  // no lo que se referencia (ver lib/supabase/ownership.ts).
+  const { data: account } = await supabase
+    .from("accounts")
+    .select("initial_balance, current_balance")
+    .eq("id", id)
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (!account) return { error: GENERIC_ERROR };
+
+  const appBalance = Number(account.current_balance);
+  const { kind, movement } = reconcile(appBalance, bankBalance);
+
+  if (kind === "cuadra") return { error: null, registrado: 0 };
+
+  if (mode === "punto-de-partida") {
+    // Mismo ajuste de siempre: se mueve el arranque y el trigger recalcula
+    // el actual. Los movimientos no se tocan.
+    const { error } = await supabase
+      .from("accounts")
+      .update({ initial_balance: Number(account.initial_balance) + (bankBalance - appBalance) })
+      .eq("id", id)
+      .eq("user_id", user.id);
+
+    if (error) {
+      logFailure("reconcileAccount: no se pudo mover el punto de partida", { id, error });
+      return { error: GENERIC_ERROR };
+    }
+
+    revalidateMovements();
+    return { error: null, registrado: 0 };
+  }
+
+  if (!movement) return { error: GENERIC_ERROR };
+
+  const { error } = await supabase.from("transactions").insert({
+    user_id: user.id,
+    account_id: id,
+    amount: movement.amount,
+    currency: "CRC",
+    type: movement.type,
+    category: UNIDENTIFIED_CATEGORY,
+    description: adjustmentDescription(dayKey()),
+    // La fecha la pone el servidor, en hora de Costa Rica: es el momento en
+    // que se concilió, no una fecha que mande el navegador.
+    transaction_date: new Date().toISOString(),
+  });
+
+  if (error) {
+    logFailure("reconcileAccount: no se pudo registrar el ajuste", { id, error });
+    return { error: GENERIC_ERROR };
+  }
+
+  revalidateMovements();
+  return { error: null, registrado: movement.amount };
 }
 
 /**

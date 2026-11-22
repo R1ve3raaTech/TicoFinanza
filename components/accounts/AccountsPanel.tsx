@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowsLeftRight, Plus } from "@phosphor-icons/react";
+import { ArrowsLeftRight, Plus, Scales } from "@phosphor-icons/react";
 import { AccountMark } from "./AccountMark";
 import { TransferDialog } from "@/components/movements/TransferDialog";
 import { Button } from "@/components/ui/Button";
@@ -9,6 +9,7 @@ import { Money } from "@/components/ui/Money";
 import { accountShare, accountTypeLabel } from "@/lib/accounts";
 import type { Account } from "@/lib/types";
 import { AccountDialog } from "./AccountDialog";
+import { ReconcileDialog } from "./ReconcileDialog";
 
 /**
  * Las billeteras y lo que hay en cada una, arriba del resumen.
@@ -22,10 +23,19 @@ import { AccountDialog } from "./AccountDialog";
  * panel quedó con lo que solo él puede contestar: en cuál de tus billeteras
  * está esa plata.
  */
-export function AccountsPanel({ accounts }: { accounts: Account[] }) {
+export function AccountsPanel({
+  accounts,
+  movementCounts = {},
+}: {
+  accounts: Account[];
+  /** Cuántos movimientos tiene cada cuenta. Solo decide qué propone el
+   *  diálogo de conciliar; la persona puede elegir la otra opción. */
+  movementCounts?: Record<string, number>;
+}) {
   const [editing, setEditing] = useState<Account | null>(null);
   const [accountOpen, setAccountOpen] = useState(false);
   const [transferOpen, setTransferOpen] = useState(false);
+  const [reconcileOpen, setReconcileOpen] = useState(false);
   const [session, setSession] = useState(0);
 
   function openAccount(account: Account | null) {
@@ -36,11 +46,17 @@ export function AccountsPanel({ accounts }: { accounts: Account[] }) {
 
   return (
     <section aria-labelledby="cuentas-titulo" className="min-w-0">
-      <div className="flex h-10 items-center justify-between gap-3">
-        <h2 id="cuentas-titulo" className="text-heading text-ink">
+      <div className="flex min-h-10 flex-wrap items-center justify-between gap-x-3 gap-y-1">
+        <h2 id="cuentas-titulo" className="shrink-0 text-heading text-ink">
           Tus cuentas
         </h2>
         <div className="flex items-center gap-1">
+          {accounts.length > 0 && (
+            <Button variant="ghost" size="sm" onClick={() => setReconcileOpen(true)}>
+              <Scales size={15} />
+              Conciliar
+            </Button>
+          )}
           {accounts.length >= 2 && (
             <Button variant="ghost" size="sm" onClick={() => setTransferOpen(true)}>
               <ArrowsLeftRight size={14} />
@@ -123,6 +139,14 @@ export function AccountsPanel({ accounts }: { accounts: Account[] }) {
           </ul>
         </>
       )}
+
+      <ReconcileDialog
+        key={`conciliar-${reconcileOpen}`}
+        open={reconcileOpen}
+        onClose={() => setReconcileOpen(false)}
+        accounts={accounts}
+        movementCounts={movementCounts}
+      />
 
       <AccountDialog
         key={`cuenta-${session}`}

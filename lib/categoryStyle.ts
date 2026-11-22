@@ -56,6 +56,10 @@ const KNOWN: Record<string, CategoryTone> = {
   ocio: "fucsia",
   trabajo: "pizarra",
   otro: "piedra",
+  // Lo que salió de conciliar contra el banco. Neutro a propósito: no es
+  // un rubro de gasto sino un hueco, y pintarlo de un color propio lo
+  // haría competir con las categorías de verdad en la dona.
+  "sin identificar": "piedra",
   // Ingreso: acá el verde sí corresponde.
   salario: "verde",
   freelance: "verde",

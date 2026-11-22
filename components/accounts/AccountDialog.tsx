@@ -8,7 +8,7 @@ import { MATERIAL_SYMBOLS } from "@/lib/materialSymbols";
 import { AccountMark } from "./AccountMark";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useToast } from "@/components/Toast";
-import { formatAmountInput, parseAmount } from "@/components/movements/MovementFields";
+import { parseAmount } from "@/components/movements/MovementFields";
 import { Button } from "@/components/ui/Button";
 import { Dialog } from "@/components/ui/Dialog";
 import { Field, FormError, Select, inputClass } from "@/components/ui/Field";
@@ -19,9 +19,18 @@ import type { Account, AccountType } from "@/lib/types";
 /**
  * Alta y edición de una billetera.
  *
- * El campo es el saldo *inicial*, no el actual: el actual lo calcula la base
- * sumando todo lo registrado. Si alguien quiere cuadrar la cuenta con la
- * realidad, mueve el inicial y el resto se reacomoda solo.
+ * **Al editar no hay campo de saldo, y es a propósito.** Lo había, y
+ * escribir ahí el saldo de hoy reescribía el punto de partida en silencio:
+ * si al banco le faltaban ₡7.000 porque se olvidó anotar unos almuerzos,
+ * esa diferencia se borraba en vez de quedar registrada. El único dato que
+ * contesta "cuánto se me escapa al mes" se perdía cada vez que alguien
+ * cuadraba la cuenta.
+ *
+ * Ahora el saldo se toca solo desde "Conciliar", que pregunta qué dice el
+ * banco y ofrece las dos salidas honestas. Ver `lib/reconcile.ts`.
+ *
+ * Al **crear** sí se pide: una cuenta nueva no tiene movimientos, así que
+ * lo que hay hoy es exactamente el punto de partida.
  */
 export function AccountDialog({
   open,
@@ -41,11 +50,9 @@ export function AccountDialog({
   const [type, setType] = useState<AccountType>(account?.type ?? "efectivo");
   const [icon, setIcon] = useState<string | null>(account?.icon ?? null);
   const [styleOpen, setStyleOpen] = useState(false);
-  // Se precarga el saldo de HOY, no el de partida: es el número que la
-  // persona puede comparar con su banco.
-  const [balance, setBalance] = useState(
-    account ? formatAmountInput(account.current_balance) : ""
-  );
+  // Al editar no se muestra ni se cambia: se manda el actual tal cual, así
+  // el ajuste da cero y el punto de partida queda donde estaba.
+  const [balance, setBalance] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -54,7 +61,16 @@ export function AccountDialog({
 
   function submit() {
     setError(null);
-    const value = balance.trim() === "" ? 0 : parseAmount(balance);
+    // **Al editar se manda el saldo actual tal cual.** `updateAccount`
+    // ajusta el punto de partida por la diferencia contra lo que recibe,
+    // así que mandar el mismo número deja la cuenta intacta. Si acá fuera
+    // 0 —que es lo que vale el campo vacío— editarle el nombre a una
+    // cuenta le pondría el saldo en cero.
+    const value = account
+      ? account.current_balance
+      : balance.trim() === ""
+        ? 0
+        : parseAmount(balance);
     if (!name.trim()) {
       setError("Ponele un nombre (ej. BAC débito, Efectivo, Visa).");
       return;
@@ -158,18 +174,20 @@ export function AccountDialog({
             </Select>
           </Field>
 
-          <Field
-            label={editing ? "Saldo de hoy" : "Saldo actual"}
-            hint={
-              editing
-                ? "Lo que dice tu banco ahora mismo. Si no coincide con lo que ves acá, corregilo y la app ajusta el punto de partida sin tocar tus movimientos."
-                : "Lo que hay en la cuenta en este momento. En una tarjeta de crédito puede ser negativo."
-            }
-          >
-            {/* `allowNegative`: una tarjeta de crédito tiene saldo en
-                contra, y es el único monto de la app que puede ir en menos. */}
-            <MoneyInput value={balance} onChange={setBalance} placeholder="0" allowNegative />
-          </Field>
+          {editing ? (
+            <Field label="Saldo">
+              <p className="text-meta text-ink-3">Se cuadra desde &ldquo;Conciliar&rdquo;.</p>
+            </Field>
+          ) : (
+            <Field
+              label="Saldo actual"
+              hint="Lo que hay en la cuenta en este momento. En una tarjeta de crédito puede ser negativo."
+            >
+              {/* `allowNegative`: una tarjeta de crédito tiene saldo en
+                  contra, y es el único monto de la app que puede ir en menos. */}
+              <MoneyInput value={balance} onChange={setBalance} placeholder="0" allowNegative />
+            </Field>
+          )}
 
           {/* La grilla entera de íconos acá adentro tapaba el resto del
               formulario: había que pasarla toda para llegar a "Guardar".

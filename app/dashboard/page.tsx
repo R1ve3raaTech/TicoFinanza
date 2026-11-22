@@ -65,7 +65,7 @@ export default async function DashboardPage() {
       // saldo de la cuenta, que lo lleva la base.
       supabase
         .from("transactions")
-        .select("amount, currency, type, category, transaction_date")
+        .select("amount, currency, type, category, transaction_date, account_id")
         .eq("user_id", user.id)
         .is("fixed_expense_id", null)
         .gte("transaction_date", sixMonthsAgoISO())
@@ -113,8 +113,18 @@ export default async function DashboardPage() {
 
   const history = (movements ?? []) as Pick<
     Transaction,
-    "amount" | "currency" | "type" | "category" | "transaction_date"
+    "amount" | "currency" | "type" | "category" | "transaction_date" | "account_id"
   >[];
+
+  // Cuántos movimientos tiene cada cuenta. Sale del historial que ya se
+  // pidió, sin consulta nueva. **Es una ventana de seis meses y alcanza**:
+  // lo único que decide es qué propone el diálogo de conciliar — corregir
+  // el punto de partida en una cuenta recién creada, o registrar la
+  // diferencia en una que ya se usa — y la persona puede elegir la otra.
+  const movementCounts: Record<string, number> = {};
+  for (const t of history) {
+    if (t.account_id) movementCounts[t.account_id] = (movementCounts[t.account_id] ?? 0) + 1;
+  }
   const fixed = (expenses ?? []) as FixedExpense[];
 
   // El mes se compara en hora de Costa Rica, no en UTC: un gasto del 31 a
@@ -182,6 +192,7 @@ export default async function DashboardPage() {
       summary={summary}
       comparison={comparison}
       accounts={(accounts ?? []) as Account[]}
+      movementCounts={movementCounts}
       payments={upcomingPayments(fixed, todayKey)}
       categorySlices={slices}
       months={monthlyTotals(history, 6)}

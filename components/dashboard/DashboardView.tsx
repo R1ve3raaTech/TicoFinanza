@@ -40,6 +40,7 @@ export function DashboardView({
   summary,
   comparison,
   accounts,
+  movementCounts,
   payments,
   categorySlices,
   months,
@@ -63,6 +64,7 @@ export function DashboardView({
   /** Gasto variable de este mes contra el pasado, al mismo día. */
   comparison: Comparison;
   accounts: Account[];
+  movementCounts: Record<string, number>;
   payments: UpcomingPayment[];
   categorySlices: CategorySlice[];
   months: MonthTotal[];
@@ -172,7 +174,7 @@ export function DashboardView({
               Dos invitaciones a lo mismo, una debajo de la otra. */}
           {accounts.length > 0 && (
             <div className="rise-in pt-8" style={{ "--d": "180ms" } as CSSProperties}>
-              <AccountsPanel accounts={accounts} />
+              <AccountsPanel accounts={accounts} movementCounts={movementCounts} />
             </div>
           )}
 
