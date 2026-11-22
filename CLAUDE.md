@@ -3603,3 +3603,94 @@ producción a 1440 oscuro y 390 claro: 22 comprobaciones. APK release compilado
 y verificado por dentro (el servicio con su `intent-filter` y su permiso, el
 plugin y el almacén en el dex, el texto del diálogo de consentimiento, y los
 dos atributos de respaldo en el manifiesto).
+
+## Dónde quedamos (2026-11-21, séptima parte) — limpieza
+
+Camil pidió sacar lo que ya no se usa y **borrar la carpeta `supabase/` con
+sus 32 migraciones**, que ya estaban corridas. Hecho, con dos consecuencias
+que conviene tener escritas.
+
+### Ya no hay registro del esquema en el repo
+
+No hay acceso automatizado a la base desde este entorno (ver la nota del
+2026-08-15), y ahora tampoco están las migraciones. O sea que **la única
+descripción de las tablas que queda es `lib/types.ts`**, y solo de las que
+la app tipa. Si hace falta saber qué columnas tiene algo, hay que mirarlo en
+Supabase Studio o rescatar la migración del historial de git (siguen ahí:
+`git show <commit>:supabase/migrations/00XX_*.sql`).
+
+### Se perdió la prueba de las políticas de RLS
+
+`lib/supabase/policies.test.ts` leía esa carpeta en cuatro lugares, así que
+se fue con ella. Era la que cruzaba **las tablas que el código actualiza
+contra las políticas declaradas** y la que destapó que `user_categories`
+nunca tuvo política de UPDATE.
+
+Vale la pena recordar por qué existía, porque el riesgo sigue vivo: **con
+RLS activo y sin política de UPDATE, un UPDATE no da error — simplemente no
+alcanza ninguna fila.** PostgREST contesta sin quejarse, así que la app dice
+"guardado" y no guardó nada. Si se agrega una tabla nueva y se olvida su
+política, ya no hay nada que avise.
+
+### Los mensajes de error que mandaban a correr una migración
+
+Había cinco mensajes **que ve el usuario** diciendo "Falta correr la
+migración 0030 en Supabase". Esos archivos ya no existen, así que mandaban a
+correr algo inexistente. Ahora describen qué le falta a la base ("a la base
+de datos le falta la columna del ícono de la cuenta"). Los comentarios del
+código conservan el número, que ahí sí sirve como referencia histórica.
+
+### Código muerto, y cómo apareció
+
+Lo primero fue quitarle el `export` a **58 símbolos que solo se usaban
+dentro de su propio archivo**. Eso es lo que destapó a los que de verdad no
+usaba nadie: **sin el `export`, el lint por fin los vio**. Estaban
+escondidos detrás de esa palabra desde siempre.
+
+Borrados: `pushConfigured()`, `categoryIcon()`, el componente `CategoryDot`,
+`DEBT_TYPE_LABELS`, `RECEIPT_MIME_TYPES`, los tipos `UserSettings` y
+`PushSubscriptionRow`, y `public/file.svg`, `globe.svg` y `window.svg` —los
+tres SVG que trae la plantilla con la que nace un proyecto Next, sin una
+sola referencia—.
+
+**Regla que sale de acá**: antes de buscar código muerto, quitarle el
+`export` a lo que no se usa fuera de su archivo. El linter no puede ver un
+símbolo exportado, así que `export` es donde se esconde lo muerto.
+
+### Play Protect bloquea el APK del lector, y es por el lector
+
+El APK con el lector de notificaciones **no se puede instalar de forma
+normal**: Play Protect lo corta con "App blocked to protect your device" y
+**sin la opción de "instalar de todos modos"**. No es un problema del
+paquete (el `targetSdk` es 36): es que declara
+`BIND_NOTIFICATION_LISTENER_SERVICE`, el permiso que deja leer todas las
+notificaciones del teléfono y el que usa el spyware. Los APK anteriores no
+lo tenían y entraban sin chistar.
+
+Para instalarlo hay que apagar "Analizar apps con Play Protect" en la Play
+Store, instalar, y volver a prenderlo. La salida permanente sería el canal
+de prueba interna de Play Store, pero Google tiene política específica y
+estricta sobre el acceso a notificaciones, así que esa ruta deja de ser un
+trámite y pasa a ser una justificación que hay que defender.
+
+**Decisión de Camil**: no instalarlo por ahora. El APK viejo le sirve igual,
+porque lo único nuevo que trae el otro es el lector y todo lo demás viaja
+por la web. **Consecuencia aceptada a sabiendas**: en su teléfono la sección
+"Leer notificaciones" de Ajustes se dibuja igual —esa parte es web— y sus
+botones no hacen nada, porque no hay plugin detrás. Se ofreció esconder el
+panel cuando el plugin no contesta y dijo que lo dejáramos así.
+
+### Lo que queda pendiente
+
+- **`public/.well-known/assetlinks.json`**: era para que el TWA viejo abriera
+  sin barra de direcciones. El APK de Capacitor usa otro id de paquete, así
+  que ya no hace nada. Sin borrar, a la espera de confirmar que el TWA viejo
+  ya no está instalado.
+- **El APK dentro de git**: `.git` va en 41 MB y cada publicación suma ~6 MB
+  para siempre. Se ofreció servirlo desde una release de GitHub; Camil
+  prefirió dejarlo como está. Nunca hay más de un archivo en la carpeta —se
+  sobrescribe—; las copias viven en el historial.
+
+**Estado**: `npm test` (278, tres menos por las pruebas de políticas que se
+fueron), `eslint`, `tsc` y `npm run build` limpios. 1.813 líneas menos en 72
+archivos. Deployado.
