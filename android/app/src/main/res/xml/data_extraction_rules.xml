@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Lo mismo que `backup_rules.xml`, para Android 12 y arriba, que partió la
+    regla en dos: la copia en la nube y la transferencia de aparato a
+    aparato. El texto de los avisos del banco no va en ninguna de las dos;
+    el motivo está en el otro archivo.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="sharedpref" path="tf_lector.xml" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="sharedpref" path="tf_lector.xml" />
+    </device-transfer>
+</data-extraction-rules>

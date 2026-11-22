@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Qué NO se va en el respaldo de Android (API 23 a 30).
+
+    `tf_lector` guarda el texto crudo de los avisos del banco: comercio,
+    monto y a veces los últimos dígitos de la tarjeta. Con el respaldo
+    activado eso viajaría a la copia de la cuenta de Google y a una
+    transferencia de teléfono a teléfono, o sea que un dato capturado para
+    escribir un parser terminaría guardado en un lugar que nadie eligió.
+
+    El respaldo del resto de la app se queda: sacarlo entero cambiaría
+    cómo se comporta todo lo demás por un archivo.
+-->
+<full-backup-content>
+    <exclude domain="sharedpref" path="tf_lector.xml" />
+</full-backup-content>

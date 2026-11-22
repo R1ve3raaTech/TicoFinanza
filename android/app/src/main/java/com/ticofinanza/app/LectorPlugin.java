@@ -1,10 +1,12 @@
 package com.ticofinanza.app;
 
+import android.app.Activity;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.provider.Settings;
 
+import androidx.appcompat.app.AlertDialog;
 import androidx.core.app.NotificationManagerCompat;
 
 import com.getcapacitor.JSArray;
@@ -87,7 +89,30 @@ public class LectorPlugin extends Plugin {
         call.resolve(salida);
     }
 
-    /** Marca o desmarca un paquete para guardar su contenido. */
+    /**
+     * Marca o desmarca un paquete para guardar su contenido.
+     *
+     * <h3>Prender cuesta una confirmación nativa; apagar es gratis</h3>
+     *
+     * El permiso de Android es de todo o nada: una vez concedido, este
+     * servicio ve los avisos de <b>toda</b> app del teléfono, y la lista
+     * blanca es lo único que decide de cuáles se guarda el texto. O sea que
+     * un método que acepte cualquier paquete desde el JavaScript convierte
+     * un fallo cualquiera del sitio —un XSS, un script de terceros— en un
+     * lector de todas las notificaciones del teléfono: bastaría marcar
+     * WhatsApp y leerlo con {@code leer()}. Eso no puede depender solo de
+     * que el sitio esté sano.
+     *
+     * Así que prender pasa por un diálogo <b>del sistema</b>, que el
+     * JavaScript no puede dibujar ni contestar, y que nombra la app. Y el
+     * paquete tiene que haber notificado antes: marcar uno que nunca
+     * apareció en la lista no es algo que nadie pueda querer desde la
+     * pantalla.
+     *
+     * Apagar no pide nada, por el mismo criterio que el cerrojo de la app
+     * ({@code weakensLock} en {@code lib/appLock.ts}): si cerrar una puerta
+     * costara un trámite, el trámite empujaría a dejarla abierta.
+     */
     @PluginMethod
     public void capturar(PluginCall call) {
         String pkg = call.getString("pkg");
@@ -95,9 +120,55 @@ public class LectorPlugin extends Plugin {
             call.reject("Falta el paquete.");
             return;
         }
-        Boolean activo = call.getBoolean("activo", Boolean.FALSE);
-        AlmacenDeNotificaciones.permitir(getContext(), pkg, Boolean.TRUE.equals(activo));
-        call.resolve();
+        boolean activo = Boolean.TRUE.equals(call.getBoolean("activo", Boolean.FALSE));
+
+        if (!activo) {
+            AlmacenDeNotificaciones.permitir(getContext(), pkg, false);
+            call.resolve(resultado(false));
+            return;
+        }
+
+        final String rotulo = AlmacenDeNotificaciones.rotuloVisto(getContext(), pkg);
+        if (rotulo == null) {
+            call.reject("Esa app todavía no ha mandado ningún aviso.");
+            return;
+        }
+
+        final Activity actividad = getActivity();
+        if (actividad == null) {
+            call.reject("No se pudo pedir la confirmación.");
+            return;
+        }
+
+        actividad.runOnUiThread(() -> {
+            try {
+                new AlertDialog.Builder(actividad)
+                    .setTitle("¿Leer los avisos de " + rotulo + "?")
+                    .setMessage(
+                        "TicoFinanza va a guardar en este teléfono el texto de las "
+                            + "notificaciones de " + rotulo + ", para poder anotar los gastos "
+                            + "solo. No sale del teléfono y se puede apagar cuando quieras."
+                    )
+                    .setPositiveButton("Permitir", (d, w) -> {
+                        AlmacenDeNotificaciones.permitir(getContext(), pkg, true);
+                        call.resolve(resultado(true));
+                    })
+                    .setNegativeButton("Cancelar", (d, w) -> call.resolve(resultado(false)))
+                    // El botón de atrás o un toque afuera: no se prende, y
+                    // la llamada tiene que contestar igual o la pantalla
+                    // se queda con el interruptor a medio camino.
+                    .setOnCancelListener(d -> call.resolve(resultado(false)))
+                    .show();
+            } catch (Exception e) {
+                call.reject("No se pudo pedir la confirmación.");
+            }
+        });
+    }
+
+    private static JSObject resultado(boolean activo) {
+        JSObject salida = new JSObject();
+        salida.put("activo", activo);
+        return salida;
     }
 
     /** Lo capturado, de más viejo a más nuevo. */

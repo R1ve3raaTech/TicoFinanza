@@ -10,6 +10,7 @@ import {
   appsQueNotificaron,
   borrarCapturadas,
   capturarApp,
+  lectorDisponible,
   notificacionesCapturadas,
   ordenarApps,
   permisoConcedido,
@@ -43,17 +44,26 @@ import { SettingsRow } from "./SettingsSection";
  */
 export function NotificationReader() {
   const toast = useToast();
+  /**
+   * Si el lector existe acá. Arranca en null y no en el valor de verdad:
+   * leer el puente nativo durante el primer dibujo da una cosa en el
+   * servidor y otra en el navegador, que es un error de hidratación. Se
+   * resuelve en `refrescar`, después del primer dibujo.
+   */
+  const [disponible, setDisponible] = useState<boolean | null>(null);
   const [permiso, setPermiso] = useState<boolean | null>(null);
   const [apps, setApps] = useState<AppVista[]>([]);
   const [items, setItems] = useState<NotificacionCapturada[]>([]);
   const [pendiente, startTransition] = useTransition();
 
   const refrescar = useCallback(async () => {
+    const hay = lectorDisponible();
     const [concedido, lista, capturadas] = await Promise.all([
       permisoConcedido(),
       appsQueNotificaron(),
       notificacionesCapturadas(),
     ]);
+    setDisponible(hay);
     setPermiso(concedido);
     setApps(ordenarApps(lista));
     // Lo más nuevo arriba: es lo que uno acaba de provocar a propósito
@@ -87,13 +97,22 @@ export function NotificationReader() {
   }, [refrescar]);
 
   function alternar(app: AppVista, activo: boolean) {
-    // Optimista: el interruptor tiene que moverse al tocarlo. La lista
-    // completa se vuelve a pedir después.
+    // Optimista: el interruptor tiene que moverse al tocarlo, que si no se
+    // siente trabado mientras el diálogo de Android está en pantalla.
     setApps((previas) =>
       previas.map((a) => (a.pkg === app.pkg ? { ...a, capturando: activo } : a))
     );
     startTransition(async () => {
-      await capturarApp(app.pkg, activo);
+      // **Prender pasa por un diálogo del sistema y se puede cancelar.**
+      // Lo que vale es lo que contesta el plugin, no lo que se tocó: con
+      // el optimista a secas, cancelar dejaba el interruptor prendido
+      // diciendo que se está guardando algo que no se guarda.
+      const quedo = await capturarApp(app.pkg, activo);
+      if (quedo !== activo) {
+        setApps((previas) =>
+          previas.map((a) => (a.pkg === app.pkg ? { ...a, capturando: quedo } : a))
+        );
+      }
       await refrescar();
     });
   }
@@ -110,17 +129,36 @@ export function NotificationReader() {
     }
   }
 
+  /**
+   * Fuera del APK no hay nada que ofrecer, y es importante no ofrecerlo.
+   *
+   * El botón de "Abrir ajustes" sin el puente nativo **no hace nada**: no
+   * falla, no avisa, no pasa. Un botón así es peor que no tener botón,
+   * porque deja pensando que la app está rota.
+   *
+   * La sección ya se esconde en la web desde `SettingsScreen`, pero esa
+   * comprobación vive en otro archivo y mirando otra señal — y es
+   * exactamente el tipo de cosa que falla por un lado y no por el otro
+   * (pasó con la entrada de Google). Que el componente se defienda solo
+   * cuesta tres líneas.
+   */
+  if (disponible === false) {
+    return (
+      <SettingsRow inline label="Leer notificaciones">
+        <span className="text-meta text-ink-3">Solo en la app de Android</span>
+      </SettingsRow>
+    );
+  }
+
   return (
     <>
       <SettingsRow
         inline
         label="Permiso de Android"
         description={
-          permiso === null
-            ? "Consultando…"
-            : permiso
-              ? "Concedido"
-              : "Se activa a mano en los ajustes del teléfono"
+          // El valor, no una explicación de cómo funciona Android: el botón
+          // de al lado ya lleva a donde se concede.
+          permiso === null ? "Consultando…" : permiso ? "Concedido" : "Sin conceder"
         }
       >
         {permiso ? (
@@ -148,7 +186,6 @@ export function NotificationReader() {
       <SettingsRow
         alignTop
         label="De cuáles guardar"
-        description="Las apps aparecen acá en cuanto mandan un aviso."
       >
         {apps.length === 0 ? (
           <p className="py-1 text-meta text-ink-3">

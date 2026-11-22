@@ -100,6 +100,22 @@ final class AlmacenDeNotificaciones {
         }
     }
 
+    /**
+     * El rótulo guardado de un paquete que ya notificó, o null si nunca
+     * notificó.
+     *
+     * Devolver null es lo que hace que no se pueda marcar un paquete que la
+     * persona nunca vio en la lista: ver {@code LectorPlugin.capturar}.
+     */
+    static String rotuloVisto(Context ctx, String pkg) {
+        synchronized (CANDADO) {
+            JSONObject app = objeto(prefs(ctx), VISTOS).optJSONObject(pkg);
+            if (app == null) return null;
+            String nombre = app.optString("nombre", "").trim();
+            return nombre.isEmpty() ? pkg : nombre;
+        }
+    }
+
     static boolean permitido(Context ctx, String pkg) {
         synchronized (CANDADO) {
             JSONArray lista = arreglo(prefs(ctx), PERMITIDOS);
