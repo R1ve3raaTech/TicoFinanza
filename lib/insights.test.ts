@@ -1,6 +1,6 @@
 import { it } from "node:test";
 import assert from "node:assert/strict";
-import { monthSummary } from "./insights";
+import { monthSummary, monthlyTotals } from "./insights";
 import type { Transaction } from "./types";
 
 function movement(type: Transaction["type"], amount: number) {
@@ -53,4 +53,42 @@ it("un mes sin nada anotado da todo en cero", () => {
   assert.equal(summary.income, 0);
   assert.equal(summary.net, 0);
   assert.equal(summary.projectedNet, 0);
+});
+
+
+/**
+ * Los cubos del gráfico de seis meses, en hora de Costa Rica.
+ *
+ * Antes el mes de cada movimiento salía de `getMonth()`, o sea de la hora
+ * del servidor — UTC en Vercel.
+ */
+it("un movimiento del último día del mes, de noche, cae en su propia barra", () => {
+  // 31 de octubre, 8 p.m. en Costa Rica = 1 de noviembre 02:00 UTC.
+  const totals = monthlyTotals(
+    [{ transaction_date: "2026-11-01T02:00:00.000Z", type: "EXPENSE", amount: 9_000 }],
+    6,
+    "2026-11"
+  );
+
+  const octubre = totals.find((t) => t.monthKey === "2026-10");
+  const noviembre = totals.find((t) => t.monthKey === "2026-11");
+  assert.equal(octubre?.expense, 9_000);
+  assert.equal(noviembre?.expense, 0);
+});
+
+it("los seis cubos salen del mes en curso, sin saltarse el cambio de año", () => {
+  const keys = monthlyTotals([], 6, "2026-01").map((t) => t.monthKey);
+  assert.deepEqual(keys, ["2025-08", "2025-09", "2025-10", "2025-11", "2025-12", "2026-01"]);
+});
+
+it("lo que cae fuera de la ventana no se suma a ninguna barra", () => {
+  const totals = monthlyTotals(
+    [{ transaction_date: "2020-01-15T12:00:00.000Z", type: "INCOME", amount: 500 }],
+    6,
+    "2026-11"
+  );
+  assert.equal(
+    totals.reduce((sum, t) => sum + t.income, 0),
+    0
+  );
 });

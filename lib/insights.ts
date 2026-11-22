@@ -1,4 +1,4 @@
-import { effectiveStatus } from "./fixedExpenses";
+import { addMonths, dayKeyOfISO, monthKey } from "./fixedExpenses";
 import type { FixedExpense, Transaction } from "./types";
 
 export interface MonthTotal {
@@ -6,11 +6,6 @@ export interface MonthTotal {
   label: string;
   income: number;
   expense: number;
-}
-
-function monthKeyOfIso(iso: string): string {
-  const d = new Date(iso);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
 /**
@@ -21,19 +16,31 @@ function monthKeyOfIso(iso: string): string {
 type MonthlyTotalsInput = Pick<Transaction, "transaction_date" | "type" | "amount">;
 
 /** Últimos `months` meses (incluyendo el actual). */
-export function monthlyTotals(transactions: MonthlyTotalsInput[], months = 6): MonthTotal[] {
-  const now = new Date();
+export function monthlyTotals(
+  transactions: MonthlyTotalsInput[],
+  months = 6,
+  currentMonth: string = monthKey()
+): MonthTotal[] {
   const buckets: MonthTotal[] = [];
   for (let i = months - 1; i >= 0; i--) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-    const label = new Intl.DateTimeFormat("es-CR", { month: "short" }).format(d);
+    const key = addMonths(`${currentMonth}-01`, -i).slice(0, 7);
+    const [year, month] = key.split("-").map(Number);
+    // El rótulo se arma desde la clave y en UTC: la clave ya es de Costa
+    // Rica, así que volver a pasarla por un huso la correría otra vez.
+    const label = new Intl.DateTimeFormat("es-CR", { month: "short", timeZone: "UTC" }).format(
+      new Date(Date.UTC(year, month - 1, 1))
+    );
     buckets.push({ monthKey: key, label, income: 0, expense: 0 });
   }
   const byKey = new Map(buckets.map((b) => [b.monthKey, b]));
 
   for (const t of transactions) {
-    const bucket = byKey.get(monthKeyOfIso(t.transaction_date));
+    // En hora de Costa Rica. Con la hora del servidor (UTC en Vercel), un
+    // gasto del último día del mes por la tarde caía en la barra del mes
+    // siguiente; y durante las últimas seis horas de cada mes, el mes en
+    // curso que arma los cubos ya era el siguiente y el gráfico perdía su
+    // barra más vieja.
+    const bucket = byKey.get(dayKeyOfISO(t.transaction_date).slice(0, 7));
     if (!bucket) continue;
     if (t.type === "INCOME") bucket.income += t.amount;
     else bucket.expense += t.amount;
@@ -135,8 +142,7 @@ export const MAX_CATEGORY_SLICES = 6;
  */
 export function categorySpending(
   expenseTransactions: Pick<Transaction, "category" | "amount" | "type">[],
-  fixedExpenses: FixedExpense[],
-  currentMonthKey: string
+  fixedExpenses: FixedExpense[]
 ): CategorySlice[] {
   const totals = new Map<string, { amount: number; fixed: number }>();
 
@@ -154,7 +160,6 @@ export function categorySpending(
   for (const expense of fixedExpenses) {
     // Los fijos cuentan por el mes completo, estén pagados o pendientes: el
     // desglose responde "en qué se va la plata del mes", no "qué ya salió".
-    effectiveStatus(expense, currentMonthKey);
     add(expense.category ?? "Sin categoría", expense.amount, true);
   }
 

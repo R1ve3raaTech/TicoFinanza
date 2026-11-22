@@ -1,4 +1,4 @@
-import { daysInMonth } from "./fixedExpenses";
+import { dayKeyOfISO, daysInMonth } from "./fixedExpenses";
 import type { Transaction } from "./types";
 
 /**
@@ -51,11 +51,22 @@ function spentUpTo(movements: Movement[], monthKey: string, day: number, categor
   let total = 0;
   for (const m of movements) {
     if (m.type !== "EXPENSE") continue;
-    if (!m.transaction_date.startsWith(monthKey)) continue;
     if (category && m.category !== category) continue;
-    // La fecha viene como ISO; los caracteres 8 y 9 son el día del mes.
-    const dayOfMonth = Number(m.transaction_date.slice(8, 10));
-    if (dayOfMonth > limit) continue;
+    // **El día se lee en hora de Costa Rica, no cortando la cadena.**
+    //
+    // `transaction_date` es `timestamptz` y baja en UTC, así que un gasto
+    // anotado a las 7 de la noche llega como el día siguiente. Acá eso
+    // rompía la comparación de dos formas, las dos en contra:
+    //
+    // 1. Lo de hoy por la noche se iba a "mañana", que es mayor que el
+    //    corte, así que **se descartaba**. Contra un mes pasado que sí
+    //    tenía sus noches completas, la tarjeta se inclinaba a decir
+    //    "estás gastando menos" todas las tardes.
+    // 2. Un gasto del último día del mes, de noche, caía en el mes
+    //    siguiente y desaparecía de los dos lados de la comparación.
+    const key = dayKeyOfISO(m.transaction_date);
+    if (!key.startsWith(monthKey)) continue;
+    if (Number(key.slice(8, 10)) > limit) continue;
     total += m.amount;
   }
   return total;

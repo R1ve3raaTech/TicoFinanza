@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { DashboardView } from "@/components/dashboard/DashboardView";
+import { startOfDayISO } from "@/lib/dateRange";
 import {
+  addMonths,
   CR_TZ,
   dayKey,
   fixedTotals,
@@ -170,7 +172,7 @@ export default async function DashboardPage() {
   const todayNumber = Number(todayKey.slice(8, 10));
   const comparison = compareMonths(history, currentMonth, todayNumber);
 
-  const slices = categorySpending(ofThisMonth, fixed, currentMonth).map((slice) => ({
+  const slices = categorySpending(ofThisMonth, fixed).map((slice) => ({
     ...slice,
     changePercent: compareMonths(history, currentMonth, todayNumber, slice.label).percent,
   }));
@@ -202,18 +204,21 @@ export default async function DashboardPage() {
   );
 }
 
-/** Primer día del mes de hace cinco meses, que es donde arranca el gráfico. */
 /**
- * Primer día del mes en curso. Con margen de un día hacia atrás porque la
- * consulta compara contra un `timestamptz` en UTC y Costa Rica va seis
- * horas atrás: sin el margen, un gasto del día 1 temprano quedaría afuera.
+ * Los dos límites de las consultas, en hora de Costa Rica.
+ *
+ * Son solo el piso de lo que se trae: el mes de verdad lo recorta después
+ * `monthKey()` sobre cada fila. Pero el piso **también** tenía que ir en
+ * hora de Costa Rica, porque salía de `getUTCMonth()`: durante las últimas
+ * seis horas de cada mes el servidor ya estaba en el mes siguiente, así que
+ * el piso saltaba un mes entero. Consecuencia real: en esas horas el
+ * emparejamiento de un gasto fijo con su movimiento se quedaba sin
+ * movimientos que mirar, y el gráfico perdía su barra más vieja.
  */
 function monthStartISO(): string {
-  const d = new Date();
-  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1, -12)).toISOString();
+  return startOfDayISO(`${monthKey()}-01`);
 }
 
 function sixMonthsAgoISO(): string {
-  const d = new Date();
-  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() - 5, 1)).toISOString();
+  return startOfDayISO(`${addMonths(`${monthKey()}-01`, -5).slice(0, 7)}-01`);
 }

@@ -76,3 +76,42 @@ it("una diferencia de calderilla se lee como 'igual'", () => {
 it("los dos meses en cero son iguales, no una caída", () => {
   assert.equal(comparisonTone(compareMonths([], "2026-11", 3)), "igual");
 });
+
+
+/**
+ * **El día se lee en hora de Costa Rica, no cortando la cadena ISO.**
+ *
+ * `transaction_date` es `timestamptz` y baja en UTC, así que todo lo
+ * anotado después de las 6 de la tarde llega con la fecha del día
+ * siguiente. En esta comparación eso se sentía siempre en la misma
+ * dirección, porque el mes en curso se corta en el día de hoy.
+ */
+it("lo gastado hoy por la noche cuenta para hoy", () => {
+  // 3 de noviembre, 7 p.m. en Costa Rica = 4 de noviembre 01:00 UTC.
+  const esaNoche = {
+    amount: 10_000,
+    type: "EXPENSE" as const,
+    transaction_date: "2026-11-04T01:00:00.000Z",
+    category: "Alimentación",
+  };
+
+  const c = compareMonths([esaNoche], "2026-11", 3);
+
+  assert.equal(c.current, 10_000, "cortando la cadena caía en el día 4 y se descartaba");
+});
+
+it("un gasto del último día del mes, de noche, se queda en su mes", () => {
+  // 31 de octubre, 8 p.m. en Costa Rica = 1 de noviembre 02:00 UTC.
+  const finDeOctubre = {
+    amount: 7_000,
+    type: "EXPENSE" as const,
+    transaction_date: "2026-11-01T02:00:00.000Z",
+    category: "Alimentación",
+  };
+
+  // Con el corte en 31, octubre entra completo.
+  const c = compareMonths([finDeOctubre], "2026-11", 31);
+
+  assert.equal(c.previous, 7_000, "es de octubre");
+  assert.equal(c.current, 0, "y no de noviembre");
+});

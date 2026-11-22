@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { startOfDayISO } from "@/lib/dateRange";
 import { monthKey } from "@/lib/fixedExpenses";
 import { ownsRow } from "@/lib/supabase/ownership";
 import { createClient } from "@/lib/supabase/server";
@@ -206,8 +207,11 @@ export async function unconfirmFixedIncome(id: string) {
 
   if (error) return { error: GENERIC_ERROR };
 
-  const [year, month] = monthKey().split("-").map(Number);
-  const monthStart = new Date(Date.UTC(year, month - 1, 1)).toISOString();
+  // El mes arranca a medianoche **de Costa Rica**. Con medianoche UTC el
+  // corte caía a las 6 de la tarde del último día del mes anterior, así que
+  // este borrado podía llevarse el movimiento del ciclo PASADO — justo lo
+  // que dice el comentario de arriba que no hay que tocar.
+  const monthStart = startOfDayISO(`${monthKey()}-01`);
 
   await supabase
     .from("transactions")

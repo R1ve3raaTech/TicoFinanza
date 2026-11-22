@@ -35,7 +35,14 @@ export async function GET(request: NextRequest) {
   if (request.headers.get("authorization") !== `Bearer ${secret}`) return unauthorized();
 
   if (!(await anyPushConfigured())) {
-    return NextResponse.json({ error: "Claves VAPID sin configurar" }, { status: 503 });
+    // Nombra los dos caminos a propósito: esto solo es falso cuando faltan
+    // **ambas** credenciales, y el mensaje viejo ("Claves VAPID") manda a
+    // revisar el navegador cuando lo que no está configurado puede ser
+    // Firebase, que es por donde van los avisos del APK.
+    return NextResponse.json(
+      { error: "Sin credenciales de push: faltan las claves VAPID y las de Firebase" },
+      { status: 503 }
+    );
   }
 
   const admin = createAdminClient();
