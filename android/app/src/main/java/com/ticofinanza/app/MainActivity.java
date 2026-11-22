@@ -10,9 +10,10 @@ import com.getcapacitor.BridgeActivity;
 /**
  * La actividad del envoltorio.
  *
- * Agrega tres cosas sobre la de Capacitor: guardar la sesión antes de que
- * Android se lleve la app, esconder los saldos de la lista de recientes, y
- * pintar el fondo del mismo negro que la web.
+ * Agrega cuatro cosas sobre la de Capacitor: registrar el plugin del lector
+ * de notificaciones, guardar la sesión antes de que Android se lleve la app,
+ * esconder los saldos de la lista de recientes, y pintar el fondo del mismo
+ * negro que la web.
  *
  * <h3>Por qué hay que guardar las cookies a mano</h3>
  *
@@ -61,6 +62,15 @@ public class MainActivity extends BridgeActivity {
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
+        // **Antes de super, obligatoriamente.** `BridgeActivity.onCreate`
+        // arma el puente con los plugins que ya estén registrados; uno
+        // agregado después no existe para el JavaScript, y la llamada se
+        // queda esperando sin dar error.
+        //
+        // Este es un plugin de la propia app, no un paquete de npm, así que
+        // no lo registra `cap sync`: va acá a mano.
+        registerPlugin(LectorPlugin.class);
+
         super.onCreate(savedInstanceState);
         // Al arrancar la app ya está a la vista: sin bandera, para que una
         // captura salga normal desde el primer momento.

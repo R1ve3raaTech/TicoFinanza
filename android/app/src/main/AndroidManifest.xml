@@ -24,6 +24,30 @@
 
         </activity>
 
+        <!--
+            El lector de notificaciones.
+
+            `android:exported="true"` y el permiso de abajo no son opcionales
+            ni son una apertura nuestra: es el sistema el que se ata a este
+            servicio, así que tiene que poder verlo, y Android exige que SOLO
+            él pueda atarse — eso es justo lo que declara
+            BIND_NOTIFICATION_LISTENER_SERVICE. Sin esos dos atributos el
+            servicio no aparece en la lista de Ajustes de Android y no hay
+            forma de concederle el permiso.
+
+            El permiso se activa a mano en los ajustes del teléfono, no con
+            un diálogo: no existe una forma de pedirlo desde la app.
+        -->
+        <service
+            android:name=".LectorDeNotificaciones"
+            android:label="@string/app_name"
+            android:exported="true"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"

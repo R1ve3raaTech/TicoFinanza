@@ -8,6 +8,7 @@ import {
   BookOpen,
   CaretRight,
   DownloadSimple,
+  BellSimple,
   LockKey,
   Palette,
   Printer,
@@ -24,6 +25,7 @@ import { AppLockSetting } from "./AppLockSetting";
 import { CategoryPanel } from "./CategoryPanel";
 import { DangerZone } from "./DangerZone";
 import { DeleteAccountFlow } from "./DeleteAccountFlow";
+import { NotificationReader } from "./NotificationReader";
 import { ProfileSettings } from "./ProfileSettings";
 import { RemindersSetting } from "./RemindersSetting";
 import { SessionSettings } from "./SessionSettings";
@@ -175,6 +177,20 @@ export function SettingsScreen({ data }: { data: SettingsData }) {
         </>
       ),
     },
+    // **Solo en el APK.** Un lector de notificaciones es código nativo: en
+    // la web no hay nada que mostrar, y una sección cuyo único contenido
+    // sería "esto no está disponible acá" es peor que no estar.
+    ...(isApp
+      ? [
+          {
+            id: "lector",
+            label: "Leer notificaciones",
+            icon: BellSimple,
+            valor: "Capturar avisos del banco",
+            panel: <NotificationReader />,
+          } as Seccion,
+        ]
+      : []),
     {
       // **El cerrojo y la sesión son la misma pregunta: quién puede
       // entrar.** Separados, "Cuenta" era una sola fila con el botón de
