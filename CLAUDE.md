@@ -3463,3 +3463,143 @@ en producción, con la cuenta de verdad:
   (ojo: la meta que se creó para probarlo quedó como meta normal, sin
   recurrencia).
 - El envío real de un push y la corrida del cron.
+
+## Dónde quedamos (2026-11-21, sexta parte) — fechas en UTC, y el lector de notificaciones
+
+### Cinco cálculos del resumen leían la fecha en UTC
+
+La misma causa de siempre: `transaction_date` es `timestamptz` y baja en UTC,
+así que todo lo anotado después de las 6 de la tarde llega con la fecha del
+día siguiente.
+
+- **La comparación contra el mes pasado descartaba lo gastado hoy por la
+  noche.** El mes en curso se corta en el día de hoy, así que un gasto de las
+  7 p.m. caía en "mañana" y quedaba fuera; el mes pasado, en cambio, tenía
+  todas sus noches completas. O sea que la tarjeta se inclinaba a decir
+  **"estás gastando menos" todas las tardes**, y lo mismo la variación de cada
+  categoría en la leyenda de la dona. (`spentUpTo`, `lib/comparison.ts`.)
+- **El gráfico de seis meses** armaba los cubos con `getMonth()`, o sea la hora
+  del servidor — UTC en Vercel. Un movimiento del último día del mes por la
+  tarde caía en la barra del mes siguiente. Y durante las últimas seis horas
+  de cada mes el "mes en curso" que arma los cubos ya era el siguiente, así que
+  el gráfico perdía su barra más vieja. `monthlyTotals` recibe ahora el mes por
+  parámetro, lo que de paso la hace probable.
+- **Desmarcar un gasto fijo o un ingreso podía borrar el movimiento del ciclo
+  PASADO.** El corte era medianoche UTC del día 1, o sea las 6 p.m. del último
+  día del mes anterior — justo lo que el comentario de esa función dice que no
+  hay que tocar.
+- **Los dos límites de las consultas del resumen** salían de `getUTCMonth()`:
+  durante las últimas seis horas de cada mes el servidor ya estaba en el mes
+  siguiente y el piso saltaba un mes entero. En esas horas el emparejamiento
+  automático de un fijo con su movimiento se quedaba sin movimientos que
+  mirar.
+
+De paso: el 503 de `/api/reminders` culpaba a las claves VAPID cuando
+`anyPushConfigured()` también mira Firebase — mandaba a revisar el camino
+equivocado. Y un llamado muerto a `effectiveStatus()` en `categorySpending`,
+cuyo valor se descartaba.
+
+**La regla, otra vez y ahora con más casos**: una fecha que viene de la base
+se lee con `dayKeyOfISO()`, y un límite de mes se arma con `startOfDayISO()`.
+Nunca `.slice(0, 10)`, nunca `getMonth()`, nunca `Date.UTC(...)`.
+
+### El lector de notificaciones de Android, fase de captura
+
+Primer paso de que un aviso de compra del banco o de Wallet se convierta en
+movimiento solo. **No hay ningún parser todavía, y eso es la decisión.** El
+formato de un aviso bancario no se puede adivinar: es exactamente así como
+nació el bug de agosto de 2026 que registraba compras del Banco Popular como
+del BAC. Esto junta el texto crudo para escribirlos después, contra avisos de
+verdad.
+
+**Las piezas**: `LectorDeNotificaciones.java` (el
+`NotificationListenerService`), `AlmacenDeNotificaciones.java` (las
+preferencias), `LectorPlugin.java` (el plugin de Capacitor),
+`lib/notificaciones.ts` (el puente) y
+`components/settings/NotificationReader.tsx` (Ajustes → *Leer
+notificaciones*, solo en modo APK).
+
+- **El plugin es de la propia app, no de npm**, así que `cap sync` no lo ve y
+  no aparece en `capacitor.plugins.json`: se registra a mano en `MainActivity`
+  con `registerPlugin(LectorPlugin.class)` **antes de `super.onCreate()`**. Uno
+  agregado después no existe para el JavaScript y la llamada se queda
+  esperando sin dar error.
+- **Qué se captura de quién.** El servicio anota el **nombre** de toda app que
+  notifica —nada de su contenido— y eso llena la lista desde la que se eligen
+  los bancos: es la única forma de encontrar el paquete de una app sin
+  adivinarlo. El contenido se guarda solo de los paquetes marcados a mano. Un
+  listener ve **todo** lo que llega al teléfono, WhatsApp incluido; guardar eso
+  aunque sea en local no tiene defensa.
+- **Prender cuesta un diálogo del sistema; apagar es gratis.** Lo levantó la
+  revisión de seguridad y tenía razón: un método que acepte cualquier paquete
+  desde el JavaScript convierte un fallo cualquiera del sitio —un XSS, un
+  script de terceros— en un lector de todas las notificaciones del teléfono.
+  Ahora prender pasa por un `AlertDialog` **nativo**, que el JavaScript no
+  puede dibujar ni contestar, y el paquete tiene que haber notificado antes.
+  Apagar no pide nada, por el mismo criterio que `weakensLock()`: si cerrar una
+  puerta costara un trámite, el trámite empujaría a dejarla abierta.
+- **Nada sale del teléfono por su cuenta**: vive en `SharedPreferences`, sin
+  tabla nueva ni llamada al servidor, y el botón de copiar deja el texto en el
+  portapapeles. Y queda **fuera del respaldo de Android** (`backup_rules.xml` y
+  `data_extraction_rules.xml`): un aviso bancario trae el comercio, el monto y
+  a veces los últimos dígitos de la tarjeta.
+- Se descartan los avisos de la propia app, los resúmenes de grupo (su texto
+  es "3 mensajes nuevos" y duplicaría cada aviso) y los permanentes. El cuerpo
+  se lee de `EXTRA_BIG_TEXT` **antes** que de `EXTRA_TEXT`: el segundo viene
+  recortado con puntos suspensivos y ahí se pierde justo el monto.
+
+### El bug que encontró la QA, y que iba a pasar de verdad
+
+**La web sale a producción al publicar; el APK instalado solo cambia cuando
+alguien compila e instala uno nuevo.** O sea que entre una cosa y la otra esta
+pantalla corre contra una app **sin el plugin** — y una llamada al lado nativo
+que no está **no falla: se queda sin contestar**. El tablero se quedaba en
+"Consultando…" para siempre.
+
+Es el mismo tropiezo que el cerrojo colgado en "Esperando tu huella..." y el
+cierre de sesión en "Cerrando...". Dos detalles que costaron tres vueltas:
+
+1. **El tope tiene que cubrir la resolución del plugin, no solo la llamada.**
+   La primera versión lo ponía alrededor del método y el tablero se quedaba
+   colgado igual: lo que colgaba era `registerPlugin` contra un Capacitor que
+   se cree en Android y no encuentra el plugin.
+2. **El helper recibe una función, no una promesa.** Capacitor puede **lanzar
+   de forma sincrónica**; con una promesa como parámetro la excepción ocurre al
+   evaluar el argumento, antes de entrar al `try`, y se escapa de los dos
+   lados. Quitar el `try/catch` "porque ya hay tope" fue justo el error.
+
+Y `registerPlugin` se llamaba desde cada función exportada: siete avisos de
+"already registered" por refresco, que es el ruido que esconde un aviso de
+verdad. Ahora se memoriza.
+
+**Para probar esto con Playwright hay que inyectar el puente**
+(`addInitScript(() => { window.androidBridge = {}; })`): falsear el
+identificador del navegador **no alcanza**, porque `hasNativeBridge()` mira
+`window.androidBridge`, que lo crea Android desde el lado nativo. Sin eso el
+panel se esconde solo —que es lo correcto— y no hay nada que medir. Con el
+puente falso, Capacitor tira "plugin is not implemented" por `pageerror` y no
+por la consola: hay que filtrar los dos canales.
+
+**Y una comprobación mía que estaba mal**: busqué las cadenas "backup_rules" y
+"data_extraction_rules" dentro del APK y no estaban. No faltaban las reglas:
+el build de *release* ofusca los nombres de los archivos de recursos
+(`res/xK.xml`). Lo que hay que buscar en el manifiesto son los **atributos**
+(`fullBackupContent`, `dataExtractionRules`), que sí están en el pool de
+cadenas.
+
+### Lo que falta, y es de Camil
+
+1. Instalar el APK nuevo (artefacto `TicoFinanza-release` de la corrida del
+   workflow "APK de Android").
+2. Dar el permiso, marcar los bancos y Google Wallet, y usar la tarjeta unos
+   días.
+3. Mandar el "Copiar todo" con compras reales, con variedad: tarjeta, SINPE,
+   retiro, alguna en dólares. **Con eso se escriben los parsers**, con pruebas
+   que usen ese texto exacto.
+
+**Estado**: `npm test` (281, 15 nuevas entre las fechas y el lector), `eslint`,
+`tsc` y `npm run build` limpios. QA con Playwright contra el build de
+producción a 1440 oscuro y 390 claro: 22 comprobaciones. APK release compilado
+y verificado por dentro (el servicio con su `intent-filter` y su permiso, el
+plugin y el almacén en el dex, el texto del diálogo de consentimiento, y los
+dos atributos de respaldo en el manifiesto).
