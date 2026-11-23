@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { DashboardPreview } from "@/components/landing/DashboardPreview";
 import { Faq } from "@/components/landing/Faq";
 import { Features } from "@/components/landing/Features";
-import { AndroidInstall } from "@/components/landing/AndroidInstall";
+import { InstallSection } from "@/components/landing/InstallSection";
 import { Footer } from "@/components/landing/Footer";
 import { Hero } from "@/components/landing/Hero";
 import { LandingSpine, SectionLabel, type SpineSection } from "@/components/landing/LandingSpine";
@@ -213,11 +213,11 @@ export default async function LandingPage() {
               <Section
                 id="instalar"
                 label="Instalar"
-                title="Instalala en tu Android"
-                lead="Queda con su propio ícono y sin la barra del navegador en el medio. En iPhone y en la compu se usa desde el navegador, igual que cualquier sitio."
-                measure="reading"
+                title="Instalala en tu teléfono"
+                lead="Queda con su propio ícono y a pantalla completa, sin la barra del navegador en el medio. En Android y en iPhone."
+                measure="full"
               >
-                <AndroidInstall />
+                <InstallSection />
               </Section>
 
               <Section

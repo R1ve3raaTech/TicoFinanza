@@ -45,7 +45,7 @@ const faqs = [
   },
   {
     q: "¿Se instala en el teléfono?",
-    a: "En Android sí: se descarga el archivo de instalación desde acá mismo y queda con su ícono, a pantalla completa. No hay que pasar por ninguna tienda. En iPhone y en la compu se usa desde el navegador, como cualquier sitio.",
+    a: "Sí, en los dos. En Android se descarga el archivo desde acá mismo, sin pasar por ninguna tienda. En iPhone se agrega desde Safari en tres toques: Apple no permite instalar archivos por fuera de su tienda, pero así queda igual — con su ícono, a pantalla completa y sin la barra del navegador. Los pasos de las dos están más arriba, en Instalar.",
   },
 ];
 
